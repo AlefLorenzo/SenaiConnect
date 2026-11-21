@@ -24,17 +24,32 @@ async function supabaseAuthRequest(path, options = {}) {
   };
 
   let response;
+  const timeoutMs = Math.max(
+    1000,
+    Math.min(Number(process.env.SUPABASE_AUTH_TIMEOUT_MS) || 10000, 30000)
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     response = await fetch(config.url + '/auth/v1/' + path, {
       method: options.method || 'POST',
       headers,
+      signal: controller.signal,
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {})
     });
   } catch (cause) {
-    const error = new Error('Não foi possível alcançar o Supabase Auth. Verifique a URL e a conexão do servidor.');
-    error.status = 503;
+    const timedOut = cause && cause.name === 'AbortError';
+    const error = new Error(
+      timedOut
+        ? 'O Supabase Auth demorou mais que o limite de resposta. Tente novamente.'
+        : 'Não foi possível alcançar o Supabase Auth. Verifique a URL e a conexão do servidor.'
+    );
+    error.status = timedOut ? 504 : 503;
     error.cause = cause;
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 
   const raw = await response.text();
