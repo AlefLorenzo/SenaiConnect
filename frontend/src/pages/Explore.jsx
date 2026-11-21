@@ -54,7 +54,7 @@ const Explore = () => {
     mountedRef.current = true;
     setLoading(true);
     try {
-      const data = await searchService.getSuggestions();
+      const data = await searchService.getSuggestions(true);
       if (mountedRef.current) setSuggestions(data);
     } catch (e) { console.error(e); }
     finally { if (mountedRef.current) setLoading(false); }
