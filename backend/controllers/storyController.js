@@ -9,7 +9,18 @@ const storyController = {
             const viewerId = req.user?.id || null;
 
             const query = `
-                SELECT s.*, u.name as user_name, u.avatar as user_avatar,
+                SELECT s.*,
+                CASE
+                    WHEN s.user_id = ${viewerId || 0} THEN 1
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM story_views sv
+                        WHERE sv.story_id = s.id
+                          AND sv.user_id = ${viewerId || 0}
+                    ) THEN 1
+                    ELSE 0
+                END AS viewed,
+                u.name as user_name, u.avatar as user_avatar,
                 ${buildEmailSelectClause(viewerId, 'u')},
                 ${buildProfileVisibilityClause(viewerId, 'u')},
                 u.privacy_showProfile
@@ -74,7 +85,8 @@ const storyController = {
                     created_at: story.created_at,
                     expires_at: story.expires_at,
                     reply_count: story.reply_count,
-                    reaction_count: story.reaction_count
+                    reaction_count: story.reaction_count,
+                    viewed: Boolean(story.viewed)
                 });
             });
 
