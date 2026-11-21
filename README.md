@@ -1,97 +1,194 @@
+# SENAI Connect
 
+Plataforma educacional em formato de rede social acadêmica para conectar alunos, professores, empresas e comunidades de aprendizagem.
 
----
+## Stack atual
 
-# 🚀 SENAI Connect
+- Frontend: React 19, React Router e Vite 8.
+- Backend: Node.js 24 e Express 5.
+- Comunicação em tempo real: Socket.IO.
+- Banco de dados: PostgreSQL hospedado no Supabase.
+- Autenticação: Supabase Auth, validada pelo backend.
+- Hospedagem: Render (frontend e API em serviços separados).
 
-O **SENAI Connect** é uma **plataforma educacional interativa**, desenvolvida como uma **rede social acadêmica**, que conecta **alunos, professores e comunidades de aprendizagem** em um único ambiente digital moderno, responsivo e funcional.
+## Requisitos
 
-O projeto foi pensado para simular um **sistema real**, com foco em **experiência do usuário**, **interação social**, **organização educacional** e **escalabilidade**, funcionando tanto em **desktop quanto em dispositivos móveis**.
+- Node.js **24.22.1** (versão definida em .nvmrc e .node-version).
+- npm incluído na instalação do Node.js.
+- Git.
+- Acesso ao projeto Supabase e às credenciais de desenvolvimento.
+- Windows PowerShell, macOS ou Linux.
 
----
+Confira as versões instaladas:
 
-## 🎯 Objetivo do Projeto
+~~~bash
+node --version
+npm --version
+git --version
+~~~
 
-Criar um ambiente digital onde usuários possam:
+A versão esperada do Node é v24.22.1. Caso utilize nvm, execute nvm install 24.22.1 e nvm use 24.22.1 (no Windows, use o nvm-windows).
 
-* Compartilhar conteúdos educacionais
-* Interagir por meio de posts, comentários e curtidas
-* Participar de grupos e comunidades
-* Trocar mensagens privadas
-* Acompanhar avisos, eventos e comunicados institucionais
+## 1. Baixar o projeto
 
-Tudo isso com **funcionalidades reais**, persistência de dados e navegação completa, evitando telas vazias ou ações sem resposta.
+~~~bash
+git clone https://github.com/AlefLorenzo/SenaiConnect.git
+cd SenaiConnect
+git switch feat/supabase-migration-auth
+~~~
 
----
+Se a equipe estiver trabalhando em outra branch, substitua o nome da branch pelo branch de desenvolvimento adotado.
 
-## ✨ Funcionalidades Principais
+## 2. Configurar e iniciar o backend
 
-* 🔐 **Autenticação completa**
+Abra um terminal na raiz do projeto e entre na pasta backend.
 
-  * Cadastro, login e logout
-  * Perfis de aluno e professor
+No Windows PowerShell:
 
-* 📰 **Feed interativo**
+~~~powershell
+cd backend
+Copy-Item .env.example .env
+npm ci
+~~~
 
-  * Criar, editar e remover posts
-  * Curtir, comentar, salvar e compartilhar
-  * Upload de imagens e arquivos
+No macOS/Linux:
 
-* 👤 **Perfil do usuário**
+~~~bash
+cd backend
+cp .env.example .env
+npm ci
+~~~
 
-  * Visualização e edição de perfil
-  * Lista de publicações, grupos e conteúdos salvos
+Abra backend/.env e preencha os valores reais:
 
-* 💬 **Mensagens privadas**
+| Variável | Obrigatória | Uso |
+|---|---:|---|
+| NODE_ENV | Não | Use development no ambiente local. |
+| PORT | Não | Porta local da API; padrão 5000. |
+| FRONTEND_URL | Sim para CORS | Origem local do Vite; padrão http://localhost:5173. |
+| FRONTEND_URLS | Não | Outras origens permitidas, separadas por vírgula. |
+| SUPABASE_URL | Sim | URL do projeto Supabase. |
+| SUPABASE_PUBLISHABLE_KEY | Sim* | Chave publicável do Supabase usada pelo backend para Auth. |
+| SUPABASE_ANON_KEY | Sim* | Nome legado aceito como alternativa à chave publicável. |
+| DATABASE_URL | Sim* | URI PostgreSQL do Supabase. |
+| SUPABASE_DB_URL | Sim* | Alternativa legada aceita pelo conector do banco. |
+| SUPABASE_AUTH_TIMEOUT_MS | Não | Timeout das chamadas de autenticação; padrão 10000 ms. |
+| DB_SSL | Não | Use require para conexões TLS. |
+| DB_POOL_MAX | Não | Limite do pool PostgreSQL; padrão 10. |
 
-  * Conversas individuais
-  * Envio e recebimento de mensagens
+* Informe uma das opções de cada grupo: SUPABASE_PUBLISHABLE_KEY ou SUPABASE_ANON_KEY; DATABASE_URL ou SUPABASE_DB_URL.
 
-* 👥 **Grupos e comunidades**
+Copie a URI PostgreSQL em Supabase > Connect. Para um serviço Node persistente, escolha um método de conexão compatível com o ambiente de hospedagem e a disponibilidade de IPv4. Não compartilhe nem envie a senha do banco ao GitHub.
 
-  * Criar, entrar e participar de grupos
-  * Feed exclusivo por grupo
+A chave publicável/anon é usada no backend para as chamadas REST do Supabase Auth. Não coloque credenciais do banco, service_role ou outros segredos em variáveis VITE_*: tudo que começa com VITE_ pode ser incluído no JavaScript enviado ao navegador.
 
-* 📢 **Avisos e eventos**
+As variáveis MYSQL_SOURCE_* são opcionais e servem exclusivamente para a ferramenta de cópia de dados legados MySQL. Não preencha nem execute a migração para iniciar o sistema.
 
-  * Comunicados institucionais
-  * Agenda de eventos e atividades
+Valide o ambiente e inicie a API:
 
-* 📱 **Interface responsiva**
+~~~bash
+npm run check:env
+npm run dev
+~~~
 
-  * Layout adaptado para mobile e desktop
-  * Navegação intuitiva com sidebar e bottom bar
+A API local ficará em http://localhost:5000. Mantenha esse terminal aberto.
 
----
+## 3. Configurar e iniciar o frontend
 
-## 🧱 Arquitetura do Sistema
+Abra um **segundo terminal** na raiz do projeto:
 
-O projeto segue uma arquitetura moderna, com separação clara de responsabilidades:
+Windows PowerShell:
 
-* **Frontend**: Interface do usuário, navegação e interação
-* **Backend**: API REST, regras de negócio e autenticação
-* **Banco de Dados**: Persistência de usuários, posts, comentários, mensagens e grupos
+~~~powershell
+cd frontend
+Copy-Item .env.example .env
+npm ci
+npm run dev
+~~~
 
-Todos os elementos clicáveis executam ações reais, garantindo uma experiência completa e testável.
+macOS/Linux:
 
----
+~~~bash
+cd frontend
+cp .env.example .env
+npm ci
+npm run dev
+~~~
 
-## 🛠️ Tecnologias Utilizadas
+O arquivo frontend/.env deve conter:
 
-* **Frontend**: React / Next.js
-* **Backend**: Node.js + Express
-* **Banco de Dados**: PostgreSQL / MongoDB
-* **Autenticação**: JWT
-* **Estilização**: CSS Modules / Tailwind
-* **Versionamento**: Git + GitHub
+~~~dotenv
+VITE_API_URL=http://localhost:5000
+VITE_USE_MOCK=false
+~~~
 
-*(As tecnologias podem ser adaptadas conforme o ambiente do projeto)*
+VITE_API_URL aponta para a API Node/Express. VITE_USE_MOCK deve permanecer false para utilizar autenticação, feed, mensagens e dados reais. O modo mock existe apenas para desenvolvimento visual e não representa uma sessão real.
 
----
+Abra http://localhost:5173 no navegador. O frontend e o backend precisam estar rodando ao mesmo tempo.
 
-## 🧪 Estado do Projeto
+## 4. Comandos úteis
 
-📌 **Em desenvolvimento contínuo**, com base sólida e funcionalidades principais já implementadas.
-O sistema está preparado para evolução, testes automatizados e deploy em ambiente de produção.
+### Backend (dentro de backend/)
 
----
+| Comando | Ação |
+|---|---|
+| npm run dev | Inicia a API com reinicialização automática ao alterar arquivos. |
+| npm start | Valida o ambiente e inicia a API sem modo watch. |
+| npm run check:env | Verifica as variáveis obrigatórias sem exibir seus valores. |
+| npm run check | Verifica a sintaxe dos principais arquivos do servidor. |
+| npm test | Executa as verificações e os testes automatizados existentes. |
+
+### Frontend (dentro de frontend/)
+
+| Comando | Ação |
+|---|---|
+| npm run dev | Inicia o servidor Vite. |
+| npm run build | Gera a versão de produção em frontend/dist. |
+| npm run preview | Serve localmente a build de produção para conferência. |
+| npm run lint | Executa o ESLint. |
+| npm test | Executa os testes Jest. |
+| npm run test:ci | Executa os testes em sequência, com cobertura, adequado para CI. |
+| npm run check | Executa lint e build. |
+
+Use npm ci para instalar exatamente as dependências registradas no package-lock.json. Use npm install somente quando for intencional adicionar/atualizar dependências; nesse caso, versione também o package-lock.json correspondente.
+
+## 5. Fluxo de conexão local
+
+1. O navegador carrega o React/Vite em localhost:5173.
+2. O frontend envia as chamadas HTTP e a conexão Socket.IO para a URL definida em VITE_API_URL.
+3. O Express atende a API e valida as sessões por meio do Supabase Auth.
+4. O backend acessa o PostgreSQL do Supabase usando DATABASE_URL.
+5. O frontend recebe somente os dados necessários para a interface; segredos permanecem no backend.
+
+Se alterar PORT no backend, atualize VITE_API_URL no frontend e FRONTEND_URL no backend para refletirem as novas portas/origens. As origens precisam coincidir exatamente, incluindo protocolo e porta.
+
+## 6. Solução de problemas de instalação
+
+- **Node incompatível / erro do Vite:** confirme node --version e use Node 24.22.1.
+- **Dependências inconsistentes:** dentro da pasta afetada, execute npm ci. Não apague nem recrie os arquivos package-lock.json.
+- **Porta 5000 ocupada:** encerre o processo que usa a porta ou defina outra PORT no backend e atualize VITE_API_URL e FRONTEND_URL.
+- **Erro de CORS:** confira se FRONTEND_URL é exatamente http://localhost:5173 (ou a origem que o Vite mostrou no terminal).
+- **API não conecta ao banco:** confira DATABASE_URL, usuário, senha, host, porta, SSL e método de conexão copiado do painel Supabase.
+- **Falha de autenticação:** confirme SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY; não use a senha do banco como chave de API.
+- **Tela abre, mas dados não carregam:** confirme que os dois terminais continuam ativos, VITE_API_URL aponta para a API e VITE_USE_MOCK está false.
+
+Nunca publique arquivos .env, tokens, senhas, chaves privadas ou arquivos de sessão. Os arquivos .env.example são modelos sem credenciais reais.
+
+## 7. Banco de dados e preservação de dados
+
+O ambiente local utiliza o banco Supabase configurado em DATABASE_URL. A instalação de dependências não cria, apaga nem migra tabelas. Não execute scripts de cópia, reset, seed ou alteração de schema automaticamente.
+
+Antes de qualquer mudança futura no schema ou nos dados, revise o SQL e o impacto, faça backup/exportação apropriada e valide primeiro em um ambiente separado. O script de migração MySQL para Supabase é uma ferramenta específica e não faz parte do fluxo normal de inicialização.
+
+## 8. Estado dos ambientes
+
+- Desenvolvimento local: frontend e backend iniciados separadamente, com arquivos .env próprios.
+- Produção: variáveis configuradas nos serviços Render e no Supabase; não reutilize credenciais locais.
+- Deploy: o frontend é compilado com Vite; o backend é iniciado como serviço Node/Express.
+
+Consulte também a documentação oficial:
+- Node.js: https://nodejs.org/en/download
+- npm ci: https://docs.npmjs.com/cli/commands/npm-ci
+- Vite: https://vite.dev/guide/
+- Supabase: https://supabase.com/docs
+- Render: https://render.com/docs
