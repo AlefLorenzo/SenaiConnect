@@ -67,11 +67,17 @@ const allowedOrigins = [
   'http://localhost:5209',
 ];
 
+const configuredOrigins = [
+  ...(process.env.FRONTEND_URL || '').split(','),
+  ...(process.env.FRONTEND_URLS || '').split(',')
+].map((value) => value.trim()).filter(Boolean);
+const allowedOriginSet = new Set([...allowedOrigins, ...configuredOrigins]);
+
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOriginSet.has(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
