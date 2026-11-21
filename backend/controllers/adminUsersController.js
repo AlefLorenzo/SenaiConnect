@@ -316,7 +316,7 @@ const adminUsersController = {
             if (users.length === 0) return res.status(404).json({ error: 'Usuário não encontrado.' });
             if (!users[0].email) return res.status(400).json({ error: 'O usuário não possui e-mail cadastrado.' });
 
-            const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\\/+$/, '');
+            const frontendUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
             const redirectTo = encodeURIComponent(frontendUrl + '/reset-password');
             await supabaseAuthRequest('recover?redirect_to=' + redirectTo, {
                 body: { email: users[0].email }
