@@ -138,7 +138,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Install-Dev.ps1
 
 Esse comando cria os arquivos `.env` somente quando ainda não existem e instala as dependências com `npm ci`. Ele nunca substitui seus arquivos `.env` existentes.
 
-**Nas próximas vezes:** abra a pasta do projeto e execute:
+**Nas próximas vezes:** basta dar duplo clique em `INICIAR-SENAI-CONNECT.bat`, na raiz do projeto. O atalho executa o inicializador e abre o navegador quando API, frontend e banco estiverem prontos.
+
+Também é possível iniciar pelo PowerShell:
 
 ~~~powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Start-Dev.ps1
