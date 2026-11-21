@@ -240,6 +240,8 @@ describe('StoryViewer', () => {
     fireEvent.pointerDown(contentArea);
     act(() => {
       jest.advanceTimersByTime(150);
+    });
+    act(() => {
       jest.advanceTimersByTime(31000);
     });
 
