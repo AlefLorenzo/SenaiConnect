@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import MobileBottomNav from './MobileBottomNav';
-import FloatingActionButton from './FloatingActionButton';
 import './AppLayout.css';
 
 const AppLayout = ({ children }) => {
@@ -68,27 +67,7 @@ const AppLayout = ({ children }) => {
         />
       )}
 
-      {/* Floating Action Button - mobile only for quick creation access (not on messages) */}
-      {!location.pathname.startsWith('/messages') &&
-       !location.pathname.startsWith('/admin') &&
-       !location.pathname.startsWith('/business') &&
-       location.pathname !== '/login' &&
-       location.pathype !== '/register' &&
-       location.pathname !== '/forgot-password' &&
-       location.pathname !== '/reset-password' &&
-       location.pathname !== '/onboarding' &&
-       user && isMobile && (
-        <FloatingActionButton
-          isVisible={true}
-          onCreatePost={handleCreatePost}
-          onCreateStory={() => {
-            // Navigate to home for story creation
-            handleNavigateHome();
-            sessionStorage.setItem('createStory', 'true');
-          }}
-          onNavigateHome={handleNavigateHome}
-        />
-      )}
+
     </div>
   );
 };
