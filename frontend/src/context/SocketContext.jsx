@@ -318,7 +318,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     socket.on('profile_updated', (data) => {
-      if (data.userId === user) {
+      if (data.userId === user?.id) {
         const token = sessionStorage.getItem('token');
         if (token) {
           fetch(`${API_URL}/api/auth/me`, {
