@@ -560,6 +560,8 @@ const messageController = {
             // Get conversationId from route params (the route is /conversations/:id/messages)
             const conversationId = req.params.id;
             const { content, type, message_type, mediaUrl, media_url, fileName, file_name, fileSize, file_size, fileType, file_type, attachments, receiverId } = req.body;
+            // Stable idempotency key reused by automatic retries and offline replay.
+            const clientMessageId = String(req.body.clientMessageId || req.body.client_message_id || crypto.randomUUID()).trim().slice(0, 128);
 
             // Process attachments array if present (frontend sends as attachments[N][mediaUrl] etc.)
             let processedAttachments = [];
@@ -599,30 +601,44 @@ const messageController = {
                 }
 
                 const messageType = finalMessageType;
-                const [result] = await db.query(
-                    "INSERT INTO group_messages (group_id, sender_id, content, status, message_type, media_url, attachment_name, attachment_size, attachment_type) VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?)",
-                    [conversationId, senderId, sanitizedContent, messageType, finalMediaUrl || null, finalFileName || null, finalFileSize || null, finalFileType || null]
+                const [insertResult] = await db.query(
+                    `INSERT INTO group_messages
+                        (group_id, sender_id, content, status, message_type, media_url,
+                         attachment_name, attachment_size, attachment_type, client_message_id)
+                     VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?, ?)
+                     ON CONFLICT (client_message_id) DO NOTHING
+                     RETURNING id`,
+                    [conversationId, senderId, sanitizedContent, messageType, finalMediaUrl || null,
+                     finalFileName || null, finalFileSize || null, finalFileType || null, clientMessageId]
                 );
-
-                const [newMessage] = await db.query(`
-                    SELECT gm.*, u.name as sender_name, u.avatar as sender_avatar
-                    FROM group_messages gm
-                    JOIN users u ON u.id = gm.sender_id
-                    WHERE gm.id = ?
-                `, [result.insertId]);
-
+                const wasCreated = Boolean(insertResult.insertId);
+                const lookupSql = wasCreated
+                    ? 'SELECT * FROM group_messages WHERE id = ?'
+                    : 'SELECT * FROM group_messages WHERE client_message_id = ? AND sender_id = ? AND group_id = ?';
+                const lookupParams = wasCreated
+                    ? [insertResult.insertId]
+                    : [clientMessageId, senderId, conversationId];
+                const [newMessage] = await db.query(lookupSql, lookupParams);
                 const message = newMessage[0];
+                if (!message) {
+                    return res.status(409).json({ error: 'O identificador desta mensagem já foi utilizado em outra conversa.' });
+                }
 
-                // Send to all group members except sender
-                const [members] = await db.query('SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?', [conversationId, senderId]);
+                const [senderRows] = await db.query('SELECT name, avatar FROM users WHERE id = ?', [senderId]);
+                const sender = senderRows[0] || { name: req.user.name, avatar: null };
 
-                for (const member of members) {
-                    socketHelper.sendToUser(member.user_id, 'new_message', {
+                if (wasCreated) {
+                    const [members] = await db.query(
+                        'SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?',
+                        [conversationId, senderId]
+                    );
+                    const eventPayload = {
                         id: message.id,
+                        clientMessageId,
                         conversationId: message.group_id,
                         senderId: message.sender_id,
-                        senderName: message.sender_name,
-                        senderAvatar: message.sender_avatar,
+                        senderName: sender.name,
+                        senderAvatar: sender.avatar,
                         content: message.content,
                         type: message.message_type,
                         message_type: message.message_type,
@@ -632,15 +648,17 @@ const messageController = {
                         fileName: message.attachment_name,
                         fileSize: message.attachment_size,
                         fileType: message.attachment_type,
-                    });
+                    };
+                    for (const member of members) socketHelper.sendToUser(member.user_id, 'new_message', eventPayload);
                 }
 
-                return res.status(201).json({
+                return res.status(wasCreated ? 201 : 200).json({
                     id: message.id,
+                    clientMessageId,
                     conversationId: message.group_id,
                     senderId: message.sender_id,
-                    senderName: message.sender_name,
-                    senderAvatar: message.sender_avatar,
+                    senderName: sender.name,
+                    senderAvatar: sender.avatar,
                     content: message.content,
                     type: message.message_type,
                     message_type: message.message_type,
@@ -672,48 +690,63 @@ const messageController = {
                 }
 
                 const messageType = finalMessageType;
-                const [result] = await db.query(
-                    "INSERT INTO messages (sender_id, receiver_id, content, status, message_type, media_url, attachment_name, attachment_size, attachment_type) VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?)",
-                    [senderId, receiverId, sanitizedContent, messageType, finalMediaUrl || null, finalFileName || null, finalFileSize || null, finalFileType || null]
+                const [insertResult] = await db.query(
+                    `INSERT INTO messages
+                        (sender_id, receiver_id, content, status, message_type, media_url,
+                         attachment_name, attachment_size, attachment_type, client_message_id)
+                     VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?, ?)
+                     ON CONFLICT (client_message_id) DO NOTHING
+                     RETURNING id`,
+                    [senderId, receiverId, sanitizedContent, messageType, finalMediaUrl || null,
+                     finalFileName || null, finalFileSize || null, finalFileType || null, clientMessageId]
                 );
-
-                const [newMessage] = await db.query('SELECT * FROM messages WHERE id = ?', [result.insertId]);
+                const wasCreated = Boolean(insertResult.insertId);
+                const lookupSql = wasCreated
+                    ? 'SELECT * FROM messages WHERE id = ?'
+                    : 'SELECT * FROM messages WHERE client_message_id = ? AND sender_id = ? AND receiver_id = ?';
+                const lookupParams = wasCreated
+                    ? [insertResult.insertId]
+                    : [clientMessageId, senderId, receiverId];
+                const [newMessage] = await db.query(lookupSql, lookupParams);
                 const message = newMessage[0];
+                if (!message) {
+                    return res.status(409).json({ error: 'O identificador desta mensagem já foi utilizado em outra conversa.' });
+                }
 
-                // Create Activity Center notification for new message
-                if (receiverId !== senderId) {
+                if (wasCreated && receiverId !== senderId) {
                     const notificationController = require('./notificationController');
                     await notificationController.createNotification(
                         receiverId,
                         'message',
                         senderId,
-                        `enviou uma mensagem.`,
+                        'enviou uma mensagem.',
                         'message',
                         message.id,
                         `message_${message.id}`,
                         { action: 'message', message_id: message.id, conversation_id: receiverId }
                     );
+
+                    socketHelper.sendToUser(receiverId, 'new_message', {
+                        id: message.id,
+                        clientMessageId,
+                        conversationId,
+                        senderId: message.sender_id,
+                        senderName: req.user.name,
+                        content: message.content,
+                        type: message.message_type,
+                        message_type: message.message_type,
+                        status: message.status,
+                        createdAt: message.created_at,
+                        mediaUrl: message.media_url,
+                        fileName: message.attachment_name,
+                        fileSize: message.attachment_size,
+                        fileType: message.attachment_type,
+                    });
                 }
 
-                // Send to receiver - use the proper conversationId format (e.g., "38_42")
-                socketHelper.sendToUser(receiverId, 'new_message', {
+                return res.status(wasCreated ? 201 : 200).json({
                     id: message.id,
-                    conversationId: conversationId, // Use original conversationId from params (format: "userId1_userId2")
-                    senderId: message.sender_id,
-                    senderName: req.user.name,
-                    content: message.content,
-                    type: message.message_type,
-                    message_type: message.message_type,
-                    status: message.status,
-                    createdAt: message.created_at,
-                    mediaUrl: message.media_url,
-                    fileName: message.attachment_name,
-                    fileSize: message.attachment_size,
-                    fileType: message.attachment_type,
-                });
-
-                return res.status(201).json({
-                    id: message.id,
+                    clientMessageId,
                     conversationId: receiverId,
                     senderId: message.sender_id,
                     senderName: req.user.name,
