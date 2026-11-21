@@ -114,6 +114,26 @@ describe('MySQL to PostgreSQL query compatibility', () => {
     expect(result.text).toContain("TO_CHAR(bf.created_at, 'DD/MM/YYYY HH24:MI')");
   });
 
+  test('maps group admin upsert and keeps the required assigned_by value', () => {
+    const result = translateQuery(
+      'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE assigned_by = ?',
+      [7, 22, 9, 9]
+    );
+
+    expect(result.text).toContain('ON CONFLICT (group_id, admin_id)');
+    expect(result.text).toContain('assigned_by = EXCLUDED.assigned_by');
+    expect(result.values).toEqual([7, 22, 9]);
+  });
+
+  test('returns generated identifiers for every identity table used by the schema', () => {
+    const result = translateQuery(
+      'INSERT INTO story_reactions (story_id, user_id, reaction) VALUES (?, ?, ?)',
+      [4, 8, 'heart']
+    );
+
+    expect(result.text).toMatch(/RETURNING id$/);
+  });
+
   test('converts MySQL pagination to PostgreSQL order', () => {
     const result = translateQuery(
       'SELECT id FROM users ORDER BY id LIMIT ?, ?',
