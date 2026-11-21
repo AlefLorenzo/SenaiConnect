@@ -90,9 +90,14 @@ function App() {
   if (!user) {
     return (
       <Router>
-        <Routes>
-          <Route path="*" element={<Auth />} />
-        </Routes>
+        <Suspense fallback={<div style={{display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center'}}>Carregando página...</div>}>
+          <Routes>
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="*" element={<Auth />} />
+          </Routes>
+        </Suspense>
       </Router>
     );
   }
