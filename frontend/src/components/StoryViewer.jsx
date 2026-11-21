@@ -32,6 +32,72 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     return () => setStoryViewerOpen(false);
   }, [setStoryViewerOpen]);
 
+  // Lock every page scroll container while the story is fullscreen.
+  // This covers the document and the app's independently scrollable main area.
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const hadLockClass = root.classList.contains('story-viewer-open');
+
+    const previousRootStyles = {
+      overflow: root.style.overflow,
+      overscrollBehavior: root.style.overscrollBehavior,
+    };
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      overscrollBehavior: body.style.overscrollBehavior,
+    };
+
+    root.classList.add('story-viewer-open');
+    root.style.overflow = 'hidden';
+    root.style.overscrollBehavior = 'none';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = `-${scrollX}px`;
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'none';
+
+    const preventBackgroundScroll = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const allowedScrollPanel = target?.closest(
+        '.story-replies-panel, .story-reactions-panel, .story-viewer-modal'
+      );
+
+      if (!allowedScrollPanel) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+    document.addEventListener('wheel', preventBackgroundScroll, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchmove', preventBackgroundScroll);
+      document.removeEventListener('wheel', preventBackgroundScroll);
+
+      if (!hadLockClass) {
+        root.classList.remove('story-viewer-open');
+      }
+
+      Object.assign(root.style, previousRootStyles);
+      Object.assign(body.style, previousBodyStyles);
+
+      // Restore the previous page position after releasing the fixed body.
+      if (scrollX || scrollY) {
+        window.scrollTo(scrollX, scrollY);
+      }
+    };
+  }, []);
+
   // Guard against empty storyGroups or invalid index - close via effect
   useEffect(() => {
     if (!storyGroups || storyGroups.length === 0 || initialGroupIndex >= storyGroups.length) {
