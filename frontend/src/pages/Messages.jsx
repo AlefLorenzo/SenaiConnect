@@ -136,6 +136,7 @@ const Messages = () => {
   // Track message IDs we've already added (for deduplication)
   const messageIdsRef = useRef(new Set());
   const processedSocketMessagesRef = useRef(new Set());
+  const sendingMessageRef = useRef(false);
 
   // Refs
   const chatBodyRef = useRef(null);
@@ -506,20 +507,29 @@ const Messages = () => {
   }, []);
 
   const handleMissedMessages = useCallback((data) => {
-    const { conversationId, messages } = data;
-    if (selectedContact && conversationId === selectedContact.id) {
-      const newMessages = messages.filter(msg => !messageIdsRef.current.has(msg.id));
-      newMessages.forEach(msg => messageIdsRef.current.add(msg.id));
-      if (newMessages.length > 0) {
-        setHistory(prev => {
-          // Merge and sort by timestamp
-          const combined = [...prev, ...newMessages];
-          combined.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          return combined;
-        });
-      }
+    const { conversationId, messages = [] } = data || {};
+    // Always refresh the inbox: a message may arrive while its conversation is closed.
+    fetchConversations();
+    fetchGroups();
+
+    if (!selectedContact || String(conversationId) !== String(selectedContact.id)) return;
+
+    const newMessages = messages.filter(msg => {
+      const id = msg.id ?? msg.message_id;
+      return id != null && !messageIdsRef.current.has(String(id));
+    });
+    newMessages.forEach(msg => messageIdsRef.current.add(String(msg.id ?? msg.message_id)));
+    if (newMessages.length > 0) {
+      setHistory(prev => {
+        const merged = [...prev, ...newMessages];
+        const unique = new Map();
+        merged.forEach(msg => unique.set(String(msg.id ?? msg.message_id ?? msg.tempId), msg));
+        return [...unique.values()].sort((a, b) =>
+          new Date(a.createdAt ?? a.created_at).getTime() - new Date(b.createdAt ?? b.created_at).getTime()
+        );
+      });
     }
-  }, [selectedContact]);
+  }, [selectedContact, fetchConversations, fetchGroups]);
 
   const handleConnectionChange = useCallback((data) => {
     const { connected } = data;
@@ -707,7 +717,9 @@ const Messages = () => {
   // Send message with optimistic UI
   const handleSendMessage = useCallback(async (e) => {
     if (e) e.preventDefault();
-    if (!messageText.trim() && attachments.length === 0 || !selectedContact) return;
+    if (sendingMessageRef.current) return;
+    if ((!messageText.trim() && attachments.length === 0) || !selectedContact) return;
+    sendingMessageRef.current = true;
 
     // Clear typing indicator
     if (typingDebounceRef.current) {
@@ -858,6 +870,7 @@ const Messages = () => {
         setShowAttachmentPreview(tempAttachments.length > 0);
       }
     } finally {
+      sendingMessageRef.current = false;
       setUploadProgress({});
       setUploadAbortControllers({});
     }
@@ -1440,7 +1453,9 @@ const ConversationHeader = ({
 }) => {
   // Find other participant by name not being "Você" (handles case where both have same ID)
   const otherParticipant = contact.participants?.find(p => p.name !== 'Você');
-  const participantOnline = otherParticipant ? isOnline[otherParticipant.id] : false;
+  const participantOnline = otherParticipant
+    ? (isOnline[otherParticipant.id] ?? otherParticipant.isOnline ?? otherParticipant.is_online ?? false)
+    : false;
   const onlineCount = contact.participants?.filter(p => p.name !== 'Você' && isOnline[p.id]).length || 0;
   const totalParticipants = contact.participants?.length || Number(contact.memberCount ?? contact.member_count) || 0;
   const admins = contact.participants?.filter(p => p.isAdmin && p.name !== 'Você') || [];
@@ -1682,7 +1697,6 @@ const ChatInputArea = ({
       type="submit"
       className="send-btn"
       disabled={!messageText.trim()}
-      onClick={handleSendMessage}
       aria-label="Enviar mensagem"
     >
       <Send size={20} color="white" />
