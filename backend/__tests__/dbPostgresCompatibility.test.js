@@ -95,6 +95,25 @@ describe('MySQL to PostgreSQL query compatibility', () => {
     expect(result.text).toMatch(/RETURNING id$/);
   });
 
+  test('converts boolean values in INSERT columns using the target schema', () => {
+    const result = translateQuery(
+      'INSERT INTO notices (author_id, is_pinned, send_notification) VALUES (?, ?, ?)',
+      [8, 1, 0]
+    );
+
+    expect(result.values).toEqual([8, true, false]);
+    expect(result.text).toMatch(/RETURNING id$/);
+  });
+
+  test('converts MySQL DATE_FORMAT to PostgreSQL TO_CHAR', () => {
+    const result = translateQuery(
+      "SELECT DATE_FORMAT(bf.created_at, '%d/%m/%Y %H:%i') AS followed_at FROM business_followers bf",
+      []
+    );
+
+    expect(result.text).toContain("TO_CHAR(bf.created_at, 'DD/MM/YYYY HH24:MI')");
+  });
+
   test('converts MySQL pagination to PostgreSQL order', () => {
     const result = translateQuery(
       'SELECT id FROM users ORDER BY id LIMIT ?, ?',
