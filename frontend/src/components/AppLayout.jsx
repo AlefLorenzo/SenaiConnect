@@ -15,8 +15,8 @@ const AppLayout = ({ children }) => {
 
   useEffect(() => {
     if (!user?.id) return;
-    fetchUnreadCount();
-    fetchUnreadMessagesCount();
+    if (typeof fetchUnreadCount === 'function') fetchUnreadCount();
+    if (typeof fetchUnreadMessagesCount === 'function') fetchUnreadMessagesCount();
   }, [location.pathname, user?.id, fetchUnreadCount, fetchUnreadMessagesCount]);
 
   // FAB callbacks for creation flows
