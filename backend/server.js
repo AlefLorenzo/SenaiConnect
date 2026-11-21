@@ -15,6 +15,14 @@ const storyRoutes = require('./routes/storyRoutes');
 const highlightRoutes = require('./routes/highlightRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const passwordRoutes = require('./routes/passwordRoutes');
+const businessRoutes = require('./routes/businessRoutes');
+const engagementRoutes = require('./routes/engagementRoutes');
+const followRoutes = require('./routes/followRoutes');
+const friendRoutes = require('./routes/friendRoutes');
+const matchRoutes = require('./routes/matchRoutes');
+const moderationRoutes = require('./routes/moderationRoutes');
+const searchRoutes = require('./routes/searchRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 const path = require('path');
 
 const socketHelper = require('./socketHelper');
@@ -102,6 +110,16 @@ app.use('/api/stories', storyRoutes);
 app.use('/api/stories', highlightRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/password', passwordRoutes);
+app.use('/api/business', businessRoutes);
+app.use('/api/engagement', engagementRoutes);
+app.use('/api/follows', followRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/match', matchRoutes);
+app.use('/api/moderation', moderationRoutes);
+app.use('/api/search', searchRoutes);
+
+// Public read-only listings use the existing /api/events and /api/courses paths.
+app.use('/api', publicRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
