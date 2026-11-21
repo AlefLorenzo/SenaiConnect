@@ -105,7 +105,7 @@ class PostsService {
     const post = this.posts.find((item) => String(item.id) === String(postId));
     if (post) {
       post.is_liked = Boolean(result.liked);
-      post.likes_count = Math.max(0, post.likes_count + (post.is_liked ? 1 : -1));
+      post.likes_count = Number(result.likes_count ?? Math.max(0, post.likes_count + (post.is_liked ? 1 : -1)));
       this.notify();
       return { is_liked: post.is_liked, likes_count: post.likes_count };
     }
