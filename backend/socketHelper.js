@@ -277,9 +277,13 @@ async function notifyContactsOnlineStatus(userId, isOnline) {
     const [groupMembers] = await db.query(`
       SELECT DISTINCT gm.user_id
       FROM group_members gm
-      JOIN groups_table g ON g.id = gm.group_id
       WHERE gm.user_id != ?
-    `, [userId]);
+        AND gm.group_id IN (
+          SELECT own_members.group_id
+          FROM group_members own_members
+          WHERE own_members.user_id = ?
+        )
+    `, [userId, userId]);
 
     const allContactIds = new Set([
       ...contacts.map(c => c.id),
@@ -313,10 +317,8 @@ function sendToUser(userId, event, data) {
 }
 
 function sendToGroup(groupId, event, data, excludeUserId = null) {
-  // This would need group members - for now just broadcast
-  if (ioInstance) {
-    ioInstance.emit(event, data);
-  }
+  // Group events must be delivered only to authenticated members of that group.
+  return broadcastToGroup(groupId, event, data, excludeUserId);
 }
 
 function broadcast(event, data) {
