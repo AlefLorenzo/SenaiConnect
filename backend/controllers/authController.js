@@ -65,7 +65,7 @@ const authController = {
                 }
             });
 
-            const authUser = authData.user || null;
+            const authUser = authData.user || (authData.id ? authData : null);
             const session = authData.session || (authData.access_token ? authData : null);
             const profile = authUser ? await findProfile(authUser.id) : null;
 
