@@ -140,7 +140,7 @@ function translateQuery(originalSql, originalParams = []) {
   let sql = normalizeMysqlQuotes(originalSql.trim());
   // PostgreSQL folds unquoted aliases to lowercase; preserve camelCase aliases
   // that the legacy MySQL controllers access by their original property names.
-  sql = sql.replace(/\\bAS\\s+'([A-Za-z_][A-Za-z0-9_]*[A-Z][A-Za-z0-9_]*)'/g, 'AS "$1"');
+  sql = sql.replace(/\\bAS\\s+(?:"|')?([A-Za-z_][A-Za-z0-9_]*[A-Z][A-Za-z0-9_]*)(?:"|')?/g, 'AS "$1"');
   let ignoreConflicts = false;
 
   sql = sql.replace(/\bDATE_SUB\s*\(\s*NOW\s*\(\s*\)\s*,\s*INTERVAL\s+(\d+)\s+DAY\s*\)/gi, " (NOW() - INTERVAL '$1 days')");
