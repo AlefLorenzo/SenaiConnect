@@ -115,6 +115,11 @@ describe('socketHelper', () => {
 
       // Just verify it doesn't throw
       await expect(socketHelper.notifyContactsOnlineStatus(1, true)).resolves.not.toThrow();
+      expect(mockDb.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('own_members.group_id'),
+        [1, 1]
+      );
     });
   });
   describe('isConversationMember', () => {
