@@ -219,6 +219,40 @@ describe('StoryViewer', () => {
     expect(storiesService.viewStory).toHaveBeenCalledWith('1');
   });
 
+  test('advances automatically after 30 seconds', () => {
+    renderStoryViewer();
+
+    act(() => {
+      jest.advanceTimersByTime(29900);
+    });
+    expect(screen.getByText('First story')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(screen.getByText('Second story')).toBeInTheDocument();
+  });
+
+  test('keeps the current story paused while the user holds the content', () => {
+    renderStoryViewer();
+    const contentArea = document.querySelector('.story-content-area');
+
+    fireEvent.pointerDown(contentArea);
+    act(() => {
+      jest.advanceTimersByTime(150);
+      jest.advanceTimersByTime(31000);
+    });
+
+    expect(screen.getByText('Pausado')).toBeInTheDocument();
+    expect(screen.getByText('First story')).toBeInTheDocument();
+
+    fireEvent.pointerUp(contentArea);
+    act(() => {
+      jest.advanceTimersByTime(30100);
+    });
+    expect(screen.getByText('Second story')).toBeInTheDocument();
+  });
+
   test('navigates to next story on right click', () => {
     renderStoryViewer();
     const nextButton = screen.getByLabelText('Próxima história');
