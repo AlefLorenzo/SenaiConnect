@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../db');
 const businessController = require('../controllers/businessController');
 const businessPostController = require('../controllers/businessPostController');
 const businessStoryController = require('../controllers/businessStoryController');
@@ -29,7 +30,24 @@ const businessCreateLimiter = rateLimiter({
 
 // Feed de publicações empresariais
 router.get('/posts', authenticateToken, businessPostController.listPosts);
+router.get('/feed', authenticateToken, businessPostController.listPosts);
+router.get('/', authenticateToken, businessController.listBusinesses);
+router.get('/categories', authenticateToken, async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            "SELECT DISTINCT sector AS category FROM businesses " +
+            "WHERE status = 'approved' AND sector IS NOT NULL AND BTRIM(sector) <> '' ORDER BY sector"
+        );
+        return res.json(rows.map((row) => row.category));
+    } catch (error) {
+        console.error('Erro ao listar categorias empresariais:', error);
+        return res.status(500).json({ error: 'Não foi possível buscar as categorias.' });
+    }
+});
 router.get('/posts/:id', authenticateToken, businessPostController.getPost);
+router.post('/posts', authenticateToken, businessCreateLimiter, businessPostController.createPost);
+router.put('/posts/:id', authenticateToken, businessPostController.updatePost);
+router.delete('/posts/:id', authenticateToken, businessPostController.deletePost);
 
 // Stories empresariais
 router.get('/stories', authenticateToken, businessStoryController.getAll);
@@ -39,6 +57,7 @@ router.get('/businesses', authenticateToken, businessController.listBusinesses);
 
 // Perfil público de empresa
 router.get('/businesses/:id', authenticateToken, businessController.getBusiness);
+router.get('/:id', authenticateToken, businessController.getBusiness);
 
 // Espaços publicitários disponíveis
 router.get('/ad-spaces', authenticateToken, adSpaceController.listAdSpaces);
@@ -69,6 +88,33 @@ router.get('/notifications', authenticateToken, businessNotificationController.g
 router.get('/notifications/unread-count', authenticateToken, businessNotificationController.getUnreadCount);
 router.post('/notifications/:id/read', authenticateToken, businessNotificationController.markAsRead);
 router.post('/notifications/read-all', authenticateToken, businessNotificationController.markAllAsRead);
+
+
+// Solicitação de verificação pelo responsável da empresa.
+router.post('/:id/verify', authenticateToken, async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            'SELECT id, status FROM businesses WHERE id = ? AND owner_user_id = ?',
+            [req.params.id, req.user.id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Empresa não encontrada para esta conta.' });
+        if (rows[0].status === 'approved') {
+            return res.status(409).json({ error: 'Esta empresa já foi verificada.' });
+        }
+        if (rows[0].status === 'suspended') {
+            return res.status(403).json({ error: 'A empresa está suspensa e não pode solicitar verificação.' });
+        }
+
+        await db.query(
+            "UPDATE businesses SET status = 'pending', approved_at = NULL, approved_by = NULL, rejection_reason = NULL, updated_at = NOW() WHERE id = ? AND owner_user_id = ?",
+            [req.params.id, req.user.id]
+        );
+        return res.json({ message: 'Solicitação de verificação enviada para análise.', status: 'pending' });
+    } catch (error) {
+        console.error('Erro ao solicitar verificação da empresa:', error);
+        return res.status(500).json({ error: 'Não foi possível solicitar a verificação.' });
+    }
+});
 
 // ============================================
 // ROTAS DA EMPRESA (PAINEL DO ANUNCIANTE)
