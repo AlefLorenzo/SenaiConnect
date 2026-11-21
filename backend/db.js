@@ -199,7 +199,9 @@ function translateQuery(originalSql, originalParams = []) {
     let finalValue = value;
     const context = output.slice(-100);
     const columnMatch = context.match(/(?:^|[.\s])("?[\w]+"?)\s*(?:=|<>|!=)\s*$/i);
-    const column = (typeof explicitColumn === 'string' ? explicitColumn : null || (columnMatch && columnMatch[1].replace(/"/g, '')) || '').toLowerCase();
+    const column = (typeof explicitColumn === 'string'
+      ? explicitColumn
+      : ((columnMatch && columnMatch[1].replace(/"/g, '')) || '')).toLowerCase();
     if (BOOLEAN_COLUMNS.has(column) && (value === 0 || value === 1 || value === '0' || value === '1')) {
       finalValue = value === 1 || value === '1';
     }
