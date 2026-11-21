@@ -40,7 +40,24 @@ const postController = {
                 [userId, content || '', attachment_url || null, attachment_type || null, attachment_name || null]
             );
 
-            res.status(201).json({ id: result.insertId, message: 'Post criado com sucesso!' });
+            const [createdRows] = await db.query(`
+                SELECT p.*, u.name AS user_name, u.avatar AS user_avatar, u.role AS user_role,
+                       0 AS likes_count, 0 AS comments_count,
+                       FALSE AS liked, FALSE AS saved
+                FROM posts p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.id = ?
+                LIMIT 1
+            `, [result.insertId]);
+
+            res.status(201).json(createdRows[0] || {
+                id: result.insertId,
+                user_id: userId,
+                content: content || '',
+                attachment_url: attachment_url || null,
+                attachment_type: attachment_type || null,
+                attachment_name: attachment_name || null
+            });
         } catch (error) {
             console.error('Erro ao criar post:', error);
             res.status(500).json({ error: 'Erro ao criar post' });
