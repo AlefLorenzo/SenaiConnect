@@ -142,7 +142,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
       setCurrentGroupIndex(prev => prev + 1);
       setCurrentStoryIndex(0);
     } else {
-      onClose(); // End of all stories
+      onClose?.(); // End of all stories
     }
   }, [currentGroupIndex, currentStoryIndex, currentGroup, storyGroups.length, onClose]);
 
@@ -189,6 +189,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   useEffect(() => {
     setProgress(0);
     progressRef.current = 0;
+    lastTimeRef.current = null;
     setShowReactions(false);
     setShowReplies(false);
     setReplyText('');
