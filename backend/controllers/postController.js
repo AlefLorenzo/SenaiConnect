@@ -33,11 +33,11 @@ const postController = {
             const { content, attachment_url, attachment_type, attachment_name } = req.body;
             const userId = req.user.id;
 
-            if (!content) return res.status(400).json({ error: 'O conteúdo do post não pode estar vazio.' });
+            if (!String(content || '').trim() && !attachment_url) return res.status(400).json({ error: 'Escreva algo ou anexe uma mídia antes de publicar.' });
 
             const [result] = await db.query(
                 'INSERT INTO posts (user_id, content, attachment_url, attachment_type, attachment_name) VALUES (?, ?, ?, ?, ?)',
-                [userId, content, attachment_url, attachment_type, attachment_name]
+                [userId, content || '', attachment_url || null, attachment_type || null, attachment_name || null]
             );
 
             res.status(201).json({ id: result.insertId, message: 'Post criado com sucesso!' });
@@ -93,7 +93,8 @@ const postController = {
 
             if (existing.length > 0) {
                 await db.query('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [id, userId]);
-                res.status(200).json({ message: 'Curtida removida', liked: false });
+                const [count] = await db.query('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [id]);
+                res.status(200).json({ message: 'Curtida removida', liked: false, likes_count: Number(count[0].count) });
             } else {
                 await db.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [id, userId]);
 
@@ -117,7 +118,8 @@ const postController = {
                     console.error('Erro ao enviar notificação de like (não-bloqueante):', notifError);
                 }
 
-                res.status(200).json({ message: 'Post curtido', liked: true });
+                const [count] = await db.query('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [id]);
+                res.status(200).json({ message: 'Post curtido', liked: true, likes_count: Number(count[0].count) });
             }
         } catch (error) {
             console.error('Erro ao alternar curtida:', error);
