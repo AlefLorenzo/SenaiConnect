@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test": "node --check scripts/migrate-mysql-to-supabase.js && jest --coverage",
+    "test:watch": "jest --watch",
+    "db:copy:dry-run": "node scripts/migrate-mysql-to-supabase.js",
+    "db:copy:apply": "node scripts/migrate-mysql-to-supabase.js --apply --confirm-copy"
   },
   "keywords": [],
   "author": "",
