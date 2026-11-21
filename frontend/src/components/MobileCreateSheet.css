@@ -29,7 +29,8 @@
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: 85vh;
+  max-height: min(85vh, 680px);
+  max-height: min(85dvh, 680px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -130,11 +131,12 @@
 /* Options Grid */
 .sheet-options {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 20px;
   overflow-y: auto;
-  max-height: calc(85vh - 120px);
+  max-height: calc(min(85vh, 680px) - 120px);
+  max-height: calc(min(85dvh, 680px) - 120px);
 }
 
 /* Create Option Button */
@@ -255,7 +257,7 @@
   }
 
   .sheet-options {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 16px;
     gap: 6px;
   }
@@ -279,4 +281,10 @@
     animation: none;
     transition: none;
   }
+}
+@media (max-width: 480px) {
+  .mobile-create-sheet { border-radius: 18px 18px 0 0; }
+  .sheet-options { padding: 12px 14px calc(16px + env(safe-area-inset-bottom)); gap: 10px; }
+  .create-option { min-height: 88px; padding: 12px 8px; }
+  .option-description { white-space: normal; line-height: 1.25; }
 }
