@@ -740,6 +740,7 @@ const Messages = () => {
     // Optimistic UI: create temporary message
     const optimisticMessage = {
       tempId,
+      clientMessageId: tempId,
       id: tempId,
       conversationId: selectedContact.id,
       senderId: user?.id,
@@ -815,7 +816,8 @@ const Messages = () => {
         content: tempText,
         type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : 'text',
         message_type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : 'text',
-        attachments: uploadedAttachments
+        attachments: uploadedAttachments,
+        clientMessageId: tempId
       };
 
       // Try to send via API
@@ -849,7 +851,8 @@ const Messages = () => {
             name: a.name,
             size: a.size
           })),
-          tempId
+          tempId,
+          clientMessageId: tempId
         });
         // Update status to indicate queued
         setHistory(prev => prev.map(m =>
@@ -879,6 +882,7 @@ const Messages = () => {
 
   // Retry failed message
   const handleRetryMessage = useCallback(async (msgId) => {
+    if (sendingMessageRef.current) return;
     const msg = history.find(m => m.id === msgId || m.tempId === msgId);
     if (!msg) return;
 
@@ -886,7 +890,8 @@ const Messages = () => {
     const originalMsg = history.find(m => m.tempId === msgId);
     if (!originalMsg) return;
 
-    // Re-send with same content
+    sendingMessageRef.current = true;
+    // Re-send with the original client ID, so a response lost in transit cannot create a second row.
     try {
       setHistory(prev => prev.map(m =>
         (m.id === msgId || m.tempId === msgId) ? { ...m, status: MESSAGE_STATUS.SENDING } : m
@@ -896,7 +901,8 @@ const Messages = () => {
         content: originalMsg.content,
         type: originalMsg.type,
         message_type: originalMsg.type,
-        attachments: originalMsg.attachments || []
+        attachments: originalMsg.attachments || [],
+        clientMessageId: originalMsg.clientMessageId || originalMsg.tempId || msgId
       };
 
       const result = await messagesService.sendMessage(selectedContact.id, messageData);
@@ -912,6 +918,8 @@ const Messages = () => {
       setHistory(prev => prev.map(m =>
         (m.id === msgId || m.tempId === msgId) ? { ...m, status: MESSAGE_STATUS.ERROR } : m
       ));
+    } finally {
+      sendingMessageRef.current = false;
     }
   }, [history, selectedContact, MESSAGE_STATUS]);
 
