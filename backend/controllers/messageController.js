@@ -101,13 +101,37 @@ const messageController = {
                         SELECT m.content FROM messages m
                         WHERE (m.sender_id = u.id AND m.receiver_id = ?)
                            OR (m.sender_id = ? AND m.receiver_id = u.id)
-                        ORDER BY m.created_at DESC LIMIT 1
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                     ) as last_message,
+                    (
+                        SELECT m.id FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_id,
+                    (
+                        SELECT m.sender_id FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_sender_id,
+                    (
+                        SELECT m.message_type FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_type,
+                    (
+                        SELECT m.status FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_status,
                     (
                         SELECT m.created_at FROM messages m
                         WHERE (m.sender_id = u.id AND m.receiver_id = ?)
                            OR (m.sender_id = ? AND m.receiver_id = u.id)
-                        ORDER BY m.created_at DESC LIMIT 1
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                     ) as last_interaction,
                     (
                         SELECT COUNT(*) FROM messages m
@@ -124,10 +148,7 @@ const messageController = {
                 AND ${buildPrivacyWhereClause(loggedUserId, 'u')}
                 ORDER BY last_interaction DESC, u.name ASC
             `;
-            const [individuals] = await db.query(individualQuery, [
-                loggedUserId, loggedUserId, loggedUserId,
-                loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId
-            ]);
+            const [individuals] = await db.query(individualQuery, Array(16).fill(loggedUserId));
 
             // Get group conversations
             const groupQuery = `
@@ -247,10 +268,12 @@ const messageController = {
                         otherUser
                     ],
                     last_message: conv.last_message ? {
+                        id: conv.last_message_id,
+                        senderId: conv.last_message_sender_id,
                         content: conv.last_message,
-                        senderName: otherUser.name,
-                        type: 'text',
-                        status: 'read',
+                        senderName: Number(conv.last_message_sender_id) === Number(loggedUserId) ? 'Você' : otherUser.name,
+                        type: conv.last_message_type || 'text',
+                        status: conv.last_message_status || 'enviada',
                         createdAt: conv.last_interaction
                     } : null,
                     unreadCount: conv.unread_count || 0,
@@ -659,7 +682,7 @@ const messageController = {
                 const [senderRows] = await db.query('SELECT name, avatar FROM users WHERE id = ?', [senderId]);
                 const sender = senderRows[0] || { name: req.user.name, avatar: null };
 
-                if (wasCreated) {
+                {
                     const [members] = await db.query(
                         'SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?',
                         [conversationId, senderId]
@@ -703,16 +726,19 @@ const messageController = {
                 });
             } else {
                 // Individual message - parse receiverId from conversationId (format: "userId1_userId2" sorted)
-                let receiverId = req.body.receiverId;
-                if (!receiverId) {
-                    const parts = conversationId.split('_').map(Number);
-                    if (parts.length === 2) {
-                        receiverId = parts[0] === senderId ? parts[1] : parts[0];
-                    }
+                const participants = String(conversationId).split('_').map(Number);
+                if (
+                    participants.length !== 2 ||
+                    participants.some(id => !Number.isSafeInteger(id) || id <= 0) ||
+                    participants[0] === participants[1] ||
+                    !participants.includes(Number(senderId))
+                ) {
+                    return res.status(400).json({ error: 'Identificador de conversa inválido.' });
                 }
 
-                if (!receiverId) {
-                    return res.status(400).json({ error: 'Destinatário é obrigatório.' });
+                const receiverId = participants[0] === Number(senderId) ? participants[1] : participants[0];
+                if (req.body.receiverId && Number(req.body.receiverId) !== receiverId) {
+                    return res.status(403).json({ error: 'O destinatário não pertence a esta conversa.' });
                 }
 
                 // Verify receiver exists
@@ -745,24 +771,28 @@ const messageController = {
                     return res.status(409).json({ error: 'O identificador desta mensagem já foi utilizado em outra conversa.' });
                 }
 
-                if (wasCreated && receiverId !== senderId) {
-                    const notificationController = require('./notificationController');
-                    await notificationController.createNotification(
-                        receiverId,
-                        'message',
-                        senderId,
-                        'enviou uma mensagem.',
-                        'message',
-                        message.id,
-                        `message_${message.id}`,
-                        { action: 'message', message_id: message.id, conversation_id: conversationId }
-                    );
+                if (Number(receiverId) !== Number(senderId)) {
+                    // Persist the notification once; safely re-emit the same message on idempotent retries.
+                    if (wasCreated) {
+                        const notificationController = require('./notificationController');
+                        await notificationController.createNotification(
+                            receiverId,
+                            'message',
+                            senderId,
+                            'enviou uma mensagem.',
+                            'message',
+                            message.id,
+                            `message_${message.id}`,
+                            { action: 'message', message_id: message.id, conversation_id: conversationId }
+                        );
+                    }
 
                     socketHelper.sendToUser(receiverId, 'new_message', {
                         id: message.id,
                         clientMessageId,
                         conversationId,
                         senderId: message.sender_id,
+                        receiverId,
                         senderName: req.user.name,
                         content: message.content,
                         type: message.message_type,
@@ -779,7 +809,7 @@ const messageController = {
                 return res.status(wasCreated ? 201 : 200).json({
                     id: message.id,
                     clientMessageId,
-                    conversationId: receiverId,
+                    conversationId,
                     senderId: message.sender_id,
                     senderName: req.user.name,
                     content: message.content,

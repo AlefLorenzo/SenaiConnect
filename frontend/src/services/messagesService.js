@@ -306,10 +306,12 @@ class MessagesService extends BaseService {
           isGroup: false,
           participants: participants, // Use backend's participants array
           last_message: conv.last_message ? {
+            id: conv.last_message.id,
+            senderId: conv.last_message.senderId ?? conv.last_message.sender_id,
             content: conv.last_message.content,
             senderName: conv.last_message.senderName || otherUser.name,
             type: conv.last_message.type || 'text',
-            status: conv.last_message.status || 'read',
+            status: conv.last_message.status || 'enviada',
             createdAt: conv.last_message.createdAt || conv.last_interaction
           } : null,
           unreadCount: conv.unread_count || conv.unreadCount || 0,
@@ -584,7 +586,10 @@ class MessagesService extends BaseService {
       return this.handleResponse(response);
     };
 
-    return attempt(1);
+    const result = await attempt(1);
+    // Sending changes the inbox ordering and latest-message preview; never reuse stale snapshots.
+    this.invalidateCache();
+    return result;
   }
 
   /**

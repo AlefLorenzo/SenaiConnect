@@ -30,6 +30,7 @@ jest.mock('fs', () => ({
 }), { virtual: true });
 
 const messageController = require('../controllers/messageController');
+const notificationController = require('../controllers/notificationController');
 
 describe('messageController', () => {
   let mockReq, mockRes, mockNext;
@@ -108,6 +109,68 @@ describe('messageController', () => {
           conversationId: 2,
         })
       );
+    });
+
+    test('re-emits an existing direct message on an idempotent retry without duplicating notifications', async () => {
+      mockReq.params.id = '1_2';
+      mockReq.body = {
+        content: 'Mensagem que já foi gravada',
+        type: 'text',
+        clientMessageId: 'stable-message-123',
+      };
+
+      mockDb.query.mockImplementation((sql) => {
+        if (sql.includes('SELECT id, name FROM users WHERE id = ?')) {
+          return Promise.resolve([[{ id: 2, name: 'Receiver' }]]);
+        }
+        if (sql.includes('INSERT INTO messages')) {
+          return Promise.resolve([{ insertId: undefined, affectedRows: 0 }]);
+        }
+        if (sql.includes('SELECT * FROM messages WHERE client_message_id')) {
+          return Promise.resolve([[
+            {
+              id: 77,
+              client_message_id: 'stable-message-123',
+              content: 'Mensagem que já foi gravada',
+              sender_id: 1,
+              receiver_id: 2,
+              status: 'enviada',
+              message_type: 'text',
+              created_at: new Date(),
+            },
+          ]]);
+        }
+        return Promise.resolve([[]]);
+      });
+
+      await messageController.sendMessage(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        id: 77,
+        conversationId: '1_2',
+      }));
+      expect(sendToUser).toHaveBeenCalledWith(2, 'new_message', expect.objectContaining({
+        id: 77,
+        clientMessageId: 'stable-message-123',
+        conversationId: '1_2',
+      }));
+      expect(notificationController.createNotification).not.toHaveBeenCalled();
+    });
+
+    test('rejects a receiver that does not belong to the canonical direct conversation', async () => {
+      mockReq.params.id = '1_2';
+      mockReq.body = {
+        content: 'Mensagem',
+        type: 'text',
+        receiverId: '99',
+      };
+
+      await messageController.sendMessage(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockDb.query).not.toHaveBeenCalled();
+      expect(sendToUser).not.toHaveBeenCalled();
     });
 
     test('returns 400 for missing conversationId', async () => {
@@ -236,7 +299,7 @@ describe('messageController', () => {
   describe('getConversations', () => {
     test('returns user conversations', async () => {
       const mockIndividuals = [
-        { id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all', last_message: 'Olá', last_interaction: '2024-01-15T10:30:00Z', unread_count: 0 },
+        { id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all', last_message: 'Olá', last_message_id: 81, last_message_sender_id: 1, last_message_type: 'image', last_message_status: 'enviada', last_interaction: '2024-01-15T10:30:00Z', unread_count: 0 },
         { id: 3, name: 'User 3', avatar: null, role: 'aluno', is_online: 0, last_seen: null, last_seen_privacy: 'all', last_message: 'Oi', last_interaction: '2024-01-15T11:00:00Z', unread_count: 1 },
       ];
 
@@ -271,12 +334,22 @@ describe('messageController', () => {
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.arrayContaining([
-            expect.objectContaining({ conversation_id: '1_2' }),
+            expect.objectContaining({
+              conversation_id: '1_2',
+              last_message: expect.objectContaining({
+                id: 81,
+                senderId: 1,
+                senderName: 'Você',
+                type: 'image',
+                status: 'enviada',
+              }),
+            }),
             expect.objectContaining({ conversation_id: '1_3' }),
             expect.objectContaining({ conversation_id: 1, name: 'Group 1' }),
           ]),
         })
       );
+      expect(mockDb.query).toHaveBeenNthCalledWith(1, expect.any(String), Array(16).fill(1));
     });
   });
 

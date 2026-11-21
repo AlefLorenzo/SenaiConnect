@@ -281,6 +281,14 @@ describe('Messages Page', () => {
   });
 
   describe('Contact List', () => {
+    test('loads the Geral inbox from the server instead of using a stale cache', async () => {
+      renderMessages();
+
+      await waitFor(() => {
+        expect(messagesService.getConversations).toHaveBeenCalledWith('all', true);
+      });
+    });
+
     test('displays non-pinned conversations in Geral tab (default)', async () => {
       renderMessages();
 

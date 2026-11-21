@@ -163,6 +163,15 @@ export const SocketProvider = ({ children }) => {
     }
   }, []);
 
+  // Relay confirmations from the offline queue service to subscribed message screens.
+  useEffect(() => {
+    const handleMessageSentConfirmed = (event) => {
+      emitToHandlers('message_sent_confirmed', event.detail || {});
+    };
+    window.addEventListener('message_sent_confirmed', handleMessageSentConfirmed);
+    return () => window.removeEventListener('message_sent_confirmed', handleMessageSentConfirmed);
+  }, [emitToHandlers]);
+
   // Heartbeat to keep connection alive
   const startHeartbeat = useCallback(() => {
     if (heartbeatIntervalRef.current) {
@@ -188,6 +197,8 @@ export const SocketProvider = ({ children }) => {
     if (missedMessagesCheckRef.current) return;
     missedMessagesCheckRef.current = true;
 
+    const recoveryStartedAt = Date.now();
+    let recoveryComplete = true;
     try {
       // forceRefresh bypasses the conversation cache; clearing every history cache was unnecessary.
       const conversations = await messagesService.getConversations('all', true);
@@ -208,13 +219,18 @@ export const SocketProvider = ({ children }) => {
             const messages = history.data || [];
             return messages.length ? { conversationId, messages } : null;
           } catch (historyError) {
+            recoveryComplete = false;
             console.warn('Falha ao recuperar histórico de conversa:', conversationId, historyError.message);
             return null;
           }
         }));
         recovered.filter(Boolean).forEach((payload) => emitToHandlers('missed_messages', payload));
       }
-      localStorage.setItem(`last_seen_${user?.id}`, Date.now().toString());
+      // Do not move the checkpoint if any conversation failed to load. Retry it on
+      // the next pass, and only advance to the start of this pass to avoid a time race.
+      if (recoveryComplete) {
+        localStorage.setItem(`last_seen_${user?.id}`, recoveryStartedAt.toString());
+      }
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403') || err.message?.includes('Token')) {
         console.warn('Skipping missed messages fetch - auth required:', err.message);
@@ -226,10 +242,10 @@ export const SocketProvider = ({ children }) => {
     }
   }, [emitToHandlers, user?.id]);
 
-  // When the realtime transport is unavailable, recover new messages from the database.
-  // This keeps inboxes usable while Socket.IO is reconnecting or a mobile browser suspends it.
+  // Reconcile from the database periodically even when Socket.IO reports connected.
+  // Mobile browsers can suspend a transport without emitting a timely disconnect event.
   useEffect(() => {
-    if (!user?.id || isConnected || USE_MOCK) return undefined;
+    if (!user?.id || USE_MOCK) return undefined;
 
     const recoverMessages = () => {
       if (document.visibilityState !== 'visible') return;
@@ -243,7 +259,7 @@ export const SocketProvider = ({ children }) => {
     };
 
     recoverMessages();
-    // Recovery polling is a safety net only; Socket.IO remains the primary delivery path.
+    // Socket.IO remains the primary delivery path; this small polling pass is the safety net.
     const intervalId = window.setInterval(recoverMessages, 30000);
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') recoverMessages();
@@ -256,7 +272,7 @@ export const SocketProvider = ({ children }) => {
       window.removeEventListener('online', recoverMessages);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [user?.id, isConnected, fetchMissedMessages]);
+  }, [user?.id, fetchMissedMessages]);
 
   // Setup socket event listeners
   const setupSocketListeners = useCallback((socket) => {
@@ -424,6 +440,23 @@ export const SocketProvider = ({ children }) => {
       updateSocketAuth(authSession.access_token);
     }
   }, [user?.id, authSession?.access_token]);
+
+  // Keep the global unread-message badge accurate even when a socket event is missed
+  // while a mobile browser is suspended but the connection still appears active.
+  useEffect(() => {
+    if (!user?.id || USE_MOCK) return undefined;
+
+    const refreshUnreadCount = () => {
+      if (document.visibilityState === 'visible') fetchUnreadMessagesCount();
+    };
+    const intervalId = window.setInterval(refreshUnreadCount, 30000);
+    document.addEventListener('visibilitychange', refreshUnreadCount);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshUnreadCount);
+    };
+  }, [user?.id, fetchUnreadMessagesCount]);
 
   // Initialize socket when user logs in
   useEffect(() => {

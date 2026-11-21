@@ -138,6 +138,7 @@ const Messages = () => {
   const messageIdsRef = useRef(new Set());
   const processedSocketMessagesRef = useRef(new Set());
   const sendingMessageRef = useRef(false);
+  const syncInFlightRef = useRef(false);
 
   // Refs
   const chatBodyRef = useRef(null);
@@ -201,12 +202,15 @@ const Messages = () => {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const result = await messagesService.getConversations();
-      if (result.data) {
-        setConversations(result.data);
-      } else if (Array.isArray(result)) {
-        setConversations(result);
+      // Always bypass the service cache: a just-sent or just-received message can
+      // create a conversation that was absent from the previous inbox snapshot.
+      const result = await messagesService.getConversations('all', true);
+      const freshConversations = result.data || result;
+      if (Array.isArray(freshConversations)) {
+        setConversations(freshConversations);
+        return freshConversations;
       }
+      return [];
     } catch (err) {
       console.error('Erro ao buscar conversas:', err);
     }
@@ -214,7 +218,7 @@ const Messages = () => {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const result = await messagesService.getMyGroups();
+      const result = await messagesService.getMyGroups(true);
       let groupsData = [];
       if (result.data) {
         groupsData = result.data;
@@ -277,7 +281,7 @@ const Messages = () => {
 
     try {
       setLoadingHistory(true);
-      const result = await messagesService.getHistory(contactId, { page, limit: 30 });
+      const result = await messagesService.getHistory(contactId, { page, limit: 30, forceRefresh: true });
       // Group history does not mark the read cursor through GET; persist it explicitly.
       if (result.isGroup || result.contact?.isGroup) {
         await messagesService.markAsRead(contactId);
@@ -311,6 +315,109 @@ const Messages = () => {
       setLoadingHistory(false);
     }
   }, [fetchConversations, fetchUnreadMessagesCount, loadingHistory]);
+
+  // Socket.IO is the fast path; this periodic reconciliation is the reliability path.
+  // It recovers messages missed while a mobile browser suspends an apparently-live socket.
+  const syncLatestMessages = useCallback(async () => {
+    if (
+      syncInFlightRef.current ||
+      !user?.id ||
+      document.visibilityState !== 'visible'
+    ) return;
+
+    syncInFlightRef.current = true;
+    try {
+      await fetchConversations();
+
+      if (!selectedContact) {
+        await fetchUnreadMessagesCount();
+        return;
+      }
+
+      const result = await messagesService.getHistory(selectedContact.id, {
+        page: 1,
+        limit: 50,
+        forceRefresh: true,
+      });
+      const latestMessages = [...(result.data || [])].reverse();
+
+      if (result.isGroup || result.contact?.isGroup) {
+        await messagesService.markAsRead(selectedContact.id);
+      }
+      // GET history marks direct messages read; refresh after either direct or group sync.
+      await fetchUnreadMessagesCount();
+
+      latestMessages.forEach(serverMessage => {
+        const serverId = serverMessage.id ?? serverMessage.message_id;
+        const clientId = serverMessage.client_message_id ?? serverMessage.clientMessageId;
+        if (clientId != null) messageIdsRef.current.delete(String(clientId));
+        if (serverId != null) messageIdsRef.current.add(String(serverId));
+      });
+
+      if (latestMessages.length > 0) {
+        setHistory(previous => {
+          const merged = [...previous];
+
+          latestMessages.forEach(serverMessage => {
+            const serverId = serverMessage.id ?? serverMessage.message_id;
+            const clientId = serverMessage.client_message_id ?? serverMessage.clientMessageId;
+            const existingIndex = merged.findIndex(existing => (
+              (serverId != null && String(existing.id) === String(serverId)) ||
+              (clientId != null && [
+                existing.clientMessageId,
+                existing.client_message_id,
+                existing.tempId,
+              ].some(value => value != null && String(value) === String(clientId)))
+            ));
+
+            if (existingIndex >= 0) {
+              const existing = merged[existingIndex];
+              merged[existingIndex] = {
+                ...existing,
+                ...serverMessage,
+                tempId: existing.tempId,
+              };
+            } else {
+              merged.push(serverMessage);
+            }
+          });
+
+          const unique = new Map();
+          merged.forEach(message => {
+            const id = message.id ?? message.message_id ?? message.tempId;
+            if (id != null) unique.set(String(id), message);
+          });
+
+          return [...unique.values()].sort((a, b) => (
+            new Date(a.createdAt ?? a.created_at).getTime() -
+            new Date(b.createdAt ?? b.created_at).getTime()
+          ));
+        });
+      }
+    } catch (error) {
+      console.warn('Falha na sincronização periódica de mensagens:', error);
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [fetchConversations, fetchUnreadMessagesCount, selectedContact, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      syncLatestMessages();
+    }, 20000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') syncLatestMessages();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [syncLatestMessages, user?.id]);
 
   const loadMoreHistory = useCallback(() => {
     if (selectedContact && hasMoreHistory && !loadingHistory) {
@@ -415,7 +522,10 @@ const Messages = () => {
   const handleNewMessage = useCallback((msg) => {
     const msgId = msg.id ?? msg.message_id ?? msg.tempId;
     const normalizedMessageId = msgId == null ? null : String(msgId);
-    if (normalizedMessageId && processedSocketMessagesRef.current.has(normalizedMessageId)) return;
+    if (normalizedMessageId && processedSocketMessagesRef.current.has(normalizedMessageId)) {
+      fetchConversations();
+      return;
+    }
     if (normalizedMessageId) processedSocketMessagesRef.current.add(normalizedMessageId);
 
     const senderId = msg.sender_id ?? msg.senderId;
@@ -467,10 +577,16 @@ const Messages = () => {
       messagesService.markAsRead(selectedContact.id)
         .then(() => fetchUnreadMessagesCount())
         .catch(error => console.error('Erro ao atualizar a leitura da conversa:', error));
-    } else {
-      fetchConversations();
+    } else if (
+      msg.isGroup ||
+      msg.group_id != null ||
+      /^\d+$/.test(String(conversationId || ''))
+    ) {
       fetchGroups();
     }
+
+    // Refresh even when the chat is already open so its preview and ordering stay current.
+    fetchConversations();
   }, [selectedContact, sendMessagesRead, fetchUnreadMessagesCount, fetchConversations, fetchGroups, user?.id, MESSAGE_STATUS]);
 
   const handleMessageStatus = useCallback((data) => {
@@ -601,12 +717,19 @@ const Messages = () => {
 
   const handleMessageSentConfirmed = useCallback((data) => {
     const { tempId, message } = data;
-    setHistory(prev => prev.map(m =>
-      m.tempId === tempId ? { ...message, tempId: m.tempId } : m
-    ));
-    // Update messageIdsRef to include the confirmed message ID
+    if (!message) return;
+    setHistory(prev => prev.map(m => (
+      m.tempId === tempId ||
+      String(m.clientMessageId || '') === String(message.clientMessageId || tempId)
+        ? { ...message, tempId: m.tempId }
+        : m
+    )));
+    // Update messageIdsRef to include the confirmed message ID.
+    messageIdsRef.current.delete(String(tempId));
     messageIdsRef.current.add(String(message.id));
-  }, []);
+    fetchConversations();
+    fetchGroups();
+  }, [fetchConversations, fetchGroups]);
 
   // Auto-scroll to bottom on new messages (but not when loading history)
   useEffect(() => {
@@ -922,6 +1045,8 @@ const Messages = () => {
           (m.id === msgId || m.tempId === msgId) ? { ...result, tempId: m.tempId } : m
         ));
         messageIdsRef.current.add(String(result.id));
+        fetchConversations();
+        fetchGroups();
       }
     } catch (err) {
       console.error('Erro ao reenviar:', err);
@@ -931,7 +1056,7 @@ const Messages = () => {
     } finally {
       sendingMessageRef.current = false;
     }
-  }, [history, selectedContact, MESSAGE_STATUS]);
+  }, [history, selectedContact, fetchConversations, fetchGroups, MESSAGE_STATUS]);
 
   // Handle file selection with validation
   const handleFileSelect = useCallback((e) => {
