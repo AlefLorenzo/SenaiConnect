@@ -660,3 +660,68 @@ select {
     padding-inline: 16px;
   }
 }
+
+/* Final viewport guard: only components designed for horizontal carousels may pan sideways. */
+html,
+body,
+#root,
+.app-layout,
+.app-main,
+.app-feed-container {
+  max-width: 100%;
+  min-width: 0;
+}
+
+html,
+body,
+#root {
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .app-layout,
+  .app-main,
+  .app-feed-container {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+
+  .app-main {
+    overflow-x: hidden;
+  }
+
+  .app-feed-container {
+    flex-basis: auto;
+    flex-shrink: 1;
+    align-items: stretch;
+  }
+
+  .app-feed-container > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Keep image media responsive without resizing the post card beyond the viewport. */
+  .home-container,
+  .home-container > *,
+  .feed-container,
+  .feed-container > *,
+  .post-card,
+  .create-post-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .home-container,
+  .feed-container {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
