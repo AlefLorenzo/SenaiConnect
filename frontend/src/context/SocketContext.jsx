@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { AuthContext } from './AuthContext.jsx';
 import messagesService from '../services/messagesService';
-import { initSocket, getSocket, disconnectSocket, isSocketConnected, getSocketUserId } from './socketInstance';
+import { initSocket, updateSocketAuth, getSocket, disconnectSocket, isSocketConnected, getSocketUserId } from './socketInstance';
 
 export const SocketContext = createContext();
 
@@ -25,7 +25,7 @@ let previousUser = null;
 let previousUserId = null;
 
 export const SocketProvider = ({ children }) => {
-  const { user, setUser } = useContext(AuthContext);
+  const { user, setUser, authSession } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
@@ -192,7 +192,6 @@ export const SocketProvider = ({ children }) => {
       reconnectAttemptsRef.current = 0;
       reconnectDelayRef.current = 1000;
 
-      socket.emit('register', user?.id);
 
       startHeartbeat();
       processOfflineQueue();
@@ -236,7 +235,6 @@ export const SocketProvider = ({ children }) => {
       setConnectionError(null);
       reconnectAttemptsRef.current = 0;
 
-      socket.emit('register', user?.id);
       startHeartbeat();
       processOfflineQueue();
       fetchMissedMessages(parseInt(localStorage.getItem(`last_seen_${user?.id}`) || '0'));
@@ -398,9 +396,12 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Initialize new socket
-    const socket = initSocket(user?.id);
+    const socket = initSocket(user?.id, authSession?.access_token || sessionStorage.getItem('token'));
     if (socket) {
-      setupSocketListeners(socket);
+      if (!socket.__senaiListenersInitialized) {
+        setupSocketListeners(socket);
+        socket.__senaiListenersInitialized = true;
+      }
     }
 
     // Fetch existing notifications
@@ -414,7 +415,7 @@ export const SocketProvider = ({ children }) => {
       // Intentionally empty - socket persists across HMR
       // Logout cleanup happens at the top of this effect when user becomes null
     };
-  }, [user, setupSocketListeners, startHeartbeat, processOfflineQueue, fetchNotifications]);
+  }, [user, authSession?.access_token, setupSocketListeners, startHeartbeat, processOfflineQueue, fetchNotifications]);
 
   const markAsRead = async (notificationId) => {
     try {
