@@ -1412,7 +1412,7 @@ const ConversationHeader = ({
   const otherParticipant = contact.participants?.find(p => p.name !== 'Você');
   const participantOnline = otherParticipant ? isOnline[otherParticipant.id] : false;
   const onlineCount = contact.participants?.filter(p => p.name !== 'Você' && isOnline[p.id]).length || 0;
-  const totalParticipants = contact.participants?.length || 0;
+  const totalParticipants = contact.participants?.length || Number(contact.memberCount ?? contact.member_count) || 0;
   const admins = contact.participants?.filter(p => p.isAdmin && p.name !== 'Você') || [];
 
   return (
