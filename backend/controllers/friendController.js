@@ -49,7 +49,14 @@ const friendController = {
           );
           // Notifica ambos
           await notificationController.createNotification(
-            parseInt(targetId), 'friend_accepted', requesterId, null, 'aceitou sua solicitação de amizade.'
+            parseInt(targetId),
+            'friend_accepted',
+            requesterId,
+            'aceitou sua solicitação de amizade.',
+            'friendship',
+            f.id,
+            null,
+            { action: 'friend_accepted', friendship_id: f.id }
           );
           socketHelper.sendToUser(parseInt(targetId), 'friend_accepted', { by_user_id: requesterId });
           return res.status(200).json({ message: 'Amizade confirmada!', status: 'accepted' });
@@ -67,7 +74,14 @@ const friendController = {
 
       // Notifica o destinatário
       await notificationController.createNotification(
-        parseInt(targetId), 'friend_request', requesterId, null, 'enviou uma solicitação de amizade.'
+        parseInt(targetId),
+        'friend_request',
+        requesterId,
+        'enviou uma solicitação de amizade.',
+        'friendship',
+        null,
+        null,
+        { action: 'friend_request' }
       );
       socketHelper.sendToUser(parseInt(targetId), 'friend_request', { from_user_id: requesterId });
 
@@ -105,7 +119,14 @@ const friendController = {
 
       if (action === 'accept') {
         await notificationController.createNotification(
-          friendship.requester_id, 'friend_accepted', userId, null, 'aceitou sua solicitação de amizade.'
+          friendship.requester_id,
+          'friend_accepted',
+          userId,
+          'aceitou sua solicitação de amizade.',
+          'friendship',
+          friendship.id,
+          null,
+          { action: 'friend_accepted', friendship_id: friendship.id }
         );
         socketHelper.sendToUser(friendship.requester_id, 'friend_accepted', { by_user_id: userId });
       }

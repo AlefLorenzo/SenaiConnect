@@ -28,6 +28,8 @@ export const SocketProvider = ({ children }) => {
   const { user, setUser, authSession } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const seenNotificationIdsRef = useRef(new Set());
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
   const [offlineQueue, setOfflineQueue] = useState([]);
@@ -44,7 +46,38 @@ export const SocketProvider = ({ children }) => {
   // Event handler registry for components to subscribe
   const eventHandlersRef = useRef(new Map());
 
-  // Fetch existing notifications
+  // Badge counts come from the database, so the total is never limited to the first page.
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/notifications/unread-count`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setUnreadCount(Math.max(0, Number(data.count) || 0));
+    } catch (err) {
+      console.error('Erro ao atualizar o contador de notificações:', err);
+    }
+  }, []);
+
+  const fetchUnreadMessagesCount = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/messages/unread-count`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setUnreadMessagesCount(Math.max(0, Number(data.count) || 0));
+    } catch (err) {
+      console.error('Erro ao atualizar o contador de mensagens:', err);
+    }
+  }, []);
+
+  // Initial page data powers the dropdown; the separate endpoint supplies the exact total.
   const fetchNotifications = useCallback(async () => {
     try {
       const token = sessionStorage.getItem('token');
@@ -55,13 +88,14 @@ export const SocketProvider = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         const allActivities = data.sections?.flatMap(s => s.activities) || [];
+        seenNotificationIdsRef.current = new Set(allActivities.map(n => String(n.id)));
         setNotifications(allActivities);
-        setUnreadCount(allActivities.filter(n => !n.read).length);
+        await fetchUnreadCount();
       }
     } catch (err) {
       console.error('Erro ao buscar notificações:', err);
     }
-  }, []);
+  }, [fetchUnreadCount]);
 
   // Load offline queue from localStorage on init
   useEffect(() => {
@@ -292,6 +326,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     socket.on('new_message', (msg) => {
+      fetchUnreadMessagesCount();
       emitToHandlers('new_message', msg);
     });
 
@@ -300,6 +335,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     socket.on('messages_read', (data) => {
+      fetchUnreadMessagesCount();
       emitToHandlers('messages_read', data);
     });
 
@@ -336,8 +372,15 @@ export const SocketProvider = ({ children }) => {
     });
 
     socket.on('new_notification', (notification) => {
-      setNotifications(prev => [notification, ...prev]);
-      setUnreadCount(prev => prev + 1);
+      const notificationId = notification?.id == null ? null : String(notification.id);
+      const isDuplicate = notificationId && seenNotificationIdsRef.current.has(notificationId);
+
+      if (!isDuplicate) {
+        if (notificationId) seenNotificationIdsRef.current.add(notificationId);
+        setNotifications(prev => [notification, ...prev.filter(item => String(item.id) !== notificationId)]);
+        if (!notification.read) setUnreadCount(prev => prev + 1);
+      }
+
       emitToHandlers('new_notification', notification);
     });
 
@@ -373,7 +416,7 @@ export const SocketProvider = ({ children }) => {
         window.dispatchEvent(new CustomEvent('profile_updated_broadcast', { detail: data }));
       }
     });
-  }, [user, startHeartbeat, stopHeartbeat, processOfflineQueue, fetchMissedMessages, emitToHandlers]);
+  }, [user, startHeartbeat, stopHeartbeat, processOfflineQueue, fetchMissedMessages, fetchUnreadMessagesCount, emitToHandlers]);
 
   // Keep the live socket on the current Supabase access token after token refresh.
   useEffect(() => {
@@ -392,6 +435,10 @@ export const SocketProvider = ({ children }) => {
       disconnectSocket();
       setIsConnected(false);
       setConnectionError(null);
+      setNotifications([]);
+      setUnreadCount(0);
+      setUnreadMessagesCount(0);
+      seenNotificationIdsRef.current.clear();
       initializedForUser = null;
       previousUser = null;
       previousUserId = null;
@@ -451,8 +498,9 @@ export const SocketProvider = ({ children }) => {
       }
     }
 
-    // Fetch existing notifications
+    // Hydrate both badge counters when the authenticated socket starts.
     fetchNotifications();
+    fetchUnreadMessagesCount();
 
     initializedForUser = user?.id;
 
@@ -467,16 +515,47 @@ export const SocketProvider = ({ children }) => {
   const markAsRead = async (notificationId) => {
     try {
       const token = sessionStorage.getItem('token');
-      await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
+      if (!token) return false;
+      const response = await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      if (!response.ok) throw new Error('Não foi possível marcar a notificação como lida.');
+
+      const selected = notifications.find(item => String(item.id) === String(notificationId));
+      setNotifications(prev => prev.map(item => (
+        String(item.id) === String(notificationId) ||
+        (selected?.grouping_id && item.grouping_id === selected.grouping_id)
+          ? { ...item, read: true }
+          : item
+      )));
+      await fetchUnreadCount();
+      return true;
     } catch (err) {
       console.error('Erro ao marcar notificação:', err);
+      return false;
+    }
+  };
+
+  const markAllAsRead = async (filter = 'all') => {
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) return false;
+      const response = await fetch(`${API_URL}/api/notifications/read-all`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ filter })
+      });
+      if (!response.ok) throw new Error('Não foi possível marcar as notificações como lidas.');
+      setNotifications(prev => prev.map(item => ({ ...item, read: true })));
+      await fetchUnreadCount();
+      return true;
+    } catch (err) {
+      console.error('Erro ao marcar todas as notificações como lidas:', err);
+      return false;
     }
   };
 
@@ -538,8 +617,12 @@ export const SocketProvider = ({ children }) => {
       socket: getSocket(),
       notifications,
       unreadCount,
+      unreadMessagesCount,
       markAsRead,
+      markAllAsRead,
       fetchNotifications,
+      fetchUnreadCount,
+      fetchUnreadMessagesCount,
       isConnected,
       connectionError,
       offlineQueue,

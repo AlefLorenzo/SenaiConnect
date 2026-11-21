@@ -19,7 +19,7 @@ const notificationController = {
 
             // Map frontend filters to activity_type values
             const filterMap = {
-                'followers': "n.activity_type IN ('follow', 'follow_accepted')",
+                'followers': "n.activity_type IN ('follow', 'follow_accepted', 'friend_request', 'friend_accepted')",
                 'likes': "n.activity_type IN ('like', 'post_like')",
                 'comments': "n.activity_type IN ('comment', 'post_comment', 'comment_reply')",
                 'mentions': "n.activity_type IN ('mention', 'story_mention', 'comment_mention')",
@@ -97,7 +97,7 @@ const notificationController = {
 
             // If this notification has a grouping_id, mark all in group as read
             const [notification] = await db.query(
-                'SELECT grouping_id FROM notifications WHERE id = ?', [id]
+                'SELECT grouping_id FROM notifications WHERE id = ? AND user_id = ?', [id, userId]
             );
 
             if (notification.length > 0 && notification[0].grouping_id) {
@@ -124,7 +124,7 @@ const notificationController = {
             const params = [userId];
 
             const filterMap = {
-                'followers': "activity_type IN ('follow', 'follow_accepted')",
+                'followers': "activity_type IN ('follow', 'follow_accepted', 'friend_request', 'friend_accepted')",
                 'likes': "activity_type IN ('like', 'post_like')",
                 'comments': "activity_type IN ('comment', 'post_comment', 'comment_reply')",
                 'mentions': "activity_type IN ('mention', 'story_mention', 'comment_mention')",
@@ -156,10 +156,10 @@ const notificationController = {
         try {
             const userId = req.user.id;
             const [result] = await db.query(
-                'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND status = "unread"',
+                "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND status = 'unread'",
                 [userId]
             );
-            res.status(200).json({ count: result[0].count });
+            res.status(200).json({ count: Number(result[0]?.count || 0) });
         } catch (error) {
             console.error('Erro ao buscar contagem:', error);
             res.status(500).json({ error: 'Erro ao buscar contagem.' });
@@ -175,6 +175,8 @@ const notificationController = {
             const legacyTypeMap = {
                 'follow': 'follow',
                 'follow_accepted': 'follow',
+                'friend_request': 'friend_request',
+                'friend_accepted': 'friend_accepted',
                 'like': 'like',
                 'post_like': 'like',
                 'comment': 'comment',
@@ -303,6 +305,8 @@ function getActivityVerb(activityType) {
     const verbs = {
         'follow': 'começaram a seguir você',
         'follow_accepted': 'aceitaram seu pedido',
+        'friend_request': 'enviaram uma solicitação de amizade',
+        'friend_accepted': 'aceitaram sua solicitação de amizade',
         'like': 'curtiram sua publicação',
         'post_like': 'curtiram sua publicação',
         'comment': 'comentaram na sua publicação',

@@ -1,12 +1,14 @@
 import { Home, Search, Plus, Heart, User, MessageCircle, LayoutGrid, X } from 'lucide-react';
 import { useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { SocketContext } from '../context/SocketContext.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import MobileCreateSheet from './MobileCreateSheet';
 import './MobileBottomNav.css';
 
 const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
   const { user } = useContext(AuthContext);
+  const { unreadCount, unreadMessagesCount } = useContext(SocketContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [touchStartX, setTouchStartX] = useState(0);
@@ -147,6 +149,18 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
                   className="nav-icon"
                   aria-hidden="true"
                 />
+                {(() => {
+                  const count = item.path === '/messages'
+                    ? unreadMessagesCount
+                    : item.path === '/activity'
+                      ? unreadCount
+                      : 0;
+                  return count > 0 ? (
+                    <span className="mobile-nav-badge" aria-label={`${count} ${item.label.toLowerCase()} não lidas`}>
+                      {count > 99 ? '99+' : count}
+                    </span>
+                  ) : null;
+                })()}
                 {/* Active indicator dot */}
                 {isActive && <span className="active-indicator" aria-hidden="true" />}
               </Link>

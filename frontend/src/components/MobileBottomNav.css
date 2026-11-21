@@ -186,3 +186,31 @@
   .mobile-nav-create { width: 48px; height: 48px; margin-top: -8px; }
   .mobile-nav-item { padding: 6px 2px; }
 }
+
+
+/* Unread counters for activity and messages */
+.mobile-nav-badge {
+  position: absolute;
+  top: 7px;
+  left: calc(50% + 5px);
+  z-index: 2;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-surface, #fff);
+  border-radius: 999px;
+  background: #e53945;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .mobile-nav-badge {
+  border-color: var(--color-surface-dark, #1a1a1a);
+}

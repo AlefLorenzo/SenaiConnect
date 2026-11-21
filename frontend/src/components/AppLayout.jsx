@@ -1,15 +1,23 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { StoryViewerContext } from '../context/StoryViewerContext.jsx';
+import { SocketContext } from '../context/SocketContext.jsx';
 import MobileBottomNav from './MobileBottomNav';
 import './AppLayout.css';
 
 const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
+  const { fetchUnreadCount, fetchUnreadMessagesCount } = useContext(SocketContext);
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchUnreadCount();
+    fetchUnreadMessagesCount();
+  }, [location.pathname, user?.id, fetchUnreadCount, fetchUnreadMessagesCount]);
 
   // FAB callbacks for creation flows
   const handleCreatePost = (type) => {

@@ -2,11 +2,13 @@ import React, { useContext } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { Home, Rss, Clock, Users, MessageSquare, Calendar, BookOpen, Bell, FileText, Bookmark, Settings, LogOut, Heart } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { SocketContext } from '../context/SocketContext.jsx';
 import Avatar from './Avatar';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const { user, logout } = useContext(AuthContext);
+  const { unreadCount, unreadMessagesCount } = useContext(SocketContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -20,7 +22,7 @@ const Sidebar = () => {
     { icon: <Rss size={22} />, text: 'Feed', path: '/feed' },
     { icon: <Clock size={22} />, text: 'Histórias', path: '/stories' },
     { icon: <Users size={22} />, text: 'Grupos', path: '/groups' },
-    { icon: <MessageSquare size={22} />, text: 'Mensagens', path: '/messages', badge: 3 },
+    { icon: <MessageSquare size={22} />, text: 'Mensagens', path: '/messages' },
     { icon: <Heart size={22} />, text: 'Atividade', path: '/activity' },
     { icon: <Calendar size={22} />, text: 'Eventos', path: '/events' },
     { icon: <BookOpen size={22} />, text: 'Cursos', path: '/courses' },
@@ -48,18 +50,30 @@ const Sidebar = () => {
 
       <nav className="sidebar-nav">
         <ul>
-          {menuItems.map((item, index) => (
-            <li key={index}>
-              <NavLink 
-                to={item.path} 
-                className={({ isActive }) => isActive && item.path !== '#' ? 'nav-item active' : 'nav-item'}
-              >
-                {item.icon}
-                <span>{item.text}</span>
-                {item.badge && <span className="nav-badge">{item.badge}</span>}
-              </NavLink>
-            </li>
-          ))}
+          {menuItems.map((item, index) => {
+            const badgeCount = item.path === '/messages'
+              ? unreadMessagesCount
+              : item.path === '/activity'
+                ? unreadCount
+                : 0;
+
+            return (
+              <li key={index}>
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) => isActive && item.path !== '#' ? 'nav-item active' : 'nav-item'}
+                >
+                  {item.icon}
+                  <span>{item.text}</span>
+                  {badgeCount > 0 && (
+                    <span className="nav-badge" aria-label={`${badgeCount} ${item.path === '/messages' ? 'mensagens' : 'notificações'} não lidas`}>
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </NavLink>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 

@@ -50,6 +50,38 @@ function resolveIndividualPeerId(conversationId, currentUserId) {
 }
 
 const messageController = {
+    // Exact total of unread direct and group messages for the authenticated user.
+    getUnreadCount: async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const [rows] = await db.query(`
+                SELECT (
+                    SELECT COUNT(*)
+                    FROM messages
+                    WHERE receiver_id = ? AND status = 'enviada'
+                ) + (
+                    SELECT COUNT(*)
+                    FROM group_messages gm
+                    WHERE gm.sender_id <> ?
+                      AND EXISTS (
+                          SELECT 1 FROM group_members member
+                          WHERE member.group_id = gm.group_id AND member.user_id = ?
+                      )
+                      AND gm.id > COALESCE((
+                          SELECT gl.last_read_message_id
+                          FROM group_last_read gl
+                          WHERE gl.group_id = gm.group_id AND gl.user_id = ?
+                      ), 0)
+                ) AS count
+            `, [userId, userId, userId, userId]);
+
+            return res.status(200).json({ count: Number(rows[0]?.count || 0) });
+        } catch (error) {
+            console.error('Erro ao contar mensagens não lidas:', error);
+            return res.status(500).json({ error: 'Erro ao buscar contagem de mensagens.' });
+        }
+    },
+
     // Get all conversations (individual + groups)
     getConversations: async (req, res) => {
         try {
@@ -723,7 +755,7 @@ const messageController = {
                         'message',
                         message.id,
                         `message_${message.id}`,
-                        { action: 'message', message_id: message.id, conversation_id: receiverId }
+                        { action: 'message', message_id: message.id, conversation_id: conversationId }
                     );
 
                     socketHelper.sendToUser(receiverId, 'new_message', {

@@ -95,6 +95,7 @@ const Messages = () => {
     sendTypingStart,
     sendTypingStop,
     sendMessagesRead,
+    fetchUnreadMessagesCount,
     queueMessage,
     retryMessage,
     MESSAGE_STATUS
@@ -277,6 +278,11 @@ const Messages = () => {
     try {
       setLoadingHistory(true);
       const result = await messagesService.getHistory(contactId, { page, limit: 30 });
+      // Group history does not mark the read cursor through GET; persist it explicitly.
+      if (result.isGroup || result.contact?.isGroup) {
+        await messagesService.markAsRead(contactId);
+      }
+      await fetchUnreadMessagesCount();
       let data = result.data || [];
 
       // Ensure messages are in chronological order (oldest first) for proper grouping
@@ -304,7 +310,7 @@ const Messages = () => {
     } finally {
       setLoadingHistory(false);
     }
-  }, [fetchConversations, loadingHistory]);
+  }, [fetchConversations, fetchUnreadMessagesCount, loadingHistory]);
 
   const loadMoreHistory = useCallback(() => {
     if (selectedContact && hasMoreHistory && !loadingHistory) {
@@ -457,11 +463,15 @@ const Messages = () => {
       });
 
       sendMessagesRead(selectedContact.id);
+      // Persist the read state for a conversation that is currently open.
+      messagesService.markAsRead(selectedContact.id)
+        .then(() => fetchUnreadMessagesCount())
+        .catch(error => console.error('Erro ao atualizar a leitura da conversa:', error));
     } else {
       fetchConversations();
       fetchGroups();
     }
-  }, [selectedContact, sendMessagesRead, fetchConversations, fetchGroups, user?.id, MESSAGE_STATUS]);
+  }, [selectedContact, sendMessagesRead, fetchUnreadMessagesCount, fetchConversations, fetchGroups, user?.id, MESSAGE_STATUS]);
 
   const handleMessageStatus = useCallback((data) => {
     const { messageId, tempId, status } = data;

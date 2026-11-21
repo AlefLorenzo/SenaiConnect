@@ -69,7 +69,7 @@ const formatGroupDate = (dateStr) => {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Notifications = () => {
-    const { notifications, unreadCount, markAsRead, fetchNotifications } = useContext(SocketContext);
+    const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } = useContext(SocketContext);
     const navigate = useNavigate();
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
@@ -204,7 +204,14 @@ const Notifications = () => {
         if (!notification.read) {
             markAsRead(notification.id);
         }
-        if (notification.post_id) {
+        if (notification.activity_type === 'message' || notification.type === 'message') {
+            let metadata = notification.metadata || {};
+            if (typeof metadata === 'string') {
+                try { metadata = JSON.parse(metadata); } catch { metadata = {}; }
+            }
+            const conversationId = metadata.conversation_id;
+            navigate(conversationId ? `/messages?conversationId=${encodeURIComponent(conversationId)}` : '/messages');
+        } else if (notification.post_id) {
             navigate('/');
         } else if (notification.source_user_id) {
             navigate(`/profile/${notification.source_user_id}`);
@@ -212,16 +219,8 @@ const Notifications = () => {
     };
 
     const handleMarkAllRead = async () => {
-        try {
-            const token = sessionStorage.getItem('token');
-            await fetch(`${API_URL}/api/notifications/read-all`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        } catch (err) {
-            console.error('Erro ao marcar todas como lidas:', err);
-        }
+        const updated = await markAllAsRead();
+        if (updated) setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
     };
 
     const groupedNotifications = groupNotificationsByDate(allNotifications);
