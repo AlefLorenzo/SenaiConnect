@@ -271,7 +271,8 @@ async function preparePlan(source, target, sql) {
     const targetColumns = target.columnsByTable.get(tableName) || [];
     const omissions = OMIT_COLUMNS[tableName] || new Set();
     const insertColumns = targetColumns.filter((column) =>
-      sourceColumns.has(column.column_name) &&
+      (sourceColumns.has(column.column_name) ||
+        (tableName === 'system_settings' && ['setting_key', 'setting_value'].includes(column.column_name))) &&
       !omissions.has(column.column_name) &&
       !plan.deferredFks.some((fk) => fk.table_name === tableName && fk.column_name === column.column_name)
     );
