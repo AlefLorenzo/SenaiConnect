@@ -155,24 +155,30 @@ export const SocketProvider = ({ children }) => {
     missedMessagesCheckRef.current = true;
 
     try {
-      const { messagesService } = await import('../services/messagesService');
-      // Bypass the service cache so reconnection recovery sees messages committed moments ago.
-      messagesService.clearCache();
+      // forceRefresh bypasses the conversation cache; clearing every history cache was unnecessary.
       const conversations = await messagesService.getConversations('all', true);
+      const conversationList = conversations.data || conversations || [];
+      const changedConversations = conversationList.filter((conv) => {
+        const timestamp = new Date(conv.last_message?.createdAt || conv.updatedAt || 0).getTime();
+        return Number.isFinite(timestamp) && timestamp > (lastMessageTimestamp || 0);
+      });
 
-      for (const conv of conversations.data || conversations) {
-        if (conv.last_message?.createdAt) {
-          const lastMsgTime = new Date(conv.last_message.createdAt).getTime();
-          if (lastMsgTime > (lastMessageTimestamp || 0)) {
-            const history = await messagesService.getHistory(conv.id, { page: 1, limit: 50 });
-            if (history.data?.length) {
-              emitToHandlers('missed_messages', {
-                conversationId: conv.id,
-                messages: history.data
-              });
-            }
+      // Fetch in small batches: avoid serial N+1 latency without flooding the API after reconnect.
+      for (let index = 0; index < changedConversations.length; index += 4) {
+        const batch = changedConversations.slice(index, index + 4);
+        const recovered = await Promise.all(batch.map(async (conv) => {
+          const conversationId = conv.conversation_id ?? conv.id;
+          if (!conversationId) return null;
+          try {
+            const history = await messagesService.getHistory(conversationId, { page: 1, limit: 50, forceRefresh: true });
+            const messages = history.data || [];
+            return messages.length ? { conversationId, messages } : null;
+          } catch (historyError) {
+            console.warn('Falha ao recuperar histórico de conversa:', conversationId, historyError.message);
+            return null;
           }
-        }
+        }));
+        recovered.filter(Boolean).forEach((payload) => emitToHandlers('missed_messages', payload));
       }
       localStorage.setItem(`last_seen_${user?.id}`, Date.now().toString());
     } catch (err) {
@@ -198,12 +204,18 @@ export const SocketProvider = ({ children }) => {
     };
 
     recoverMessages();
-    const intervalId = window.setInterval(recoverMessages, 12000);
+    // Recovery polling is a safety net only; Socket.IO remains the primary delivery path.
+    const intervalId = window.setInterval(recoverMessages, 30000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') recoverMessages();
+    };
     window.addEventListener('online', recoverMessages);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener('online', recoverMessages);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user?.id, isConnected, fetchMissedMessages]);
 
@@ -222,9 +234,10 @@ export const SocketProvider = ({ children }) => {
 
       const lastSeen = localStorage.getItem(`last_seen_${user?.id}`);
       if (lastSeen) {
-        fetchMissedMessages(parseInt(lastSeen));
+        fetchMissedMessages(Number(lastSeen));
+      } else {
+        localStorage.setItem(`last_seen_${user?.id}`, Date.now().toString());
       }
-      localStorage.setItem(`last_seen_${user?.id}`, Date.now().toString());
 
       emitToHandlers('connection_change', { connected: true });
     });
@@ -259,10 +272,8 @@ export const SocketProvider = ({ children }) => {
       setConnectionError(null);
       reconnectAttemptsRef.current = 0;
 
-      startHeartbeat();
-      processOfflineQueue();
-      fetchMissedMessages(parseInt(localStorage.getItem(`last_seen_${user?.id}`) || '0'));
-
+      // The socket 'connect' event already performs recovery and queue processing.
+      // Keep this event for UI state only to avoid launching the same work twice.
       emitToHandlers('reconnected', { attemptNumber });
     });
 
