@@ -3,6 +3,7 @@ const mockIo = {
   to: jest.fn().mockReturnThis(),
   emit: jest.fn(),
   on: jest.fn(),
+  use: jest.fn(),
   sockets: {
     sockets: new Map(),
   },
