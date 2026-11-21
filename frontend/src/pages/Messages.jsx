@@ -452,7 +452,7 @@ const Messages = () => {
         }
 
         if (normalizedMessageId && messageIdsRef.current.has(normalizedMessageId)) return prev;
-        if (normalizedMessageId) messageIdsRef.current.add(msgId);
+        if (normalizedMessageId) messageIdsRef.current.add(normalizedMessageId);
         return [...prev, msg];
       });
 
@@ -905,7 +905,7 @@ const Messages = () => {
         setHistory(prev => prev.map(m =>
           (m.id === msgId || m.tempId === msgId) ? { ...result, tempId: m.tempId } : m
         ));
-        messageIdsRef.current.add(result.id);
+        messageIdsRef.current.add(String(result.id));
       }
     } catch (err) {
       console.error('Erro ao reenviar:', err);
