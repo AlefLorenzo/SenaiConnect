@@ -238,7 +238,9 @@ const messageController = {
             const { id } = req.params;
 
             // Check if it's a group
-            const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [id]);
+            const [groups] = /^\\d+$/.test(String(id))
+                ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
+                : [[]];
 
             if (groups.length > 0) {
                 // It's a group
@@ -360,7 +362,9 @@ const messageController = {
             const offset = (page - 1) * limit;
 
             // Check if it's a group conversation
-            const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [id]);
+            const [groups] = /^\\d+$/.test(String(id))
+                ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
+                : [[]];
 
             let messages = [];
             let isGroup = false;
@@ -737,7 +741,9 @@ const messageController = {
             const { id } = req.params;
 
             // Check if it's a group
-            const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [id]);
+            const [groups] = /^\\d+$/.test(String(id))
+                ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
+                : [[]];
 
             if (groups.length > 0) {
                 // Group - update last read message
