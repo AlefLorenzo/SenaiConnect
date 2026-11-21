@@ -411,39 +411,6 @@ class StoriesService extends BaseService {
   }
 
   /**
-   * Mark story as viewed
-   */
-  async viewStory(storyId) {
-    if (USE_MOCK) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      this.mockFeed.forEach(group => {
-        group.items.forEach(item => {
-          if (item.id === storyId) {
-            item.viewed = true;
-          }
-        });
-        group.hasUnviewed = group.items.some(item => !item.viewed);
-      });
-      this.invalidateCache();
-      return { success: true };
-    }
-
-    return this.post(`${ENDPOINTS.STORIES.BASE}/${storyId}/view`, {});
-  }
-
-  /**
-   * Get story viewers (owner only)
-   */
-  async getStoryViewers(storyId) {
-    if (USE_MOCK) {
-      await new Promise(resolve => setTimeout(resolve, 150));
-      return mockStoryViewers;
-    }
-
-    return this.get(`${ENDPOINTS.STORIES.BASE}/${storyId}/viewers`);
-  }
-
-  /**
    * Get story reactions
    */
   async getStoryReactions(storyId) {
