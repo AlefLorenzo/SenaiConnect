@@ -184,7 +184,7 @@ export const SocketProvider = ({ children }) => {
     } finally {
       missedMessagesCheckRef.current = false;
     }
-  }, [emitToHandlers]);
+  }, [emitToHandlers, user?.id]);
 
   // When the realtime transport is unavailable, recover new messages from the database.
   // This keeps inboxes usable while Socket.IO is reconnecting or a mobile browser suspends it.
