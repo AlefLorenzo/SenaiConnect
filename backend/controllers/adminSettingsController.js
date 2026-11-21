@@ -120,11 +120,11 @@ const adminSettingsController = {
 
     getSystemInfo: async (req, res) => {
         try {
-            const [[{ dbSize }]] = await db.query(
-                'SELECT ROUND((pg_database_size(current_database()) / 1024.0 / 1024.0)::numeric, 2) AS "dbSize"'
+            const [[{ db_size: dbSize }]] = await db.query(
+                'SELECT ROUND((pg_database_size(current_database()) / 1024.0 / 1024.0)::numeric, 2) AS db_size'
             );
-            const [[{ tableCount }]] = await db.query(
-                'SELECT COUNT(*)::int AS "tableCount" FROM information_schema.tables ' +
+            const [[{ table_count: tableCount }]] = await db.query(
+                'SELECT COUNT(*)::int AS table_count FROM information_schema.tables ' +
                 "WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'"
             );
             const [tables] = await db.query(
