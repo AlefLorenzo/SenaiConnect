@@ -31,11 +31,6 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     }
   }, [storyGroups, initialGroupIndex, onClose]);
 
-  // Early return if no valid stories (will be closed by effect above)
-  if (!storyGroups || storyGroups.length === 0 || currentGroupIndex >= storyGroups.length) {
-    return null;
-  }
-
   const currentGroup = storyGroups[currentGroupIndex];
   const currentStory = currentGroup?.stories?.[currentStoryIndex];
 
