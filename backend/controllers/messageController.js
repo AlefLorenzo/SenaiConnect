@@ -1053,8 +1053,8 @@ const messageController = {
 
             if (isAdmin) {
                 await db.query(
-                    'INSERT INTO group_admins (group_id, admin_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE admin_id = ?',
-                    [id, userId, userId]
+                    'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE assigned_by = ?',
+                    [id, userId, loggedUserId, loggedUserId]
                 );
             } else {
                 await db.query(
