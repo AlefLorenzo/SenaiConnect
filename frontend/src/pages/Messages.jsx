@@ -240,14 +240,33 @@ const Messages = () => {
     fetchGroups();
   }, [fetchConversations, fetchGroups]);
 
-  // Handle conversationId from URL params - auto-select conversation when navigating from profile
+  // Resolve deep links from profiles even if the inbox list is still loading.
   useEffect(() => {
-    if (urlConversationId && conversations.length > 0) {
-      const conversation = conversations.find(c => String(c.id) === String(urlConversationId));
-      if (conversation) {
-        setSelectedContact(conversation);
-      }
+    if (!urlConversationId) return;
+    let cancelled = false;
+    const existing = conversations.find(c => String(c.id) === String(urlConversationId));
+    if (existing) {
+      setSelectedContact(existing);
+      setActiveTab(existing.isGroup ? 'groups' : 'general');
+      return;
     }
+    messagesService.getConversation(urlConversationId, true)
+      .then(conversation => {
+        if (cancelled || !conversation) return;
+        const normalized = {
+          ...conversation,
+          id: String(conversation.id ?? conversation.conversationId ?? urlConversationId),
+          isGroup: Boolean(conversation.isGroup),
+          participants: conversation.participants || [],
+          unreadCount: conversation.unreadCount || conversation.unread_count || 0,
+        };
+        setSelectedContact(normalized);
+        setActiveTab(normalized.isGroup ? 'groups' : 'general');
+      })
+      .catch(error => {
+        if (!cancelled) console.error('Não foi possível abrir a conversa solicitada:', error);
+      });
+    return () => { cancelled = true; };
   }, [urlConversationId, conversations]);
 
   const fetchHistory = useCallback(async (contactId, page = 1, append = false) => {
