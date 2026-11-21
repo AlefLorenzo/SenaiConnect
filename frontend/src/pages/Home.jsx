@@ -17,6 +17,10 @@ const Home = () => {
   const { socket } = useContext(SocketContext);
   const location = useLocation();
   const [posts, setPosts] = useState([]);
+  const [postsPage, setPostsPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const loadingMorePostsRef = useRef(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [postImage, setPostImage] = useState(null);
@@ -117,10 +121,29 @@ const Home = () => {
 
   const fetchPosts = async () => {
     try {
-      const data = await postsService.getFeed();
+      const data = await postsService.getFeed({ page: 1, limit: 20 });
       setPosts(data.posts || []);
+      setPostsPage(data.page || 1);
+      setHasMorePosts(Boolean(data.hasMore));
     } catch (err) {
       console.log('Erro ao buscar posts', err);
+    }
+  };
+
+  const loadMorePosts = async () => {
+    if (!hasMorePosts || loadingMorePostsRef.current) return;
+    loadingMorePostsRef.current = true;
+    setLoadingMorePosts(true);
+    try {
+      const data = await postsService.getFeed({ page: postsPage + 1, limit: 20, append: true });
+      setPosts(data.posts || []);
+      setPostsPage(data.page || postsPage + 1);
+      setHasMorePosts(Boolean(data.hasMore));
+    } catch (err) {
+      console.warn('Não foi possível carregar mais publicações:', err);
+    } finally {
+      loadingMorePostsRef.current = false;
+      setLoadingMorePosts(false);
     }
   };
 
@@ -305,6 +328,16 @@ const Home = () => {
           <div className="card" style={{padding: '32px', textAlign: 'center', color: '#65676B'}}>
             Nenhuma publicação ainda. Seja o primeiro a postar!
           </div>
+        )}
+        {hasMorePosts && (
+          <button
+            type="button"
+            className="btn-secondary load-more-posts"
+            onClick={loadMorePosts}
+            disabled={loadingMorePosts}
+          >
+            {loadingMorePosts ? 'Carregando...' : 'Carregar mais publicações'}
+          </button>
         )}
       </div>
 
