@@ -9,8 +9,7 @@ const adminUsersController = require('../controllers/adminUsersController');
 const adminAuditController = require('../controllers/adminAuditController');
 const adminSettingsController = require('../controllers/adminSettingsController');
 const adminCrudController = require('../controllers/adminCrudController');
-const { requireAdmin, requireRole, JWT_ADMIN_SECRET } = require('../middlewares/adminAuth');
-const jwt = require('jsonwebtoken');
+const { requireAdmin, requireRole } = require('../middlewares/adminAuth');
 const rateLimiter = require('../utils/rateLimiter');
 
 // Rate limiter para login admin (chave email+IP)
@@ -72,7 +71,7 @@ router.get('/users/stats', adminUsersController.getStats);
 router.get('/users/:id', adminUsersController.getUser);
 router.get('/users/:id/activity', adminUsersController.getActivity);
 router.patch('/users/:id/block', adminUsersController.toggleBlock);
-router.patch('/users/:id/role', adminUsersController.updateRole);
+router.patch('/users/:id/role', requireRole(['super_admin']), adminUsersController.updateRole);
 router.patch('/users/:id/profile', adminUsersController.updateProfile);
 router.post('/users/:id/reset-password', adminUsersController.resetPassword);
 
