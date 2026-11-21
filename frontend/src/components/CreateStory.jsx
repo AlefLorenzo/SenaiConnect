@@ -42,6 +42,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
   const [mentionUsers, setMentionUsers] = useState([]);
   const [selectedMentions, setSelectedMentions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInProgressRef = useRef(false);
   const [error, setError] = useState(null);
 
   // Text overlay/drawing tools state
@@ -366,11 +367,13 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
   };
 
   const handleSubmit = async () => {
+    if (submitInProgressRef.current) return;
     if (!textContent.trim() && !mediaFile && overlayElements.length === 0) {
       setError('Adicione texto ou mídia para criar a história');
       return;
     }
 
+    submitInProgressRef.current = true;
     setIsSubmitting(true);
     setError(null);
 
@@ -417,6 +420,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
       console.error('Erro ao criar história:', err);
       setError('Erro ao criar história. Tente novamente.');
     } finally {
+      submitInProgressRef.current = false;
       setIsSubmitting(false);
     }
   };
