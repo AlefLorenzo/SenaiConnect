@@ -173,6 +173,7 @@ const storyController = {
             const storyPrivacy = privacy || 'public'; // public, followers, close_friends
 
             const connection = await db.getConnection();
+            let storyId;
             try {
                 await connection.beginTransaction();
 
@@ -181,7 +182,7 @@ const storyController = {
                     [userId, media_url || null, media_type || null, text_content || null, expiresAt, storyPrivacy, background_color || null, text_overlay_data ? JSON.stringify(text_overlay_data) : null]
                 );
 
-                const storyId = result.insertId;
+                storyId = result.insertId;
 
                 // Handle privacy exceptions (exclude/include lists)
                 if (privacy_exceptions && Array.isArray(privacy_exceptions) && privacy_exceptions.length > 0) {
@@ -209,7 +210,7 @@ const storyController = {
                 `SELECT s.*, u.name as user_name, u.avatar as user_avatar
                  FROM stories s JOIN users u ON s.user_id = u.id
                  WHERE s.id = ?`,
-                [result.insertId]
+                [storyId]
             );
 
             // Emite via socket para todos
