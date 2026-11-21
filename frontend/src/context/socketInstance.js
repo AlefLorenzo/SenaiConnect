@@ -47,7 +47,7 @@ export function initSocket(userId, accessToken) {
 
   socketInstance = io(url, {
     path: '/socket.io/',
-    transports: ['polling'],
+    transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
