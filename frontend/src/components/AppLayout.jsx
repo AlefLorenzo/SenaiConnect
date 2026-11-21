@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import MobileBottomNav from './MobileBottomNav';
@@ -8,18 +8,6 @@ const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
-
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile viewport
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 769);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // FAB callbacks for creation flows
   const handleCreatePost = (type) => {
