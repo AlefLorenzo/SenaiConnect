@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { API_URL } from '../config/api';
 
 let socketInstance = null;
 let socketUserId = null;
@@ -7,7 +8,7 @@ let socketAccessToken = null;
 const getSocketUrl = () => {
   if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL;
   if (import.meta.env.DEV) return 'http://localhost:5000';
-  return '';
+  return API_URL;
 };
 
 /**
