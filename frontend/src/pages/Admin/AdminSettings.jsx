@@ -18,7 +18,7 @@ const AdminSettings = () => {
 
     const fetchSettings = async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/settings`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -44,7 +44,7 @@ const AdminSettings = () => {
         setSaving(true);
         setSuccessMessage('');
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/settings`, {
                 method: 'PUT',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -64,7 +64,7 @@ const AdminSettings = () => {
     const handleReset = async () => {
         if (!window.confirm('Tem certeza? Todas as configurações voltarão aos valores padrão.')) return;
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/settings/reset`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
@@ -82,7 +82,7 @@ const AdminSettings = () => {
 
     const handleClearCache = async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             await fetch(`${API_URL}/api/admin/settings/clear-cache`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
