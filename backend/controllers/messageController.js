@@ -759,13 +759,18 @@ const messageController = {
                     });
                 }
             } else {
-                // Individual
+                // Individual IDs are canonical "userA_userB" values; resolve and validate the peer.
+                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : Number(id);
+                if (!Number.isInteger(peerId) || peerId <= 0 || peerId === Number(loggedUserId)) {
+                    return res.status(400).json({ error: 'Identificador de conversa inválido.' });
+                }
+
                 await db.query(
                     "UPDATE messages SET status = 'lida' WHERE sender_id = ? AND receiver_id = ? AND status = 'enviada'",
-                    [id, loggedUserId]
+                    [peerId, loggedUserId]
                 );
 
-                socketHelper.sendToUser(id, 'messages_read', {
+                socketHelper.sendToUser(peerId, 'messages_read', {
                     conversationId: id,
                     byUserId: loggedUserId
                 });
