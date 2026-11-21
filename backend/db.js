@@ -152,7 +152,7 @@ function translateQuery(originalSql, originalParams = []) {
       .replace(/%H/g, 'HH24').replace(/%h/g, 'HH12')
       .replace(/%i/g, 'MI').replace(/%s/g, 'SS')
       .replace(/%b/g, 'Mon').replace(/%M/g, 'Month').replace(/%W/g, 'Day');
-    return 'TO_CHAR(' + expression + ', \' + pgFormat.replace(/'/g, "''") + '\')';
+    return "TO_CHAR(" + expression + ", '" + pgFormat.replace(/'/g, "''") + "')";
   });
   sql = sql.replace(/\bLIKE\b/gi, 'ILIKE');
   sql = sql.replace(new RegExp(String.fromCharCode(96), 'g'), '"');
@@ -205,7 +205,6 @@ function translateQuery(originalSql, originalParams = []) {
     }
     values.push(finalValue === undefined ? null : finalValue);
     return '$' + values.length;
-  }
   }
 
   for (let i = 0; i < sql.length; i += 1) {
