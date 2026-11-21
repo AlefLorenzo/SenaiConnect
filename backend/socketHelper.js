@@ -60,7 +60,7 @@ async function isConversationMember(userId, conversationId) {
   const key = String(conversationId || '').trim();
   if (!Number.isSafeInteger(currentUserId) || currentUserId <= 0 || !key) return false;
 
-  if (/^\\d+$/.test(key)) {
+  if (/^\d+$/.test(key)) {
     const groupId = Number(key);
     if (!Number.isSafeInteger(groupId) || groupId <= 0) return false;
     const [members] = await db.query(
@@ -70,7 +70,7 @@ async function isConversationMember(userId, conversationId) {
     return members.length > 0;
   }
 
-  const match = key.match(/^(\\d+)_(\\d+)$/);
+  const match = key.match(/^(\d+)_(\d+)$/);
   if (!match) return false;
   const firstId = Number(match[1]);
   const secondId = Number(match[2]);
@@ -329,7 +329,7 @@ function broadcast(event, data) {
 async function broadcastToConversation(conversationId, event, data, excludeUserId = null) {
   try {
     const conversationKey = String(conversationId || '');
-    const directMatch = conversationKey.match(/^(\\d+)_(\\d+)$/);
+    const directMatch = conversationKey.match(/^(\d+)_(\d+)$/);
     if (directMatch) {
       const firstId = Number(directMatch[1]);
       const secondId = Number(directMatch[2]);
