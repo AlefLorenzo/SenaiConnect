@@ -79,17 +79,49 @@ describe('MobileStories', () => {
     expect(screen.getByText('João Santos')).toBeInTheDocument();
   });
 
-  test('shows gradient ring for unviewed stories', () => {
+  test('shows a WhatsApp-style green ring for unviewed stories', () => {
     renderMobileStories();
     const mariaItem = screen.getByText('Maria Silva').closest('.story-item');
+    const ring = mariaItem.querySelector('.story-status-ring');
+
     expect(mariaItem).toHaveClass('unviewed');
+    expect(ring).toHaveAttribute('data-view-state', 'unviewed');
+    expect(mariaItem.style.getPropertyValue('--story-ring-background')).toBe('#25D366');
   });
 
-  test('shows checkmark for viewed stories', () => {
+  test('shows a WhatsApp-style grey ring for viewed stories without a checkmark', () => {
     renderMobileStories();
     const joaoItem = screen.getByText('João Santos').closest('.story-item');
+    const ring = joaoItem.querySelector('.story-status-ring');
+
     expect(joaoItem).toHaveClass('viewed');
-    expect(joaoItem.querySelector('.story-viewed-badge')).toBeInTheDocument();
+    expect(ring).toHaveAttribute('data-view-state', 'viewed');
+    expect(joaoItem.style.getPropertyValue('--story-ring-background')).toBe('#89969F');
+    expect(joaoItem.querySelector('.story-viewed-badge')).not.toBeInTheDocument();
+  });
+
+  test('shows separate green and grey ring segments when a user has both seen and unseen stories', () => {
+    renderMobileStories({
+      stories: [{
+        id: 'mixed',
+        user_id: 5,
+        user_name: 'Ana Oliveira',
+        user_avatar: 'ana.jpg',
+        hasUnviewed: true,
+        storyCount: 2,
+        stories: [
+          { id: 'mixed-1', viewed: true },
+          { id: 'mixed-2', viewed: false },
+        ],
+      }],
+    });
+
+    const anaItem = screen.getByText('Ana Oliveira').closest('.story-item');
+    const ring = anaItem.querySelector('.story-status-ring');
+
+    expect(anaItem).toHaveClass('mixed');
+    expect(ring).toHaveAttribute('data-view-state', 'mixed');
+    expect(anaItem.style.getPropertyValue('--story-ring-background')).toContain('conic-gradient');
   });
 
   test('shows story count badge when user has multiple stories', () => {
@@ -167,9 +199,9 @@ describe('MobileStories', () => {
     renderMobileStories();
     const mariaElement = screen.getByText('Maria Silva').closest('[role="listitem"]');
     expect(mariaElement).toHaveAttribute('aria-label', expect.stringContaining('Maria Silva'));
-    expect(mariaElement).toHaveAttribute('aria-label', expect.stringContaining('não vista'));
+    expect(mariaElement).toHaveAttribute('aria-label', expect.stringContaining('status não visualizado'));
 
     const joaoElement = screen.getByText('João Santos').closest('[role="listitem"]');
-    expect(joaoElement).toHaveAttribute('aria-label', expect.stringContaining('João Santos'));
+    expect(joaoElement).toHaveAttribute('aria-label', expect.stringContaining('status visualizado'));
   });
 });
