@@ -77,9 +77,13 @@ function mapSourceColumn(tableName, sourceRow, targetColumn) {
   if (tableName === 'users' && OMIT_COLUMNS.users.has(targetColumn)) {
     return undefined;
   }
-  return Object.prototype.hasOwnProperty.call(sourceRow, targetColumn)
-    ? sourceRow[targetColumn]
-    : undefined;
+  if (Object.prototype.hasOwnProperty.call(sourceRow, targetColumn)) {
+    return sourceRow[targetColumn];
+  }
+  const legacyColumn = Object.keys(sourceRow).find(
+    (name) => name.toLowerCase() === targetColumn.toLowerCase()
+  );
+  return legacyColumn ? sourceRow[legacyColumn] : undefined;
 }
 
 function buildCopyPlan(tables, foreignKeys) {
@@ -304,8 +308,21 @@ async function preparePlan(source, target, sql) {
 
     const sourceCount = await countSourceRows(connection, tableName);
     const targetCount = await getRowCount(sql, tableName);
+    const mappedSourceNames = new Set(insertColumns.map((column) => {
+      if (tableName === 'system_settings' && column.column_name === 'setting_key') return 'key';
+      if (tableName === 'system_settings' && column.column_name === 'setting_value') return 'value';
+      return column.column_name;
+    }));
+    if (tableName === 'system_settings') mappedSourceNames.add('type');
+
+    const unmappedColumns = (source.columnsByTable.get(tableName) || []).filter((column) =>
+      !mappedSourceNames.has(column) &&
+      !(OMIT_COLUMNS[tableName] && OMIT_COLUMNS[tableName].has(column))
+    );
+
     manifest.push({
       table: tableName,
+      unmappedColumns,
       sourceRows: sourceCount,
       targetRows: targetCount,
       insertColumns,
@@ -490,14 +507,38 @@ async function run() {
     const unmatched = source.tables.filter((table) =>
       !target.tables.includes(table) && !SYSTEM_TABLES.has(table)
     );
-    if (unmatched.length) {
-      console.warn('Tabelas MySQL sem tabela correspondente no Supabase (não copiadas): ' + unmatched.join(', '));
+    const unmatchedWithRows = [];
+    for (const table of unmatched) {
+      const rows = await countSourceRows(sourceConnection, table);
+      if (rows > 0) unmatchedWithRows.push({ table, rows });
+    }
+    if (unmatchedWithRows.length) {
+      console.warn('Tabelas com dados sem tabela correspondente no Supabase: ' +
+        unmatchedWithRows.map((row) => row.table + ' (' + row.rows + ')').join(', '));
+    }
+
+    const unmappedData = plan.manifest
+      .filter((entry) => entry.sourceRows > 0 && entry.unmappedColumns.length)
+      .map((entry) => ({
+        table: entry.table,
+        columns: entry.unmappedColumns
+      }));
+    if (unmappedData.length) {
+      console.warn('Colunas da origem sem destino correspondente (serão ignoradas): ' +
+        unmappedData.map((entry) => entry.table + ': ' + entry.columns.join(', ')).join(' | '));
     }
 
     if (!apply) {
       console.log('\nSimulação concluída. Nenhuma gravação foi realizada.');
       console.log('Antes de aplicar: faça backup do MySQL, confira tabelas não correspondentes e o mapeamento de dados.');
       return;
+    }
+
+    if ((unmatchedWithRows.length || unmappedData.length) && !process.argv.includes('--allow-unmapped')) {
+      throw new Error(
+        'Cópia cancelada para evitar perda silenciosa de dados. Revise as tabelas/colunas sem destino e, ' +
+        'somente depois, repita com --allow-unmapped para aceitar explicitamente essas omissões.'
+      );
     }
 
     if (tablesWithSourceRows.length === 0) {
