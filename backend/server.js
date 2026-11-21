@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const db = require('./db');
 
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -127,6 +128,20 @@ app.use('/api', engagementRoutes);
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Health checks: liveness confirms the API process; readiness also verifies PostgreSQL.
+app.get('/api/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'senai-connect-api' });
+});
+
+app.get('/api/health/ready', async (_req, res) => {
+    try {
+        await db.query('SELECT 1 AS ok');
+        return res.status(200).json({ status: 'ready', database: 'connected' });
+    } catch (error) {
+        console.error('Verificação de prontidão do banco falhou:', error.message);
+        return res.status(503).json({ status: 'not_ready', database: 'unavailable' });
+    }
+});
 // Rota de fallback
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'API SENAI Connect Rodando (MVC) na porta 5000!' });
