@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Settings, MessageCircle, MoreHorizontal, Users, Calendar, MapPin, Mail, Sparkles, BookOpen, Camera, Link2, GraduationCap, Building } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/AuthContext.jsx';
 import Post from '../components/Post';
 import Avatar from '../components/Avatar';
+import StoryHighlights from '../components/StoryHighlights';
+import profileService from '../services/profileService';
+import messagesService from '../services/messagesService';
 import './Profile.css';
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Profile = () => {
   const { id } = useParams();
@@ -20,9 +21,10 @@ const Profile = () => {
   const [posts, setPosts] = useState([]);
   const [savedPosts, setSavedPosts] = useState([]);
   const [groups, setGroups] = useState([]);
-  
+
   const [activeTab, setActiveTab] = useState('posts');
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ followers: 0, following: 0 });
 
   // Edit profile modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -42,55 +44,51 @@ const Profile = () => {
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
-    
+
     // Fetch User Details
-    fetch(`${API_URL}/api/users/${userId}`, {
-      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    profileService.getProfile(userId)
       .then(data => {
-        if (!data.error) {
-          setProfileUser(data);
-          setBioInput(data.bio || '');
-          setAvatarInput(data.avatar || '');
-          setStateInput(data.state || '');
-          setCityInput(data.city || '');
-          setUnitInput(data.unit || '');
-          setAreaInput(data.area || '');
-          setCourseInput(data.course || '');
-          setLinksInput(data.links || '');
-        }
+        setProfileUser(data);
+        setBioInput(data.bio || '');
+        setAvatarInput(data.avatar || '');
+        setStateInput(data.state || '');
+        setCityInput(data.city || '');
+        setUnitInput(data.unit || '');
+        setAreaInput(data.area || '');
+        setCourseInput(data.course || '');
+        setLinksInput(data.links || '');
       })
       .catch(err => console.error(err));
 
     // Fetch User Posts
-    fetch(`${API_URL}/api/users/${userId}/posts`, {
-      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    profileService.getUserPosts(userId)
       .then(data => {
-        if (!data.error) setPosts(data);
+        if (data.data) setPosts(data.data);
+        else if (Array.isArray(data)) setPosts(data);
       })
       .catch(err => console.error(err));
 
     // Fetch User Groups
-    fetch(`${API_URL}/api/users/${userId}/groups`, {
-      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    profileService.getUserGroups(userId)
       .then(data => {
-        if (!data.error) setGroups(data);
+        if (data.data) setGroups(data.data);
+        else if (Array.isArray(data)) setGroups(data);
+      })
+      .catch(err => console.error(err));
+
+    // Fetch User Stats (followers, following)
+    profileService.getStats(userId)
+      .then(data => {
+        setStats(data);
       })
       .catch(err => console.error(err));
 
     // Fetch Saved Posts (only if own profile)
     if (isOwnProfile) {
-      fetch(`${API_URL}/api/users/${userId}/saved`, {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      })
-        .then(res => res.json())
+      profileService.getSavedPosts(userId)
         .then(data => {
-          if (!data.error) setSavedPosts(data);
+          if (data.data) setSavedPosts(data.data);
+          else if (Array.isArray(data)) setSavedPosts(data);
           setLoading(false);
         })
         .catch(err => {
@@ -129,23 +127,15 @@ const Profile = () => {
           reader.readAsDataURL(avatarFile);
         });
 
-        const uploadRes = await fetch(`${API_URL}/api/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ file: base64, folder: 'avatars' })
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          finalAvatar = uploadData.name; // Use filename, not full URL, because other components prepend ${API_URL}/uploads/avatars/
-        } else {
-          const errorData = await uploadRes.json();
-          alert(`Erro ao fazer upload da foto: ${errorData.error || 'Serviço indisponível'}`);
+        // Use profileService.uploadAvatar for avatar upload
+        try {
+          const uploadData = await profileService.uploadAvatar(avatarFile);
+          finalAvatar = uploadData.avatar || avatarPreview;
+        } catch (uploadErr) {
+          console.error('Erro ao fazer upload da foto:', uploadErr);
+          alert('Erro ao fazer upload da foto.');
           setSaving(false);
-          return; // Abort profile update on upload failure
+          return;
         }
       }
 
@@ -160,15 +150,9 @@ const Profile = () => {
         links: linksInput
       };
 
-      const res = await fetch(`${API_URL}/api/users/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify(updateBody)
-      });
-      if (res.ok) {
+      // Use profileService.updateProfile
+      const result = await profileService.updateProfile(updateBody);
+      if (result) {
         const updatedFields = { ...updateBody, avatar: finalAvatar };
         setProfileUser(prev => ({ ...prev, ...updatedFields }));
         setLoggedInUser(prev => ({ ...prev, ...updatedFields }));
@@ -202,6 +186,7 @@ const Profile = () => {
 
   return (
     <div className="profile-container">
+      {/* 1. User Info Header */}
       <div className="profile-header card">
         <div className="profile-cover" style={profileUser.cover_image ? { backgroundImage: `url(${profileUser.cover_image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}></div>
         <div className="profile-info-section">
@@ -212,23 +197,35 @@ const Profile = () => {
             <div className="profile-actions">
               {!isOwnProfile && <button className="btn-primary" onClick={() => alert('Seguindo!')}>Seguir</button>}
               {!isOwnProfile && (
-                <button className="btn-secondary" onClick={() => navigate('/messages')}>
+                <button className="btn-secondary" onClick={async () => {
+                  try {
+                    const conversation = await messagesService.createConversation(userId);
+                    if (conversation) {
+                      navigate(`/messages?conversationId=${conversation.id}`);
+                    } else {
+                      navigate('/messages');
+                    }
+                  } catch (err) {
+                    console.error('Erro ao criar conversa:', err);
+                    navigate('/messages');
+                  }
+                }}>
                   <MessageCircle size={18} />
                   <span>Mensagem</span>
                 </button>
               )}
               {isOwnProfile && (
-                <button className="btn-secondary" onClick={() => setIsEditModalOpen(true)}>
+                <Link to="/settings" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
                   <Settings size={18} />
-                  <span>Editar Perfil</span>
-                </button>
+                  <span>Configurações</span>
+                </Link>
               )}
               <button className="icon-btn-border" onClick={() => alert('Mais opções')}>
                 <MoreHorizontal size={18} />
               </button>
             </div>
           </div>
-          
+
           <div className="profile-details">
             <div className="profile-name-role">
               <h1>{profileUser.name}</h1>
@@ -236,7 +233,7 @@ const Profile = () => {
             </div>
             <p className="profile-handle">@{profileUser.name.toLowerCase().replaceAll(' ', '.')}</p>
             <p className="profile-bio">{profileUser.bio || 'Nenhuma biografia fornecida ainda.'}</p>
-            
+
             <div className="profile-meta">
               <span><BookOpen size={16} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {profileUser.role || 'Aluno'}</span>
               {(profileUser.city || profileUser.state || profileUser.unit) && (
@@ -252,37 +249,50 @@ const Profile = () => {
             </div>
           </div>
         </div>
-        
-        <div className="profile-tabs">
-          <button className={`tab ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Publicações</button>
-          <button className={`tab ${activeTab === 'sobre' ? 'active' : ''}`} onClick={() => setActiveTab('sobre')}>Sobre</button>
-          <button className={`tab ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>Grupos</button>
-          {isOwnProfile && (
-            <button className={`tab ${activeTab === 'saved' ? 'active' : ''}`} onClick={() => setActiveTab('saved')}>Salvos</button>
-          )}
+      </div>
+
+      {/* 2. Stats: Publicações, Seguidores, Seguindo, Grupos */}
+      <div className="profile-stats card">
+        <div className="stat-item">
+          <strong>{posts.length}</strong>
+          <span>Publicações</span>
+        </div>
+        <div className="stat-item">
+          <strong>{stats.followers || 0}</strong>
+          <span>Seguidores</span>
+        </div>
+        <div className="stat-item">
+          <strong>{stats.following || 0}</strong>
+          <span>Seguindo</span>
+        </div>
+        <div className="stat-item">
+          <strong>{groups.length}</strong>
+          <span>Grupos</span>
         </div>
       </div>
 
+      {/* 3. Destaques (Story Highlights) */}
+      <div className="profile-highlights card">
+        <StoryHighlights
+          userId={userId}
+          userName={profileUser.name}
+          userAvatar={profileUser.avatar}
+          isOwnProfile={isOwnProfile}
+        />
+      </div>
+
+      {/* 4. Tabs */}
+      <div className="profile-tabs card">
+        <button className={`tab ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>Publicações</button>
+        <button className={`tab ${activeTab === 'sobre' ? 'active' : ''}`} onClick={() => setActiveTab('sobre')}>Sobre</button>
+        <button className={`tab ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>Grupos</button>
+        {isOwnProfile && (
+          <button className={`tab ${activeTab === 'saved' ? 'active' : ''}`} onClick={() => setActiveTab('saved')}>Salvos</button>
+        )}
+      </div>
+
+      {/* 5. Tab Content */}
       <div className="profile-content">
-        <div className="profile-stats card">
-          <div className="stat-item">
-            <strong>{posts.length}</strong>
-            <span>Publicações</span>
-          </div>
-          <div className="stat-item">
-            <strong>120</strong>
-            <span>Seguidores</span>
-          </div>
-          <div className="stat-item">
-            <strong>85</strong>
-            <span>Seguindo</span>
-          </div>
-          <div className="stat-item">
-            <strong>{groups.length}</strong>
-            <span>Grupos</span>
-          </div>
-        </div>
-        
         <div className="profile-feed">
           {activeTab === 'posts' && (
             posts.length > 0 ? (
@@ -324,7 +334,7 @@ const Profile = () => {
                       <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>{group.description}</p>
                     </div>
                     <span className="badge-members" style={{ fontSize: '12px', background: 'var(--bg-main)', padding: '4px 8px', borderRadius: '12px' }}>
-                      {group.members_count} membros
+                      {(group.members_count ?? group.membersCount)} membros
                     </span>
                   </div>
                 ))
@@ -371,10 +381,10 @@ const Profile = () => {
               </div>
               <div className="form-group">
                 <label htmlFor="bio">Biografia</label>
-                <textarea 
-                  id="bio" 
-                  value={bioInput} 
-                  onChange={(e) => setBioInput(e.target.value)} 
+                <textarea
+                  id="bio"
+                  value={bioInput}
+                  onChange={(e) => setBioInput(e.target.value)}
                   placeholder="Escreva algo sobre você..."
                   className="modal-textarea"
                   maxLength={200}

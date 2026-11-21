@@ -1,6 +1,6 @@
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SocketContext } from '../context/SocketContext';
+import { SocketContext } from '../context/SocketContext.jsx';
 import Avatar from './Avatar';
 import './NotificationDropdown.css';
 

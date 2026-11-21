@@ -1,0 +1,485 @@
+/* ==========================================================================
+   SETTINGS PAGE
+   DESKTOP: Sidebar (250px) + Content area, max-width 900px, centered
+   MOBILE:  Tabs horizontais no topo, conteúdo empilhado
+   ========================================================================== */
+
+/* ── Outer container: centers the whole settings block ─────────────────── */
+.settings-page-wrapper {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+/* ── Main two-column layout ─────────────────────────────────────────────── */
+.settings-layout {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+/* ── Left nav sidebar ───────────────────────────────────────────────────── */
+/* DESKTOP: fixed 240px column */
+/* MOBILE: collapses into a horizontal scrollable tab row */
+.settings-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  padding: var(--space-2) 0;
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-4));
+}
+
+.settings-sidebar-title {
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  letter-spacing: -0.2px;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) 0;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+  min-height: var(--touch-target);
+}
+
+.settings-nav-item:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.settings-nav-item.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  border-left-color: var(--color-primary);
+  font-weight: var(--font-semibold);
+}
+
+.settings-nav-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* Theme toggle inside sidebar */
+.settings-theme-toggle {
+  margin: var(--space-2) var(--space-3) var(--space-3);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-theme-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  position: relative;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.toggle-switch-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-inverse);
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: left var(--transition-normal);
+}
+
+.toggle-switch:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Dark mode toggle state */
+[data-theme="dark"] .toggle-switch,
+.toggle-switch[data-theme="dark"] {
+  background: var(--color-primary);
+}
+
+[data-theme="dark"] .toggle-switch-thumb,
+.toggle-switch[data-theme="dark"] .toggle-switch-thumb {
+  left: 23px;
+}
+
+/* ── Right content area ─────────────────────────────────────────────────── */
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ── Loading state ──────────────────────────────────────────────────────── */
+.settings-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-base);
+}
+
+/* ── Form elements ──────────────────────────────────────────────────────── */
+.settings-form-row {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.settings-form-row > * {
+  flex: 1;
+}
+
+.avatar-upload-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.avatar-preview-medium {
+  width: 80px !important;
+  height: 80px !important;
+  font-size: 2rem !important;
+  flex-shrink: 0;
+}
+
+/* Password inputs stacked inside a group */
+.settings-password-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Form actions (save button row) ─────────────────────────────────────── */
+.settings-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-5);
+  margin-top: var(--space-1);
+}
+
+/* ── Options list (Privacy, Notifications) ──────────────────────────────── */
+.settings-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.settings-option-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  min-height: var(--touch-target);
+}
+
+.settings-option-item:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.settings-option-item + .settings-option-item {
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-option-item h4 {
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+}
+
+.settings-option-item p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* Modern toggle switch for options */
+.option-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.option-toggle input[type="checkbox"] {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.option-toggle-slider {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--color-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background var(--transition-normal);
+}
+
+.option-toggle input:checked + .option-toggle-slider {
+  background-color: var(--color-primary);
+}
+
+.option-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-inverse);
+  top: 3px;
+  left: 3px;
+  transition: transform var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.option-toggle input:checked + .option-toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.option-toggle:focus-within .option-toggle-slider {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   MOBILE (max-width: 992px)
+   - Sidebar becomes a full-width menu
+   - Content is hidden when viewing menu, and vice-versa
+   ========================================================================== */
+@media (max-width: 992px) {
+  .settings-page-wrapper {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .settings-layout {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* When viewing content, hide the sidebar menu */
+  .settings-layout.viewing-content .settings-sidebar {
+    display: none;
+  }
+
+  /* When viewing menu, hide the content */
+  .settings-layout.viewing-menu .settings-content {
+    display: none;
+  }
+
+  .settings-sidebar {
+    width: 100%;
+    position: static;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+  }
+
+  .settings-sidebar-title {
+    display: block;
+    border-bottom: none;
+    padding: var(--space-5) var(--space-5) var(--space-2);
+  }
+
+  .settings-nav {
+    padding: 0 var(--space-3);
+  }
+
+  .settings-nav-item {
+    border-left: none;
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-2);
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+  }
+
+  .settings-nav-item.active {
+    /* Don't highlight active tab in menu view, just look like normal buttons */
+    background-color: var(--color-bg-card);
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+    font-weight: var(--font-medium);
+  }
+
+  .settings-theme-toggle {
+    margin: var(--space-3);
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .settings-content {
+    padding: 0;
+    max-width: 600px; /* Constrain width on tablets */
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .settings-panel {
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-6) var(--space-4);
+    min-height: calc(100vh - var(--header-height) - var(--bottom-nav-height));
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers the content */
+  }
+
+  .settings-panel-header {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .settings-desc {
+    text-align: center;
+  }
+
+  .settings-form {
+    width: 100%;
+  }
+
+  .settings-form-row {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .avatar-upload-row {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-3);
+  }
+
+  .settings-options-list {
+    width: 100%;
+  }
+
+  .settings-form-actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .settings-form-actions .btn-primary,
+  .settings-form-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Mobile back button */
+  .mobile-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border);
+    width: 100%;
+    text-align: center;
+    min-height: var(--touch-target);
+  }
+}
+
+/* Hide back button on desktop */
+@media (min-width: 993px) {
+  .mobile-back-btn {
+    display: none !important;
+  }
+}
+
+/* Motion Reduction */
+@media (prefers-reduced-motion: reduce) {
+  .settings-nav-item,
+  .settings-option-item,
+  .toggle-switch,
+  .toggle-switch-thumb,
+  .option-toggle-slider,
+  .option-toggle-slider::before {
+    transition: none;
+  }
+}
+
+/* High Contrast Mode */
+@media (forced-colors: active) {
+  .settings-sidebar,
+  .settings-nav-item,
+  .settings-theme-toggle,
+  .settings-panel {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .settings-nav-item.active {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .toggle-switch {
+    border: 1px solid CanvasText;
+  }
+
+  .option-toggle-slider {
+    border: 1px solid CanvasText;
+  }
+
+  .option-toggle input:checked + .option-toggle-slider {
+    background: Highlight;
+  }
+}

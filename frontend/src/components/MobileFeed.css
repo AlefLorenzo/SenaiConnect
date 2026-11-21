@@ -1,0 +1,215 @@
+/* Mobile Feed - Instagram Style Feed */
+/* Full-width images, no card wrappers, discrete separators */
+
+.mobile-feed {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-background, #fafafa);
+  padding-top: 56px; /* Header height */
+  padding-bottom: 88px; /* Bottom nav height */
+  min-height: 100vh;
+  position: relative;
+}
+
+[data-theme="dark"] .mobile-feed {
+  background: var(--color-background-dark, #0d0d0d);
+}
+
+/* Pull to Refresh Indicator */
+.pull-refresh-indicator {
+  position: sticky;
+  top: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  color: var(--color-text-secondary, #666);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 50;
+}
+
+[data-theme="dark"] .pull-refresh-indicator {
+  background: var(--color-surface-dark, #1a1a1a);
+  border-bottom-color: var(--color-border-dark, #333);
+  color: var(--color-text-secondary-dark, #aaa);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border, #e0e0e0);
+  border-top-color: var(--color-primary, #0066CC);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+[data-theme="dark"] .spinner {
+  border-color: var(--color-border-dark, #333);
+  border-top-color: var(--color-primary, #0066CC);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Create Post Card in Mobile Feed */
+.mobile-create-post {
+  position: sticky;
+  top: 56px;
+  z-index: 80;
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .mobile-create-post {
+  background: var(--color-surface-dark, #1a1a1a);
+  border-bottom-color: var(--color-border-dark, #333);
+}
+
+/* Posts List */
+.mobile-posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Mobile Post Item - No card wrapper, full width */
+.mobile-post-item {
+  background: var(--color-surface, #ffffff);
+  /* No border-radius, no box-shadow, no padding - full width like Instagram */
+}
+
+[data-theme="dark"] .mobile-post-item {
+  background: var(--color-surface-dark, #1a1a1a);
+}
+
+/* Sponsored Post Separator */
+.sponsored-separator {
+  height: 8px;
+  background: var(--color-background, #fafafa);
+}
+
+[data-theme="dark"] .sponsored-separator {
+  background: var(--color-background-dark, #0d0d0d);
+}
+
+/* Discrete Separator Between Posts */
+.post-separator {
+  height: 8px;
+  background: var(--color-background, #fafafa);
+}
+
+[data-theme="dark"] .post-separator {
+  background: var(--color-background-dark, #0d0d0d);
+}
+
+/* Load More Trigger */
+.load-more-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  min-height: 60px;
+}
+
+.load-more-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.end-of-feed {
+  color: var(--color-text-tertiary, #999);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  padding: 16px;
+}
+
+[data-theme="dark"] .end-of-feed {
+  color: var(--color-text-tertiary-dark, #666);
+}
+
+/* Empty State */
+.mobile-feed-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 144px);
+  padding: 24px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  color: var(--color-text-secondary, #666);
+  max-width: 280px;
+}
+
+[data-theme="dark"] .empty-state {
+  color: var(--color-text-secondary-dark, #aaa);
+}
+
+.empty-state svg {
+  color: var(--color-text-tertiary, #ccc);
+  opacity: 0.6;
+}
+
+[data-theme="dark"] .empty-state svg {
+  color: var(--color-text-tertiary-dark, #555);
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+  margin: 0;
+}
+
+[data-theme="dark"] .empty-state h3 {
+  color: var(--color-text-primary-dark, #ffffff);
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Safe area for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-feed {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Desktop hidden */
+@media (min-width: 769px) {
+  .mobile-feed {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-feed {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

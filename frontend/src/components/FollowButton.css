@@ -1,0 +1,359 @@
+/* Follow Button - Instagram Style */
+/* Matches design tokens from index.css and FloatingActionButton.css */
+
+.follow-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Base button styles */
+.follow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  min-height: var(--touch-target-lg, 48px);
+  min-width: var(--touch-target-lg, 48px);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+/* Primary "Seguir" button */
+.follow-btn:not(.following) {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.follow-btn:not(.following):hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.follow-btn:not(.following):active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.follow-btn:not(.following):focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.follow-btn:not(.following):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Secondary "Seguindo" button with dropdown */
+.follow-btn.following {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  gap: var(--space-1);
+  padding-right: var(--space-3);
+}
+
+.follow-btn.following:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-text-tertiary);
+}
+
+.follow-btn.following:active {
+  background: var(--color-bg-tertiary-hover);
+}
+
+.follow-btn.following:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* Chevron down icon */
+.follow-btn.following .chevron-down {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.follow-btn.following:hover .chevron-down {
+  background: var(--color-bg-tertiary-hover);
+}
+
+/* Chevron rotation when dropdown is open */
+.follow-btn.following[aria-expanded="true"] .chevron-down {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.follow-dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 240px;
+  max-width: 280px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: dropdown-enter var(--transition-spring) forwards;
+  padding: var(--space-1);
+}
+
+@keyframes dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+[data-theme="dark"] .follow-dropdown-menu {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* Dropdown items */
+.follow-dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.follow-dropdown-menu button:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.follow-dropdown-menu button:active {
+  background: var(--color-bg-tertiary-hover);
+}
+
+.follow-dropdown-menu button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* Icon wrapper in dropdown */
+.follow-dropdown-menu .dropdown-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.follow-dropdown-menu button:hover .dropdown-icon-wrapper {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Specific colors for different actions */
+.follow-dropdown-menu button.message-action:hover .dropdown-icon-wrapper {
+  background: #E8F0FE;
+  color: var(--color-primary);
+}
+
+.follow-dropdown-menu button.mute-action:hover .dropdown-icon-wrapper {
+  background: #FFF3E0;
+  color: #F58529;
+}
+
+.follow-dropdown-menu button.unfollow-action {
+  color: var(--color-danger);
+}
+
+.follow-dropdown-menu button.unfollow-action:hover {
+  background: #FFF0F0;
+}
+
+.follow-dropdown-menu button.unfollow-action:hover .dropdown-icon-wrapper {
+  background: #FFF0F0;
+  color: var(--color-danger);
+}
+
+/* Divider */
+.dropdown-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-1) 0;
+}
+
+/* Loading state */
+.follow-btn.loading {
+  opacity: 0.7;
+  cursor: wait;
+  position: relative;
+  color: transparent;
+}
+
+.follow-btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .follow-btn:not(.following) {
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .follow-btn:not(.following):hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="dark"] .follow-btn.following {
+  background: var(--color-surface-dark);
+  border-color: var(--color-border-dark);
+  color: var(--color-text-primary-dark);
+}
+
+[data-theme="dark"] .follow-btn.following:hover {
+  background: var(--color-bg-tertiary-dark);
+  border-color: var(--color-text-tertiary);
+}
+
+[data-theme="dark"] .follow-btn.following:active {
+  background: var(--color-hover-dark);
+}
+
+[data-theme="dark"] .follow-btn.following .chevron-down {
+  color: var(--color-text-secondary-dark);
+}
+
+[data-theme="dark"] .follow-btn.following:hover .chevron-down {
+  background: var(--color-hover-dark);
+}
+
+[data-theme="dark"] .follow-dropdown-menu {
+  background: var(--color-surface-dark);
+  border-color: var(--color-border-dark);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button {
+  color: var(--color-text-primary-dark);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button:hover {
+  background: var(--color-bg-tertiary-dark);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button:active {
+  background: var(--color-hover-dark);
+}
+
+[data-theme="dark"] .follow-dropdown-menu .dropdown-icon-wrapper {
+  background: var(--color-bg-tertiary-dark);
+  color: var(--color-text-secondary-dark);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button:hover .dropdown-icon-wrapper {
+  background: var(--color-primary-dark-bg);
+  color: var(--color-primary);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button.message-action:hover .dropdown-icon-wrapper {
+  background: var(--color-primary-dark-bg);
+  color: var(--color-primary);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button.mute-action:hover .dropdown-icon-wrapper {
+  background: rgba(245, 133, 41, 0.15);
+  color: #F58529;
+}
+
+[data-theme="dark"] .follow-dropdown-menu button.unfollow-action:hover {
+  background: rgba(250, 62, 62, 0.1);
+}
+
+[data-theme="dark"] .follow-dropdown-menu button.unfollow-action:hover .dropdown-icon-wrapper {
+  background: rgba(250, 62, 62, 0.1);
+  color: var(--color-danger);
+}
+
+[data-theme="dark"] .dropdown-divider {
+  background: var(--color-border-dark);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .follow-btn,
+  .follow-btn .chevron-down,
+  .follow-dropdown-menu,
+  .follow-dropdown-menu button,
+  .follow-dropdown-menu .dropdown-icon-wrapper {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .follow-btn.following[aria-expanded="true"] .chevron-down {
+    transform: rotate(180deg);
+  }
+
+  .follow-dropdown-menu {
+    animation: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .follow-btn.following {
+    border-width: 2px;
+  }
+
+  .follow-dropdown-menu {
+    border-width: 2px;
+  }
+
+  .follow-dropdown-menu button:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .follow-dropdown-menu {
+    display: none !important;
+  }
+}

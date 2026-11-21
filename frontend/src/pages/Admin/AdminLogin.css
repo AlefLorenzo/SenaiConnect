@@ -1,0 +1,17 @@
+/* ==========================================================================
+   ADMIN LOGIN — Importa estilos base compartilhados
+   ========================================================================== */
+
+@import '../../styles/login-base.css';
+
+/* --- Admin Login Specific Overrides --- */
+/* O AdminLogin usa as mesmas classes base (.login-page, .login-card, etc.)
+   Não precisa de overrides adicionais no momento.
+   Se precisar customizar algo específico do admin, adicione aqui. */
+
+/* Exemplo de customização futura:
+.admin-login-page .login-brand {
+  background: var(--color-senai-blue-light);
+  color: var(--color-senai-blue-dark);
+}
+*/

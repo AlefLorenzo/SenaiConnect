@@ -1,0 +1,165 @@
+/* Mobile Header - Instagram Style Compact Header */
+/* Height: 56px (matching Instagram's header height) */
+
+.mobile-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .mobile-header {
+  background: var(--color-surface-dark, #1a1a1a);
+  border-bottom-color: var(--color-border-dark, #333);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.mobile-header-content {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+/* Logo Section */
+.mobile-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--color-text-primary, #1a1a1a);
+  transition: background-color 0.15s ease;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.mobile-header-logo:hover {
+  background: var(--color-hover, rgba(0, 0, 0, 0.05));
+}
+
+[data-theme="dark"] .mobile-header-logo:hover {
+  background: var(--color-hover-dark, rgba(255, 255, 255, 0.08));
+}
+
+.mobile-header-logo:focus-visible {
+  outline: 2px solid var(--color-primary, #0066CC);
+  outline-offset: 2px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+[data-theme="dark"] .logo-text {
+  color: var(--color-text-primary-dark, #ffffff);
+}
+
+/* Actions Section */
+.mobile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mobile-header-icon-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-text-primary, #1a1a1a);
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.mobile-header-icon-btn:hover {
+  background: var(--color-hover, rgba(0, 0, 0, 0.05));
+}
+
+[data-theme="dark"] .mobile-header-icon-btn:hover {
+  background: var(--color-hover-dark, rgba(255, 255, 255, 0.08));
+}
+
+.mobile-header-icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary, #0066CC);
+  outline-offset: 2px;
+}
+
+.mobile-header-icon-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  background: var(--color-error, #E53E3E);
+  color: white;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+}
+
+/* Desktop hidden - only show on mobile */
+@media (min-width: 769px) {
+  .mobile-header {
+    display: none;
+  }
+}
+
+/* Mobile First - show on mobile */
+@media (max-width: 768px) {
+  .mobile-header {
+    display: flex;
+  }
+}
+
+/* Safe area for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .mobile-header {
+    padding-top: env(safe-area-inset-top);
+    height: calc(56px + env(safe-area-inset-top));
+  }
+}

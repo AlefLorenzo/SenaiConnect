@@ -58,23 +58,113 @@ async function runMigration() {
     } catch (_) {}
     console.log('Tabela stories OK.');
 
-    // ─── 3. Tabela notifications ─────────────────────────────────────────────
+    // ─── 3. Tabela notifications (Enhanced for Activity Center) ──────────────
     console.log('Criando/verificando tabela notifications...');
     await db.query(`
       CREATE TABLE IF NOT EXISTS notifications (
-        id          INT AUTO_INCREMENT PRIMARY KEY,
-        user_id     INT NOT NULL,
-        type        VARCHAR(50) NOT NULL,
-        sender_id   INT NOT NULL,
-        content     TEXT,
-        reference_id INT,
-        status      VARCHAR(50) DEFAULT 'unread',
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        id              INT AUTO_INCREMENT PRIMARY KEY,
+        user_id         INT NOT NULL,
+        activity_type   VARCHAR(50) NOT NULL DEFAULT 'notification',
+        type            VARCHAR(50) NOT NULL,  -- legacy compatibility
+        sender_id       INT NOT NULL,
+        content         TEXT,
+        reference_type  VARCHAR(50) DEFAULT NULL,  -- 'post', 'comment', 'story', 'follow', 'group', 'event', 'message', 'notice'
+        reference_id    INT DEFAULT NULL,
+        grouping_id     VARCHAR(100) DEFAULT NULL,  -- for grouping repeated activities
+        metadata        JSON DEFAULT NULL,          -- additional flexible data
+        status          VARCHAR(50) DEFAULT 'unread', -- 'unread', 'read'
+        read_at         TIMESTAMP NULL DEFAULT NULL,
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id)   REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_created (user_id, created_at DESC),
+        INDEX idx_user_status (user_id, status),
+        INDEX idx_grouping (grouping_id),
+        INDEX idx_activity_type (activity_type)
+      )
+    `);
+
+    // Add new columns if table exists from previous migration
+    const notificationColumns = [
+      { name: 'activity_type', definition: "VARCHAR(50) NOT NULL DEFAULT 'notification'" },
+      { name: 'reference_type', definition: 'VARCHAR(50) DEFAULT NULL' },
+      { name: 'grouping_id', definition: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'metadata', definition: 'JSON DEFAULT NULL' },
+      { name: 'read_at', definition: 'TIMESTAMP NULL DEFAULT NULL' },
+    ];
+    for (const col of notificationColumns) {
+      try {
+        await db.query(`ALTER TABLE notifications ADD COLUMN ${col.name} ${col.definition}`);
+        console.log(`Coluna notifications.${col.name} adicionada.`);
+      } catch (err) {
+        if (err.code === 'ER_DUP_FIELDNAME') {
+          console.log(`Coluna notifications.${col.name} já existe. Ignorando.`);
+        } else throw err;
+      }
+    }
+
+    // Add indexes for performance
+    const indexes = [
+      { name: 'idx_user_created', def: 'INDEX idx_user_created (user_id, created_at DESC)' },
+      { name: 'idx_user_status', def: 'INDEX idx_user_status (user_id, status)' },
+      { name: 'idx_grouping', def: 'INDEX idx_grouping (grouping_id)' },
+      { name: 'idx_activity_type', def: 'INDEX idx_activity_type (activity_type)' },
+    ];
+    for (const idx of indexes) {
+      try {
+        await db.query(`ALTER TABLE notifications ADD ${idx.def}`);
+        console.log(`Índice notifications.${idx.name} adicionado.`);
+      } catch (err) {
+        // Ignore duplicate key errors
+        if (err.code !== 'ER_DUP_KEYNAME') throw err;
+      }
+    }
+    console.log('Tabela notifications OK (Activity Center ready).');
+
+    // ─── 3b. Tabelas de interações de Stories ──────────────────────────────
+    console.log('Criando/verificando tabelas de interações de stories...');
+
+    // Story Reactions
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS story_reactions (
+        id           INT AUTO_INCREMENT PRIMARY KEY,
+        story_id     INT NOT NULL,
+        user_id      INT NOT NULL,
+        reaction_type VARCHAR(20) NOT NULL,  -- 'heart', 'fire', 'thumbs_up', 'clap', 'laugh', 'surprise', 'sad', 'angry'
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_story_user_reaction (story_id, user_id, reaction_type)
+      )
+    `);
+    console.log('Tabela story_reactions OK.');
+
+    // Story Replies (DM replies to stories)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS story_replies (
+        id           INT AUTO_INCREMENT PRIMARY KEY,
+        story_id     INT NOT NULL,
+        sender_id    INT NOT NULL,
+        content      TEXT NOT NULL,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE,
         FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
-    console.log('Tabela notifications OK.');
+    console.log('Tabela story_replies OK.');
+
+    // Story Views
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS story_views (
+        story_id     INT NOT NULL,
+        user_id      INT NOT NULL,
+        viewed_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (story_id, user_id),
+        FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('Tabela story_views OK.');
 
     // ─── 4. Tabela saved_posts (FALTAVA!) ────────────────────────────────────
     console.log('Criando/verificando tabela saved_posts...');

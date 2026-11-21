@@ -1,0 +1,352 @@
+/* Admin Settings - SENAI Connect */
+/* Uses design tokens from tokens.css */
+
+.admin-settings {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.page-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+}
+
+.page-header p {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.settings-layout {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.settings-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  height: fit-content;
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-4));
+}
+
+.settings-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  min-height: var(--touch-target);
+}
+
+.settings-tab:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.settings-tab.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.settings-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.settings-tab svg {
+  flex-shrink: 0;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-section {
+  /* Card component handles styling */
+}
+
+.settings-section.danger {
+  border-left: 4px solid var(--color-error);
+}
+
+.section-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-section.danger .section-header {
+  background: var(--color-error-light);
+  border-bottom-color: var(--color-error-border);
+}
+
+.section-header h2 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.section-header p {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.section-body {
+  padding: var(--space-6);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.setting-desc {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.setting-control {
+  flex-shrink: 0;
+}
+
+/* Toggle Switch */
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-normal);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--color-text-inverse);
+  border-radius: 50%;
+  transition: transform var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle input:checked + .toggle-slider {
+  background: var(--color-primary);
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle input:focus-visible + .toggle-slider {
+  box-shadow: var(--shadow-focus);
+}
+
+/* Admin List */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.admin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-md);
+}
+
+.admin-item-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-item-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+}
+
+.admin-item-name {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.admin-item-role {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Settings Actions */
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-6);
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .settings-tab,
+  .toggle-slider,
+  .toggle-slider::before,
+  .setting-input,
+  .setting-select,
+  .setting-btn,
+  .btn-primary,
+  .btn-secondary,
+  .admin-item {
+    transition: none;
+  }
+}
+
+/* High Contrast Mode */
+@media (forced-colors: active) {
+  .settings-sidebar,
+  .settings-section,
+  .admin-item {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .settings-tab.active {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .setting-input,
+  .setting-select {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .setting-input:focus,
+  .setting-select:focus {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .toggle-slider {
+    border: 1px solid CanvasText;
+  }
+
+  .toggle input:checked + .toggle-slider {
+    background: Highlight;
+  }
+
+  .setting-btn,
+  .btn-primary,
+  .btn-secondary {
+    border: 1px solid CanvasText;
+  }
+
+  .btn-primary {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .btn-secondary {
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .admin-item-avatar {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .settings-layout {
+    flex-direction: column;
+  }
+
+  .settings-sidebar {
+    width: 100%;
+    position: static;
+  }
+
+  .settings-tab {
+    justify-content: center;
+  }
+}

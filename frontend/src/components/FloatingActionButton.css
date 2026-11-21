@@ -1,0 +1,375 @@
+/* Floating Action Button - Instagram-style FAB for mobile creation flows */
+
+.fab-container {
+  position: fixed;
+  bottom: calc(88px + var(--safe-bottom, env(safe-area-inset-bottom, 0)) + 16px);
+  right: calc(var(--space-4) + var(--safe-right, env(safe-area-inset-right, 0)));
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+  pointer-events: none; /* Allow clicks to pass through to children */
+  /* Reserve space for speed dial when expanded */
+  contain: layout;
+}
+
+/* Main FAB Button */
+.fab-main {
+  pointer-events: auto;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full, 50%);
+  background: var(--color-primary, #0066CC);
+  color: var(--color-text-inverse, #ffffff);
+  border: none;
+  box-shadow: var(--shadow-elevated, 0 6px 16px rgba(0, 0, 0, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-spring, 0.3s cubic-bezier(0.34, 1.56, 0.64, 1));
+  position: relative;
+  overflow: hidden;
+  min-width: var(--touch-target-lg, 48px);
+  min-height: var(--touch-target-lg, 48px);
+}
+
+.fab-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--transition-fast, 0.15s ease);
+}
+
+.fab-main:hover::before {
+  opacity: 1;
+}
+
+.fab-main:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 102, 204, 0.4);
+}
+
+.fab-main:active {
+  transform: scale(0.95);
+}
+
+.fab-main:focus-visible {
+  outline: 3px solid var(--color-primary, #0066CC);
+  outline-offset: 3px;
+}
+
+/* Expanded state - rotates the plus to X */
+.fab-main.expanded .fab-icon-plus {
+  transform: rotate(45deg);
+  opacity: 0;
+}
+
+.fab-main.expanded .fab-icon-close {
+  transform: rotate(0);
+  opacity: 1;
+}
+
+/* Icon animations */
+.fab-icon-wrapper {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fab-icon-plus,
+.fab-icon-close {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: all var(--transition-spring, 0.3s cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.fab-icon-plus {
+  transform: translate(-50%, -50%) rotate(0);
+  opacity: 1;
+}
+
+.fab-icon-close {
+  transform: translate(-50%, -50%) rotate(-45deg);
+  opacity: 0;
+}
+
+/* Label */
+.fab-label {
+  position: absolute;
+  right: calc(100% + var(--space-3));
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+  background: var(--color-surface, #ffffff);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-50%) translateX(var(--space-2));
+  transition: all var(--transition-normal, 0.2s ease);
+  pointer-events: none;
+}
+
+.fab-main:hover .fab-label {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+[data-theme="dark"] .fab-label {
+  background: var(--color-surface-dark, #1a1a1a);
+  color: var(--color-text-primary-dark, #ffffff);
+  box-shadow: var(--shadow-md-dark, 0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+/* Speed Dial Menu - absolutely positioned to not affect FAB position */
+.fab-speed-dial {
+  position: absolute;
+  bottom: calc(100% + var(--space-3));
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse; /* Items animate from bottom up */
+  gap: var(--space-2);
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(var(--space-4)) scale(0.9);
+  transition: all var(--transition-spring, 0.3s cubic-bezier(0.34, 1.56, 0.64, 1));
+  transition-delay: 0ms;
+  width: max-content;
+}
+
+.fab-main.expanded ~ .fab-speed-dial,
+.fab-container:has(.fab-main.expanded) .fab-speed-dial {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  transition-delay: 50ms;
+}
+
+/* Reverse the item order for bottom-up animation */
+.fab-speed-dial .fab-speed-dial-item:nth-child(1) { transition-delay: 140ms; }
+.fab-speed-dial .fab-speed-dial-item:nth-child(2) { transition-delay: 110ms; }
+.fab-speed-dial .fab-speed-dial-item:nth-child(3) { transition-delay: 80ms; }
+.fab-speed-dial .fab-speed-dial-item:nth-child(4) { transition-delay: 50ms; }
+
+/* Staggered animation for each item */
+.fab-speed-dial-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface, #ffffff);
+  border: none;
+  border-radius: var(--radius-full, 50px);
+  padding: var(--space-2) var(--space-4);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.1));
+  cursor: pointer;
+  transition: all var(--transition-normal, 0.2s ease);
+  opacity: 0;
+  transform: translateX(var(--space-4)) scale(0.8);
+  min-height: var(--touch-target-lg, 48px);
+  min-width: var(--touch-target-lg, 48px);
+  white-space: nowrap;
+}
+
+.fab-main.expanded ~ .fab-speed-dial .fab-speed-dial-item,
+.fab-container:has(.fab-main.expanded) .fab-speed-dial .fab-speed-dial-item {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+
+.fab-speed-dial-item:hover {
+  transform: translateX(-4px) scale(1.02);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.fab-speed-dial-item:focus-visible {
+  outline: 3px solid var(--color-primary, #0066CC);
+  outline-offset: 3px;
+}
+
+[data-theme="dark"] .fab-speed-dial-item {
+  background: var(--color-surface-dark, #1a1a1a);
+  box-shadow: var(--shadow-md-dark, 0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+[data-theme="dark"] .fab-speed-dial-item:hover {
+  box-shadow: var(--shadow-lg-dark, 0 8px 24px rgba(0, 0, 0, 0.4));
+}
+
+.speed-dial-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full, 50%);
+  background: var(--fab-accent, var(--color-primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.speed-dial-icon-inner {
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.speed-dial-label {
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+[data-theme="dark"] .speed-dial-label {
+  color: var(--color-text-primary-dark, #ffffff);
+}
+
+/* Ripple effect on FAB click */
+.fab-main::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fab-main:active::after {
+  animation: fab-ripple 0.4s ease-out forwards;
+}
+
+@keyframes fab-ripple {
+  to {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+  }
+}
+
+/* Entrance animation */
+@keyframes fab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fab-container {
+  animation: fab-enter var(--transition-spring, 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)) forwards;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .fab-main,
+  .fab-icon-plus,
+  .fab-icon-close,
+  .fab-label,
+  .fab-speed-dial,
+  .fab-speed-dial-item {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .fab-main.expanded .fab-icon-plus {
+    transform: rotate(45deg);
+  }
+
+  .fab-main.expanded .fab-icon-close {
+    transform: rotate(0);
+  }
+
+  .fab-speed-dial-item {
+    opacity: 1;
+    transform: none;
+  }
+
+  .fab-main:hover,
+  .fab-speed-dial-item:hover {
+    transform: none;
+  }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 480px) {
+  .fab-container {
+    bottom: calc(88px + var(--safe-bottom, env(safe-area-inset-bottom, 0)) + 12px);
+    right: calc(var(--space-3) + var(--safe-right, env(safe-area-inset-right, 0)));
+  }
+
+  .fab-main {
+    width: 52px;
+    height: 52px;
+  }
+
+  .fab-speed-dial-item {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .speed-dial-label {
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  .fab-label {
+    font-size: var(--font-size-xs, 0.75rem);
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .fab-container {
+    bottom: calc(72px + var(--safe-bottom, env(safe-area-inset-bottom, 0)) + 12px);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .fab-main {
+    border: 2px solid var(--color-text-primary, #1a1a1a);
+  }
+
+  [data-theme="dark"] .fab-main {
+    border-color: var(--color-text-primary-dark, #ffffff);
+  }
+
+  .fab-speed-dial-item {
+    border: 1px solid var(--color-border, #e0e0e0);
+  }
+
+  [data-theme="dark"] .fab-speed-dial-item {
+    border-color: var(--color-border-dark, #333);
+  }
+}
+
+/* Print styles */
+@media print {
+  .fab-container {
+    display: none !important;
+  }
+}

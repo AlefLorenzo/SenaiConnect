@@ -1,0 +1,172 @@
+.explore-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.explore-search-bar {
+  padding: 16px 20px;
+}
+
+.explore-search-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.explore-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.explore-search-btn {
+  white-space: nowrap;
+  padding: 8px 20px;
+}
+
+.explore-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.explore-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.explore-tab:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.explore-tab.active {
+  background: var(--senai-blue-primary);
+  color: white;
+  border-color: var(--senai-blue-primary);
+}
+
+.explore-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.explore-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.explore-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.explore-section-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.explore-people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.explore-person-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.explore-person-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.explore-person-avatar {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 1.3rem !important;
+  flex-shrink: 0;
+}
+
+.explore-person-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.explore-person-info strong {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.explore-person-course,
+.explore-person-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.explore-loading {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.explore-empty {
+  padding: 48px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.explore-empty h3 { color: var(--text-primary); font-size: 18px; }
+
+.explore-empty-small {
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 20px;
+  text-align: center;
+}
+
+.explore-results { display: flex; flex-direction: column; gap: 20px; }
+
+.explore-results-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .explore-people-grid { grid-template-columns: 1fr; }
+  .explore-section-header { flex-direction: column; gap: 4px; }
+}

@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, MessageCircle } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/AuthContext.jsx';
 import NotificationDropdown from './NotificationDropdown';
 import Avatar from './Avatar';
 import './Header.css';

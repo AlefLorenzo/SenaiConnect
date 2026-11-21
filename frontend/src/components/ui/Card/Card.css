@@ -1,0 +1,85 @@
+/* ==========================================================================
+   CARD COMPONENT — Design System SENAI Connect
+   Baseado nos padrões de login-base.css, Auth.css e tokens.css
+   Tokens importados globalmente via index.css
+   ========================================================================== */
+
+/* --- Base Card --- */
+.card {
+  background: var(--color-bg-card);
+  box-sizing: border-box;
+  transition:
+    box-shadow var(--transition-normal),
+    border-color var(--transition-normal),
+    transform var(--transition-fast);
+}
+
+/* --- Padding Variants --- */
+.card--padding-none { padding: 0; }
+.card--padding-sm { padding: var(--space-3); }
+.card--padding-md { padding: var(--card-padding); }
+.card--padding-lg { padding: var(--space-8); }
+.card--padding-xl { padding: var(--space-10); }
+
+/* --- Elevation Variants --- */
+.card--elevation-none { box-shadow: none; }
+.card--elevation-sm { box-shadow: var(--shadow-sm); }
+.card--elevation-md { box-shadow: var(--card-shadow); }
+.card--elevation-lg { box-shadow: var(--shadow-lg); }
+
+/* --- Radius Variants --- */
+.card--radius-sm { border-radius: var(--radius-sm); }
+.card--radius-md { border-radius: var(--radius-md); }
+.card--radius-lg { border-radius: var(--card-radius); }
+.card--radius-xl { border-radius: var(--radius-xl); }
+
+/* --- Bordered --- */
+.card--bordered {
+  border: var(--card-border);
+}
+
+/* --- Hoverable --- */
+.card--hoverable:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+  border-color: var(--color-border-hover);
+}
+
+/* --- Motion Reduction --- */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .card--hoverable:hover {
+    transform: none;
+  }
+}
+
+/* --- High Contrast Mode --- */
+@media (forced-colors: active) {
+  .card {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+
+  .card--bordered {
+    border: 1px solid CanvasText;
+  }
+
+  .card--hoverable:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* --- Dark Mode Polish --- */
+@media (prefers-color-scheme: dark) {
+  .card--elevation-md {
+    box-shadow: var(--card-shadow);
+  }
+
+  .card--elevation-lg {
+    box-shadow: var(--shadow-lg);
+  }
+}

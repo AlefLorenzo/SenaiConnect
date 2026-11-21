@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { Home, Rss, Clock, Users, MessageSquare, Calendar, BookOpen, Bell, FileText, Bookmark, Settings, LogOut } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext';
+import { Home, Rss, Clock, Users, MessageSquare, Calendar, BookOpen, Bell, FileText, Bookmark, Settings, LogOut, Heart } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext.jsx';
 import Avatar from './Avatar';
 import './Sidebar.css';
 
@@ -21,6 +21,7 @@ const Sidebar = () => {
     { icon: <Clock size={22} />, text: 'Histórias', path: '/stories' },
     { icon: <Users size={22} />, text: 'Grupos', path: '/groups' },
     { icon: <MessageSquare size={22} />, text: 'Mensagens', path: '/messages', badge: 3 },
+    { icon: <Heart size={22} />, text: 'Atividade', path: '/activity' },
     { icon: <Calendar size={22} />, text: 'Eventos', path: '/events' },
     { icon: <BookOpen size={22} />, text: 'Cursos', path: '/courses' },
     { icon: <Bell size={22} />, text: 'Avisos', path: '/notices' },

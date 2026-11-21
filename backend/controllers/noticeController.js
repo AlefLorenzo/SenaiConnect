@@ -28,7 +28,26 @@ const noticeController = {
                 [authorId, title, content || '']
             );
 
-            res.status(201).json({ id: result.insertId, message: 'Aviso criado com sucesso!' });
+            const noticeId = result.insertId;
+
+            // Create Activity Center notifications for all users (institutional notice)
+            const notificationController = require('./notificationController');
+            const [users] = await db.query('SELECT id FROM users WHERE id != ?', [authorId]);
+
+            for (const user of users) {
+                await notificationController.createNotification(
+                    user.id,
+                    'notice',
+                    authorId,
+                    `Novo aviso institucional: ${title}`,
+                    'notice',
+                    noticeId,
+                    `notice_${noticeId}`,
+                    { action: 'notice', notice_id: noticeId, title }
+                );
+            }
+
+            res.status(201).json({ id: noticeId, message: 'Aviso criado com sucesso!' });
         } catch (error) {
             res.status(500).json({ error: 'Erro ao criar aviso' });
         }
@@ -61,7 +80,26 @@ const noticeController = {
                 [authorId, title, description || '', event_date, location || '']
             );
 
-            res.status(201).json({ id: result.insertId, message: 'Evento criado com sucesso!' });
+            const eventId = result.insertId;
+
+            // Create Activity Center notifications for all users (event reminder)
+            const notificationController = require('./notificationController');
+            const [users] = await db.query('SELECT id FROM users WHERE id != ?', [authorId]);
+
+            for (const user of users) {
+                await notificationController.createNotification(
+                    user.id,
+                    'event_reminder',
+                    authorId,
+                    `Novo evento: ${title} em ${new Date(event_date).toLocaleDateString('pt-BR')}`,
+                    'event',
+                    eventId,
+                    `event_${eventId}`,
+                    { action: 'event', event_id: eventId, title, event_date, location }
+                );
+            }
+
+            res.status(201).json({ id: eventId, message: 'Evento criado com sucesso!' });
         } catch (error) {
             res.status(500).json({ error: 'Erro ao criar evento' });
         }

@@ -1,0 +1,57 @@
+.friend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.friend-btn.loading {
+  background-color: #E4E6E9;
+  color: #65676B;
+  cursor: not-allowed;
+}
+
+.friend-btn.pending {
+  background-color: #E4E6E9;
+  color: #65676B;
+  cursor: default;
+}
+
+.friend-btn.accept {
+  background-color: #31A24C;
+  color: white;
+}
+.friend-btn.accept:hover {
+  background-color: #2b9143;
+}
+
+.friend-btn.reject {
+  background-color: #E4E6E9;
+  color: #1C1E21;
+}
+.friend-btn.reject:hover {
+  background-color: #D8DADF;
+}
+
+.friend-btn.accepted {
+  background-color: #E4E6E9;
+  color: #1C1E21;
+}
+.friend-btn.accepted:hover {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+.friend-btn.accepted:hover::after {
+  content: ' Remover';
+}
+
+.friend-btn-group {
+  display: flex;
+  gap: 8px;
+}

@@ -39,13 +39,20 @@ const commentController = {
                 WHERE c.id = ?
             `, [result.insertId]);
 
-            // Notifica o dono do post (se não for ele mesmo)
+            // Notifica o dono do post (se não for ele mesmo) - Activity Center format
             try {
                 const [post] = await db.query('SELECT user_id FROM posts WHERE id = ?', [id]);
                 if (post.length > 0 && post[0].user_id !== userId) {
                     const notificationController = require('./notificationController');
                     await notificationController.createNotification(
-                        post[0].user_id, 'comment', userId, parseInt(id), 'comentou no seu post.'
+                        post[0].user_id,
+                        'post_comment',
+                        userId,
+                        'comentou na sua publicação.',
+                        'post',
+                        parseInt(id),
+                        `post_${id}_comment`,
+                        { action: 'comment', post_id: parseInt(id), comment_id: result.insertId }
                     );
                 }
             } catch (notifError) {

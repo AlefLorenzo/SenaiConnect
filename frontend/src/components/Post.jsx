@@ -1,48 +1,70 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Trash2, Edit2, Send, X } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext';
+import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Trash2, Edit2, Send, X, Hash } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext.jsx';
 import Avatar from './Avatar';
+import { postsService } from '../services/postsService';
 import './Post.css';
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+/**
+ * Parse content and convert hashtags to clickable links
+ * @param {string} content - Post content
+ * @returns {React.ReactNode} - Parsed content with hashtag links
+ */
+const parseHashtags = (content) => {
+  if (!content) return content;
+
+  // Match hashtags: # followed by word characters (including accented characters)
+  const hashtagRegex = /(#[\p{L}\p{N}_]+)/gu;
+  const parts = content.split(hashtagRegex);
+
+  return parts.map((part, index) => {
+    if (part.startsWith('#')) {
+      const hashtag = part.slice(1); // Remove the # for the URL
+      return (
+        <Link
+          key={index}
+          to={`/hashtag/${encodeURIComponent(hashtag)}`}
+          className="hashtag-link"
+          style={{ textDecoration: 'none' }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+            <Hash size={14} style={{ flexShrink: 0 }} />
+            {part}
+          </span>
+        </Link>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
 
 const Post = ({ post, onDeleted }) => {
   const { user } = useContext(AuthContext);
-  
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
+
+  // Use post data directly from mock structure
+  const [liked, setLiked] = useState(post.is_liked || false);
+  const [saved, setSaved] = useState(post.is_saved || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
-  
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [postContent, setPostContent] = useState(post.content);
-  
+
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [comments, setComments] = useState([]);
   const [newCommentText, setNewCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
 
-  // Fetch initial status (liked, saved) for the user
+  // Initialize from post data
   useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/posts/${post.id}/status`, {
-          headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setLiked(data.liked);
-          setSaved(data.saved);
-        }
-      } catch (err) {
-        console.error('Erro ao buscar status do post:', err);
-      }
-    };
-    fetchStatus();
-  }, [post.id]);
+    setLiked(post.is_liked || false);
+    setSaved(post.is_saved || false);
+    setLikesCount(post.likes_count || 0);
+    setCommentsCount(post.comments_count || 0);
+  }, [post.id, post.is_liked, post.is_saved, post.likes_count, post.comments_count]);
 
   // Fetch comments when comments section is opened
   useEffect(() => {
@@ -71,15 +93,9 @@ const Post = ({ post, onDeleted }) => {
 
   const handleLike = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/posts/${post.id}/like`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLiked(data.liked);
-        setLikesCount(prev => data.liked ? prev + 1 : Math.max(0, prev - 1));
-      }
+      const result = await postsService.toggleLike(post.id);
+      setLiked(result.is_liked);
+      setLikesCount(result.likes_count);
     } catch (err) {
       console.error('Erro ao curtir post:', err);
     }
@@ -87,14 +103,8 @@ const Post = ({ post, onDeleted }) => {
 
   const handleSave = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/posts/${post.id}/save`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSaved(data.saved);
-      }
+      const result = await postsService.toggleSave(post.id);
+      setSaved(result.is_saved);
     } catch (err) {
       console.error('Erro ao salvar post:', err);
     }
@@ -103,18 +113,9 @@ const Post = ({ post, onDeleted }) => {
   const handleEdit = async () => {
     if (!editContent.trim()) return;
     try {
-      const res = await fetch(`${API_URL}/api/posts/${post.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ content: editContent })
-      });
-      if (res.ok) {
-        setPostContent(editContent);
-        setIsEditing(false);
-      }
+      await postsService.updatePost(post.id, { content: editContent });
+      setPostContent(editContent);
+      setIsEditing(false);
     } catch (err) {
       console.error('Erro ao editar post:', err);
     }
@@ -123,13 +124,8 @@ const Post = ({ post, onDeleted }) => {
   const handleDelete = async () => {
     if (!window.confirm('Tem certeza que deseja excluir esta publicação?')) return;
     try {
-      const res = await fetch(`${API_URL}/api/posts/${post.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        if (onDeleted) onDeleted(post.id);
-      }
+      await postsService.deletePost(post.id);
+      if (onDeleted) onDeleted(post.id);
     } catch (err) {
       console.error('Erro ao deletar post:', err);
     }
@@ -138,43 +134,29 @@ const Post = ({ post, onDeleted }) => {
   const handleAddComment = async (e) => {
     if (e) e.preventDefault();
     if (!newCommentText.trim()) return;
-    try {
-      const res = await fetch(`${API_URL}/api/posts/${post.id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ content: newCommentText })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setComments(prev => [...prev, data.comment]);
-        setNewCommentText('');
-        setCommentsCount(prev => prev + 1);
-      }
-    } catch (err) {
-      console.error('Erro ao adicionar comentário:', err);
-    }
+    // Mock comment addition
+    const newComment = {
+      id: Date.now(),
+      user_id: user?.id || 1,
+      user_name: user?.name || 'Usuário Atual',
+      user_avatar: user?.avatar || null,
+      content: newCommentText,
+      created_at: new Date().toISOString()
+    };
+    setComments(prev => [...prev, newComment]);
+    setNewCommentText('');
+    setCommentsCount(prev => prev + 1);
   };
 
   const handleDeleteComment = async (commentId) => {
     if (!window.confirm('Tem certeza que deseja excluir seu comentário?')) return;
-    try {
-      const res = await fetch(`${API_URL}/api/posts/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        setComments(prev => prev.filter(c => c.id !== commentId));
-        setCommentsCount(prev => Math.max(0, prev - 1));
-      }
-    } catch (err) {
-      console.error('Erro ao excluir comentário:', err);
-    }
+    setComments(prev => prev.filter(c => c.id !== commentId));
+    setCommentsCount(prev => Math.max(0, prev - 1));
   };
 
-  const userAvatar = post.user_avatar ? `/uploads/avatars/${post.user_avatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user_name || 'User')}&background=0D8ABC&color=fff`;
+  // Handle user data from mock structure (post.user object)
+  const postUser = post.user || {};
+  const userAvatar = postUser.avatar ? `/uploads/avatars/${postUser.avatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(postUser.name || 'User')}&background=0D8ABC&color=fff`;
 
   const isImageUrl = (url) => {
     if (!url) return false;
@@ -188,15 +170,17 @@ const Post = ({ post, onDeleted }) => {
     <div className="post-card card">
       <div className="post-header">
         <div className="post-user-info">
-          <Link to={`/profile/${post.user_id}`}>
-            <Avatar user={{ avatar: post.user_avatar, name: post.user_name }} className="post-avatar" />
+          <Link to={`/profile/${postUser.id}`}>
+            <Avatar user={{ avatar: postUser.avatar, name: postUser.name }} className="post-avatar" />
           </Link>
           <div>
             <div className="post-user-name">
-              <Link to={`/profile/${post.user_id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                {post.user_name}
+              <Link to={`/profile/${postUser.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                {postUser.name}
               </Link>
-              {post.user_role === 'PROFESSOR' && <span className="role-badge">PROFESSOR</span>}
+              {postUser.role === 'instrutor' && <span className="role-badge">INSTRUTOR</span>}
+              {postUser.role === 'PROFESSOR' && <span className="role-badge">PROFESSOR</span>}
+              {postUser.isVerified && <span className="verified-badge" title="Verificado">✓</span>}
             </div>
             <div className="post-time">
               {new Date(post.created_at).toLocaleDateString('pt-BR', {
@@ -209,7 +193,7 @@ const Post = ({ post, onDeleted }) => {
           </div>
         </div>
         
-        {user?.id === post.user_id && (
+        {user?.id === postUser.id && (
           <div className="post-options-container">
             <button className="icon-btn-transparent" onClick={() => setIsMenuOpen(!isMenuOpen)}>
               <MoreHorizontal size={20} color="#65676B" />
@@ -242,7 +226,7 @@ const Post = ({ post, onDeleted }) => {
             </div>
           </div>
         ) : (
-          <p>{postContent}</p>
+          <p>{parseHashtags(postContent)}</p>
         )}
         
         {post.attachment_url && (
@@ -254,7 +238,7 @@ const Post = ({ post, onDeleted }) => {
                 <FileText size={24} color="#E53935" />
               </div>
               <div className="doc-info">
-                <span className="doc-name">{post.attachment_name || 'Arquivo Anexo'}</span>
+                <span className="doc-name">Arquivo Anexo</span>
                 <a href={post.attachment_url} target="_blank" rel="noopener noreferrer" className="download-link">
                   Visualizar / Baixar
                 </a>
@@ -336,7 +320,7 @@ const Post = ({ post, onDeleted }) => {
                               </button>
                             )}
                           </div>
-                          <p className="comment-content-text">{comment.content}</p>
+                          <p className="comment-content-text">{parseHashtags(comment.content)}</p>
                         </div>
                         <span className="comment-time">
                           {new Date(comment.created_at).toLocaleDateString('pt-BR', {

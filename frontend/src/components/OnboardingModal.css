@@ -1,0 +1,154 @@
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.onboarding-modal {
+  width: 100%;
+  max-width: 500px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.onboarding-header {
+  padding: 24px;
+  background-color: var(--senai-blue-dark);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-logo {
+  display: flex;
+  flex-direction: column;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.onboarding-logo .logo-text { font-size: 20px; font-style: italic; }
+.onboarding-logo .logo-sub { font-size: 10px; letter-spacing: 1px; }
+
+.onboarding-progress {
+  display: flex;
+  gap: 8px;
+}
+
+.progress-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s;
+}
+
+.progress-dot.active {
+  background-color: white;
+  box-shadow: 0 0 8px rgba(255,255,255,0.5);
+}
+
+.onboarding-content {
+  padding: 32px 24px;
+  min-height: 280px;
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.step-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.step-content p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-group small {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.step-final {
+  align-items: center;
+  text-align: center;
+}
+
+.success-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background-color: var(--senai-blue-light);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.onboarding-footer {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-main);
+}
+
+.onboarding-footer button {
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.onboarding-footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,389 @@
+/* ==========================================================================
+   INPUT COMPONENT — Design System SENAI Connect
+   Baseado nos padrões de login-base.css e Auth.css
+   Tokens importados globalmente via index.css
+   ========================================================================== */
+
+/* --- Field Wrapper --- */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.form-field--full {
+  width: 100%;
+}
+
+/* --- Label --- */
+.form-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  line-height: var(--leading-normal);
+}
+
+/* --- Input Wrapper --- */
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  transition: box-shadow var(--transition-fast);
+}
+
+.input-wrapper:focus-within {
+  box-shadow: var(--shadow-ring);
+  border-radius: var(--radius-md);
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--space-4);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+  z-index: 1;
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: var(--color-primary);
+}
+
+.input-wrapper--error .input-icon {
+  color: var(--color-error);
+}
+
+.input-wrapper--success .input-icon {
+  color: var(--color-success);
+}
+
+/* --- Input --- */
+.form-input {
+  width: 100%;
+  height: var(--touch-target-lg);
+  padding: 0 var(--space-4) 0 calc(var(--space-4) + 24px + var(--space-3));
+  border: var(--input-border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-family: inherit;
+  line-height: var(--leading-normal);
+  color: var(--color-text-primary);
+  background: var(--color-bg-card);
+  box-sizing: border-box;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+  font-weight: var(--font-normal);
+}
+
+.form-input:hover:not(:disabled) {
+  border-color: var(--color-border-hover);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+  background: var(--color-bg-card);
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--color-bg-disabled);
+}
+
+/* Input com ícone à esquerda - padding ajustado */
+.form-input:not(:has(+ .input-icon)) {
+  padding-left: var(--space-4);
+}
+
+/* Error State */
+.form-input--error {
+  border-color: var(--color-error-border);
+  background: var(--color-error-light);
+}
+
+.form-input--error:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus-error);
+}
+
+.form-input--error + .input-toggle {
+  color: var(--color-error);
+}
+
+.form-input--error + .input-toggle:hover:not(:disabled) {
+  background: var(--color-error-light);
+  color: var(--color-error-hover);
+}
+
+/* Success State */
+.form-input--success {
+  border-color: var(--color-success-border);
+  background: var(--color-success-light);
+}
+
+.form-input--success:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus-success);
+}
+
+/* --- Toggle Button (Mostrar/Ocultar Senha) --- */
+.input-toggle {
+  position: absolute;
+  right: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target-lg);
+  height: var(--touch-target-lg);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.input-toggle:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+  transform: scale(1.05);
+}
+
+.input-toggle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.input-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  color: var(--color-primary);
+}
+
+.input-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Error Message --- */
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--font-normal);
+  color: var(--color-error-text);
+  line-height: var(--leading-normal);
+  margin-top: var(--space-1);
+  animation: shakeX var(--transition-fast);
+}
+
+.form-error::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2.5'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'/%3E%3C/svg%3E") center/contain no-repeat;
+  flex-shrink: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+/* --- Success Message --- */
+.form-success {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--font-normal);
+  color: var(--color-success-text);
+  line-height: var(--leading-normal);
+  margin-top: var(--space-1);
+  animation: fadeIn var(--transition-fast);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Hint --- */
+.form-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* --- Responsive --- */
+@media (max-width: 480px) {
+  .form-input {
+    padding-left: calc(var(--space-4) + 24px + var(--space-2));
+    height: var(--touch-target);
+  }
+
+  .form-input:not(:has(+ .input-icon)) {
+    padding-left: var(--space-3);
+  }
+}
+
+@media (max-width: 360px) {
+  .form-input {
+    padding-left: calc(var(--space-3) + 24px + var(--space-2));
+  }
+}
+
+/* --- Motion Reduction --- */
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .input-toggle,
+  .form-error,
+  .form-success {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* --- High Contrast Mode --- */
+@media (forced-colors: active) {
+  .form-input {
+    border: 2px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .form-input:focus {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .form-input--error {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .input-toggle {
+    border: 1px solid CanvasText;
+  }
+
+  .form-error::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23CanvasText' stroke-width='2.5'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'/%3E%3C/svg%3E");
+  }
+}
+
+/* --- Textarea --- */
+.form-textarea {
+  min-height: 80px;
+  padding: var(--space-3) var(--space-4) !important;
+  height: auto !important;
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+  background: var(--color-bg-card);
+}
+
+/* --- Select --- */
+.form-select {
+  height: var(--touch-target-lg);
+  padding: 0 calc(var(--space-4) + 24px) 0 var(--space-4) !important;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  background-size: 16px;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+  background: var(--color-bg-card);
+}
+
+.form-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--color-bg-disabled);
+}
+
+/* Select error/success states */
+.form-select.form-input--error {
+  border-color: var(--color-error-border);
+  background: var(--color-error-light);
+}
+
+.form-select.form-input--error:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus-error);
+}
+
+.form-select.form-input--success {
+  border-color: var(--color-success-border);
+  background: var(--color-success-light);
+}
+
+.form-select.form-input--success:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus-success);
+}
+
+/* --- Dark Mode Polish --- */
+@media (prefers-color-scheme: dark) {
+  .form-input:focus,
+  .form-textarea:focus,
+  .form-select:focus {
+    box-shadow: var(--shadow-focus);
+  }
+
+  .form-input--error:focus,
+  .form-textarea.form-input--error:focus,
+  .form-select.form-input--error:focus {
+    box-shadow: var(--shadow-focus-error);
+  }
+
+  .form-input--success:focus,
+  .form-textarea.form-input--success:focus,
+  .form-select.form-input--success:focus {
+    box-shadow: var(--shadow-focus-success);
+  }
+
+  .input-wrapper:focus-within {
+    box-shadow: var(--shadow-ring);
+  }
+
+  .form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+}

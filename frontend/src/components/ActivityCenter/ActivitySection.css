@@ -1,0 +1,70 @@
+/* Activity Section - Chronological Section Styles */
+
+.activity-section {
+  margin-bottom: var(--space-10);
+}
+
+.activity-section:last-child {
+  margin-bottom: 0;
+}
+
+.activity-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-4);
+}
+
+.activity-section__title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.activity-section__divider {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+  min-width: 60px;
+}
+
+/* Section List */
+.activity-section__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .activity-section {
+    margin-bottom: var(--space-6);
+  }
+
+  .activity-section__title {
+    font-size: var(--text-xs);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  /* No animations in sections */
+}
+
+/* High Contrast */
+@media (prefers-contrast: high) {
+  .activity-section__divider {
+    height: 2px;
+    background: var(--border-color);
+  }
+
+  .activity-section__title {
+    color: var(--text-secondary);
+  }
+}

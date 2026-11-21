@@ -4,6 +4,23 @@
   gap: 16px;
 }
 
+/* Stories Section - First on Home */
+.stories-section {
+  /* MobileStories handles its own internal spacing */
+}
+
+/* Create Post Section - Second on Home */
+.create-post-section {
+  /* Contains the create-post-card, gap handled by parent */
+}
+
+/* Feed Container - Third on Home */
+.feed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .stories-container {
   display: flex;
   overflow-x: auto;

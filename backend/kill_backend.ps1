@@ -1,0 +1,1 @@
+Get-Process node | Where-Object {$_.MainWindowTitle -like '*backend*'} | ForEach-Object { Stop-Process -Id $_.Id -Force }

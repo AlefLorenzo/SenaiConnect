@@ -1,0 +1,29 @@
+.role-badge {
+  background-color: var(--senai-red);
+  color: white;
+  border-radius: 4px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-badge.small {
+  font-size: 10px;
+  padding: 2px 6px;
+  margin-left: 8px;
+}
+
+.role-badge.medium {
+  font-size: 11px;
+  padding: 3px 8px;
+  margin-left: 8px;
+}
+
+.role-badge.large {
+  font-size: 13px;
+  padding: 4px 10px;
+  margin-left: 12px;
+}

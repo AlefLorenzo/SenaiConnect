@@ -1,0 +1,174 @@
+/* ==========================================================================
+   LINK COMPONENT — Design System SENAI Connect
+   Baseado nos padrões de login-base.css, Auth.css e tokens.css
+   Tokens importados globalmente via index.css
+   ========================================================================== */
+
+/* --- Base Link --- */
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  line-height: var(--leading-normal);
+  color: var(--color-text-link);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    text-decoration-color var(--transition-fast);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.link:hover {
+  color: var(--color-text-link-hover);
+}
+
+/* --- Variants --- */
+
+/* Inline - dentro de texto */
+.link--inline {
+  padding: 0;
+}
+
+/* Standalone - botão-style link */
+.link--standalone {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+
+.link--standalone:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary-hover);
+}
+
+.link--standalone:active {
+  background: var(--color-blue-100);
+}
+
+/* Button-style link */
+.link--button {
+  height: var(--btn-height);
+  padding: 0 var(--btn-padding-x);
+  border-radius: var(--btn-radius);
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-font-weight);
+  background: transparent;
+}
+
+.link--button:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary-hover);
+}
+
+.link--button:active {
+  background: var(--color-blue-100);
+}
+
+/* --- Underline Variants --- */
+.link--underline-none {
+  text-decoration: none;
+}
+
+.link--underline-hover {
+  text-decoration: none;
+}
+
+.link--underline-hover:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.link--underline-always {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+/* --- Icon Position --- */
+.link--icon-left {
+  flex-direction: row-reverse;
+}
+
+.link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+  transition: transform var(--transition-fast);
+}
+
+.link--standalone .link-icon,
+.link--button .link-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Hover icon animation for standalone/button */
+.link--standalone:hover .link-icon[aria-hidden="true"]:last-child,
+.link--button:hover .link-icon[aria-hidden="true"]:last-child {
+  transform: translateX(2px);
+}
+
+.link--standalone:hover .link-icon[aria-hidden="true"]:first-child,
+.link--button:hover .link-icon[aria-hidden="true"]:first-child {
+  transform: translateX(-2px);
+}
+
+/* --- Motion Reduction --- */
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+
+  .link-icon {
+    transition: none;
+  }
+}
+
+/* --- High Contrast Mode --- */
+@media (forced-colors: active) {
+  .link {
+    color: LinkText;
+    text-decoration: underline;
+  }
+
+  .link:hover {
+    color: Highlight;
+  }
+
+  .link:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .link--standalone:hover,
+  .link--button:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .link--underline-hover {
+    text-decoration: underline;
+  }
+}
+
+/* --- Dark Mode Polish --- */
+@media (prefers-color-scheme: dark) {
+  .link--standalone:hover {
+    background: var(--color-blue-900);
+  }
+
+  .link--button:hover {
+    background: var(--color-blue-900);
+  }
+}

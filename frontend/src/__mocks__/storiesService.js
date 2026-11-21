@@ -1,0 +1,21 @@
+// Mock storiesService for testing
+export const storiesService = {
+  getFeed: jest.fn().mockResolvedValue([]),
+  getUserStories: jest.fn().mockResolvedValue([]),
+  createStory: jest.fn().mockResolvedValue({ id: 1 }),
+  viewStory: jest.fn().mockResolvedValue({ success: true }),
+  deleteStory: jest.fn().mockResolvedValue({ success: true }),
+  getStoryViewers: jest.fn().mockResolvedValue([]),
+  getStoryReactions: jest.fn().mockResolvedValue([]),
+  reactToStory: jest.fn().mockResolvedValue({ success: true, action: 'added' }),
+  getStoryReplies: jest.fn().mockResolvedValue([]),
+  replyToStory: jest.fn().mockResolvedValue({ id: 1 }),
+  getPrivacyExceptions: jest.fn().mockResolvedValue([]),
+  getUserHighlights: jest.fn().mockResolvedValue([]),
+  createHighlight: jest.fn().mockResolvedValue({ id: 1 }),
+  updateHighlight: jest.fn().mockResolvedValue({ id: 1 }),
+  deleteHighlight: jest.fn().mockResolvedValue({ success: true }),
+  addStoriesToHighlight: jest.fn().mockResolvedValue({ id: 1 }),
+  removeStoryFromHighlight: jest.fn().mockResolvedValue({ id: 1 }),
+  searchUsersForMentions: jest.fn().mockResolvedValue([]),
+};

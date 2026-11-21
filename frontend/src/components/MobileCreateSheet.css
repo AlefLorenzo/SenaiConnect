@@ -1,0 +1,282 @@
+/* Mobile Create Sheet - Instagram Style Bottom Sheet */
+/* 8 options in a 2x4 grid */
+
+.mobile-create-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+[data-theme="dark"] .mobile-create-sheet-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mobile-create-sheet {
+  width: 100%;
+  max-width: 100%;
+  background: var(--color-surface, #ffffff);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .mobile-create-sheet {
+  background: var(--color-surface-dark, #1a1a1a);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Handle Bar */
+.sheet-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0 8px;
+}
+
+.handle-bar {
+  width: 36px;
+  height: 4px;
+  background: var(--color-border, #e0e0e0);
+  border-radius: 2px;
+}
+
+[data-theme="dark"] .handle-bar {
+  background: var(--color-border-dark, #333);
+}
+
+/* Header */
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+}
+
+[data-theme="dark"] .sheet-header {
+  border-bottom-color: var(--color-border-dark, #333);
+}
+
+.sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1a1a);
+  margin: 0;
+}
+
+[data-theme="dark"] .sheet-title {
+  color: var(--color-text-primary-dark, #ffffff);
+}
+
+.sheet-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-text-secondary, #666);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+[data-theme="dark"] .sheet-close-btn {
+  color: var(--color-text-secondary-dark, #aaa);
+}
+
+.sheet-close-btn:hover {
+  background: var(--color-hover, rgba(0, 0, 0, 0.05));
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+[data-theme="dark"] .sheet-close-btn:hover {
+  background: var(--color-hover-dark, rgba(255, 255, 255, 0.08));
+  color: var(--color-text-primary-dark, #ffffff);
+}
+
+.sheet-close-btn:focus-visible {
+  outline: 2px solid var(--color-primary, #0066CC);
+  outline-offset: 2px;
+}
+
+/* Options Grid */
+.sheet-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(85vh - 120px);
+}
+
+/* Create Option Button */
+.create-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: var(--color-background, #fafafa);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 96px;
+}
+
+[data-theme="dark"] .create-option {
+  background: var(--color-background-dark, #0d0d0d);
+  border-color: var(--color-border-dark, #333);
+}
+
+.create-option:hover {
+  background: var(--color-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--option-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .create-option:hover {
+  background: var(--color-hover-dark, rgba(255, 255, 255, 0.05));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.create-option:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.create-option:focus-visible {
+  outline: 2px solid var(--color-primary, #0066CC);
+  outline-offset: 2px;
+}
+
+/* Option Icon Wrapper */
+.option-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--option-color);
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.option-icon {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+}
+
+/* Option Content */
+.option-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.option-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+[data-theme="dark"] .option-label {
+  color: var(--color-text-primary-dark, #ffffff);
+}
+
+.option-description {
+  font-size: 11px;
+  color: var(--color-text-secondary, #666);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+[data-theme="dark"] .option-description {
+  color: var(--color-text-secondary-dark, #aaa);
+}
+
+/* Desktop hidden */
+@media (min-width: 769px) {
+  .mobile-create-sheet-overlay {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-create-sheet-overlay {
+    display: flex;
+  }
+}
+
+/* Landscape adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mobile-create-sheet {
+    max-height: 90vh;
+    border-radius: 16px;
+  }
+
+  .sheet-options {
+    grid-template-columns: repeat(4, 1fr);
+    padding: 16px;
+    gap: 6px;
+  }
+
+  .create-option {
+    padding: 12px 8px;
+    min-height: 80px;
+  }
+
+  .option-icon-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-create-sheet-overlay,
+  .mobile-create-sheet,
+  .create-option {
+    animation: none;
+    transition: none;
+  }
+}

@@ -1,0 +1,198 @@
+/* ==========================================================================
+   ALERT COMPONENT — Design System SENAI Connect
+   Baseado nos padrões de login-base.css, Auth.css e tokens.css
+   Tokens importados globalmente via index.css
+   ========================================================================== */
+
+/* --- Base Alert --- */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  animation: slideIn var(--transition-normal);
+  box-sizing: border-box;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Dismissible --- */
+.alert--dismissible {
+  padding-right: var(--space-10);
+}
+
+.alert-dismiss {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target-sm);
+  height: var(--touch-target-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition:
+    opacity var(--transition-fast),
+    background-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.alert-dismiss:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.alert-dismiss:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+/* --- Icon --- */
+.alert-icon {
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+  margin-top: 2px;
+  line-height: 0;
+}
+
+/* --- Content --- */
+.alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-snug);
+  margin-bottom: var(--space-1);
+}
+
+.alert-message {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* --- Variants --- */
+
+/* Error */
+.alert--error {
+  background: var(--color-error-light);
+  border-color: var(--color-error-border);
+  color: var(--color-error-text);
+}
+
+.alert--error .alert-icon {
+  color: var(--color-error);
+}
+
+.alert--error .alert-dismiss:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Success */
+.alert--success {
+  background: var(--color-success-light);
+  border-color: var(--color-success-border);
+  color: var(--color-success-text);
+}
+
+.alert--success .alert-icon {
+  color: var(--color-success);
+}
+
+.alert--success .alert-dismiss:hover {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+/* Warning */
+.alert--warning {
+  background: var(--color-warning-light);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.alert--warning .alert-icon {
+  color: var(--color-warning);
+}
+
+.alert--warning .alert-dismiss:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Info */
+.alert--info {
+  background: var(--color-primary-light);
+  border-color: var(--color-blue-200);
+  color: var(--color-blue-800);
+}
+
+@media (prefers-color-scheme: dark) {
+  .alert--info {
+    background: var(--color-blue-900);
+    border-color: var(--color-blue-800);
+    color: var(--color-blue-300);
+  }
+}
+
+.alert--info .alert-icon {
+  color: var(--color-primary);
+}
+
+.alert--info .alert-dismiss:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* --- Motion Reduction --- */
+@media (prefers-reduced-motion: reduce) {
+  .alert {
+    animation: none;
+  }
+}
+
+/* --- High Contrast Mode --- */
+@media (forced-colors: active) {
+  .alert {
+    border: 2px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .alert--error,
+  .alert--success,
+  .alert--warning,
+  .alert--info {
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  .alert-icon {
+    color: CanvasText;
+  }
+
+  .alert-dismiss:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

@@ -1,46 +1,115 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import { SocketContext } from '../context/SocketContext';
+import { useLocation } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext.jsx';
+import { SocketContext } from '../context/SocketContext.jsx';
 import { Image, Paperclip, Smile, Video, X, Plus } from 'lucide-react';
 import Post from '../components/Post';
-import Story from '../components/Story';
 import StoryViewer from '../components/StoryViewer';
+import CreateStory from '../components/CreateStory';
+import MobileStories from '../components/MobileStories';
 import Avatar from '../components/Avatar';
+import storiesService from '../services/storiesService';
+import { postsService } from '../services/postsService';
 import './Home.css';
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Home = () => {
   const { user } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
+  const location = useLocation();
   const [posts, setPosts] = useState([]);
-  const [storyGroups, setStoryGroups] = useState([]);
   const [newPostContent, setNewPostContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [postImage, setPostImage] = useState(null);
   const [postImagePreview, setPostImagePreview] = useState(null);
+  const [inputPlaceholder, setInputPlaceholder] = useState('No que você está pensando?');
+  const [showCreateStory, setShowCreateStory] = useState(false);
   const fileInputRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // Story creation state
-  const [showStoryModal, setShowStoryModal] = useState(false);
-  const [storyImage, setStoryImage] = useState(null);
-  const [storyImagePreview, setStoryImagePreview] = useState(null);
-  const [storyText, setStoryText] = useState('');
-  const [creatingStory, setCreatingStory] = useState(false);
-  const storyFileRef = useRef(null);
+  // Check for creation type from sessionStorage (set by FAB via MobileCreateSheet)
+  useEffect(() => {
+    const createType = sessionStorage.getItem('createPostType');
+    if (createType) {
+      sessionStorage.removeItem('createPostType');
+      const placeholders = {
+        photo: 'Compartilhe uma foto...',
+        video: 'Compartilhe um vídeo...',
+        project: 'Compartilhe seu projeto...',
+        question: 'Faça uma pergunta...',
+        tip: 'Compartilhe uma dica útil...',
+        event: 'Crie um evento...',
+        post: 'O que você quer compartilhar?',
+      };
+      setInputPlaceholder(placeholders[createType] || placeholders.post);
+      // Focus the input to show it's ready for the specific type
+      inputRef.current?.focus();
+    }
+  }, []);
 
-  // Story viewing state
+  // Check for story creation flag from sessionStorage on mount and location change
+  useEffect(() => {
+    console.log('Home useEffect running, pathname:', location.pathname);
+    const shouldCreateStory = sessionStorage.getItem('createStory');
+    console.log('sessionStorage createStory:', shouldCreateStory);
+    if (shouldCreateStory) {
+      sessionStorage.removeItem('createStory');
+      setShowCreateStory(true);
+      console.log('showCreateStory set to true');
+    }
+  }, [location.pathname]);
+
+  // Listen for custom event from FAB when navigating to home
+  useEffect(() => {
+    const handleCreatePostTypeChanged = (event) => {
+      const { type } = event.detail || {};
+      if (type) {
+        const placeholders = {
+          photo: 'Compartilhe uma foto...',
+          video: 'Compartilhe um vídeo...',
+          project: 'Compartilhe seu projeto...',
+          question: 'Faça uma pergunta...',
+          tip: 'Compartilhe uma dica útil...',
+          event: 'Crie um evento...',
+          post: 'O que você quer compartilhar?',
+        };
+        setInputPlaceholder(placeholders[type] || placeholders.post);
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('createPostTypeChanged', handleCreatePostTypeChanged);
+    return () => window.removeEventListener('createPostTypeChanged', handleCreatePostTypeChanged);
+  }, []);
+
+  // Story viewing state (for StoryViewer when clicking on stories from MobileStories)
   const [viewingStoryIndex, setViewingStoryIndex] = useState(null);
+  const [storyGroups, setStoryGroups] = useState([]);
+  const [stories, setStories] = useState([]);
+
+  // Transform storyGroups into story groups for MobileStories (one item per user)
+  useEffect(() => {
+    const storyGroupsForMobile = (storyGroups || [])
+      .filter(group => group && group.stories && group.stories.length > 0)
+      .map(group => {
+        const stories = group.stories || [];
+        const hasUnviewed = stories.some(story => story.views_count === 0 || story.views_count === undefined);
+        return {
+          id: group.user_id,
+          user_id: group.user_id,
+          user_name: group.user_name,
+          user_avatar: group.user_avatar,
+          hasUnviewed,
+          storyCount: stories.length,
+          stories: stories, // Pass the full stories array for the viewer
+        };
+      });
+    setStories(storyGroupsForMobile);
+  }, [storyGroups]);
 
   const fetchPosts = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/posts`, {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(data);
-      }
+      const data = await postsService.getFeed();
+      setPosts(data.posts || []);
     } catch (err) {
       console.log('Erro ao buscar posts', err);
     }
@@ -48,13 +117,8 @@ const Home = () => {
 
   const fetchStories = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/stories`, {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStoryGroups(data);
-      }
+      const data = await storiesService.getFeed();
+      setStoryGroups(data);
     } catch (err) {
       console.log('Erro ao buscar stories', err);
     }
@@ -63,6 +127,14 @@ const Home = () => {
   useEffect(() => {
     fetchPosts();
     fetchStories();
+  }, []);
+
+  // Subscribe to posts service changes (for real-time updates from other components)
+  useEffect(() => {
+    const unsubscribe = postsService.subscribe(() => {
+      fetchPosts();
+    });
+    return unsubscribe;
   }, []);
 
   // Listen for new stories via socket
@@ -95,120 +167,42 @@ const Home = () => {
       let attachment_url = null;
       let attachment_type = null;
 
-      // Upload image first if present
+      // For mock mode, just use a placeholder image URL
       if (postImage) {
         const reader = new FileReader();
         const base64 = await new Promise((resolve) => {
           reader.onload = (e) => resolve(e.target.result);
           reader.readAsDataURL(postImage);
         });
-
-        const uploadRes = await fetch(`${API_URL}/api/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ file: base64, folder: 'posts' })
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          attachment_url = uploadData.url;
-          attachment_type = 'image';
-        }
+        // In mock mode, we'll use a placeholder image
+        attachment_url = base64; // Use data URL for mock
+        attachment_type = 'image';
       }
 
-      const res = await fetch(`${API_URL}/api/posts`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+      // Create post via service
+      await postsService.createPost({
+        user_id: user?.id || 1,
+        user: user || {
+          id: 1,
+          name: 'Usuário Atual',
+          avatar: null,
+          role: 'aluno',
+          isVerified: true
         },
-        body: JSON.stringify({
-          content: newPostContent,
-          attachment_url,
-          attachment_type
-        })
+        content: newPostContent,
+        attachment_url,
+        attachment_type
       });
-      
-      if (res.ok) {
-        setNewPostContent('');
-        setPostImage(null);
-        setPostImagePreview(null);
-        fetchPosts();
-      }
+
+      // Refresh posts will be triggered by subscription
+      setNewPostContent('');
+      setPostImage(null);
+      setPostImagePreview(null);
     } catch (error) {
       alert('Erro ao publicar post.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCreateStory = async () => {
-    if (!storyImage && !storyText.trim()) return;
-    setCreatingStory(true);
-    try {
-      let media_url = null;
-      let media_type = null;
-
-      if (storyImage) {
-        const reader = new FileReader();
-        const base64 = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target.result);
-          reader.readAsDataURL(storyImage);
-        });
-
-        const uploadRes = await fetch(`${API_URL}/api/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ file: base64, folder: 'stories' })
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          media_url = uploadData.url;
-          media_type = 'image';
-        }
-      }
-
-      const res = await fetch(`${API_URL}/api/stories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ media_url, media_type, text_content: storyText || null })
-      });
-
-      if (res.ok) {
-        setShowStoryModal(false);
-        setStoryImage(null);
-        setStoryImagePreview(null);
-        setStoryText('');
-        fetchStories();
-      }
-    } catch (err) {
-      alert('Erro ao criar story.');
-    } finally {
-      setCreatingStory(false);
-    }
-  };
-
-  const handleStoryImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Imagem deve ter no máximo 5MB.');
-      return;
-    }
-    setStoryImage(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setStoryImagePreview(ev.target.result);
-    reader.readAsDataURL(file);
   };
 
   const onPostDeleted = (deletedId) => {
@@ -217,81 +211,82 @@ const Home = () => {
 
   return (
       <div className="home-container">
-      <div className="stories-container">
-        {/* Add Story Card */}
-        <div className="story-card add-story-card" onClick={() => setShowStoryModal(true)}>
-          <div className="story-avatar-container add-story">
-            <Avatar user={user} className="story-avatar" />
-            <div className="add-icon">+</div>
-          </div>
-          <span className="story-name">Criar Story</span>
-        </div>
-
-        {/* Real Stories */}
-        {storyGroups.map((group, index) => (
-          <Story 
-            key={group.user_id} 
-            user={{
-              id: group.user_id,
-              name: group.user_name,
-              avatar: group.user_avatar
-            }} 
-            onClick={() => setViewingStoryIndex(index)}
-          />
-        ))}
-      </div>
-
       {viewingStoryIndex !== null && (
-        <StoryViewer 
-          storyGroups={storyGroups} 
-          initialGroupIndex={viewingStoryIndex} 
-          onClose={() => setViewingStoryIndex(null)} 
+        <StoryViewer
+          storyGroups={stories}
+          initialGroupIndex={viewingStoryIndex}
+          onClose={() => setViewingStoryIndex(null)}
         />
       )}
 
-      <div className="create-post-card card">
-        <div className="create-post-top">
-          <Avatar user={user} className="create-post-avatar" />
-          <input 
-            type="text" 
-            placeholder="No que você está pensando?"  
-            className="create-post-input"
-            value={newPostContent}
-            onChange={(e) => setNewPostContent(e.target.value)}
-            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleCreatePost() }}
+      {/* 1. PRIMEIRO — STORIES (Topo da Home) */}
+      {stories.length > 0 && (
+        <div className="stories-section">
+          <MobileStories
+            stories={stories}
+            onStoryClick={(story) => {
+              // Find the group index in the filtered stories array (matches what MobileStories receives)
+              const groupIndex = stories.findIndex(g => g.user_id === story.user_id);
+              if (groupIndex !== -1 && stories[groupIndex]?.stories?.length > 0) {
+                setViewingStoryIndex(groupIndex);
+              }
+            }}
+            onAddStory={() => {
+              console.log('[Home] onAddStory called, setting showCreateStory to true');
+              setShowCreateStory(true);
+            }}
           />
         </div>
+      )}
 
-        {postImagePreview && (
-          <div className="post-image-preview">
-            <img src={postImagePreview} alt="Preview" />
-            <button className="remove-image-btn" onClick={() => { setPostImage(null); setPostImagePreview(null); }}>
-              <X size={16} />
+      {/* 2. SEGUNDO — CRIAR PUBLICAÇÃO (Imediatamente abaixo dos Stories) */}
+      <div className="create-post-section">
+        <div className="create-post-card card">
+          <div className="create-post-top">
+            <Avatar user={user} className="create-post-avatar" />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={inputPlaceholder}
+              className="create-post-input"
+              value={newPostContent}
+              onChange={(e) => setNewPostContent(e.target.value)}
+              onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleCreatePost() }}
+            />
+          </div>
+
+          {postImagePreview && (
+            <div className="post-image-preview">
+              <img src={postImagePreview} alt="Preview" />
+              <button className="remove-image-btn" onClick={() => { setPostImage(null); setPostImagePreview(null); }}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          <div className="create-post-bottom">
+            <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleImageSelect} />
+            <button className="create-post-btn" onClick={() => alert('Em breve!')}>
+              <Video size={20} color="#F44336" /><span>Vídeo</span>
+            </button>
+            <button className="create-post-btn" onClick={() => fileInputRef.current?.click()}>
+              <Image size={20} color="#4CAF50" /><span>Foto</span>
+            </button>
+            <button className="create-post-btn"><Paperclip size={20} color="#FF9800" /><span>Arquivo</span></button>
+            <button className="create-post-btn"><Smile size={20} color="#FFEB3B" /><span>Sentimento</span></button>
+            <button
+              className="btn-primary"
+              style={{marginLeft: 'auto', padding: '6px 16px', fontSize: '14px'}}
+              onClick={handleCreatePost}
+              disabled={loading || (!newPostContent.trim() && !postImage)}
+            >
+              {loading ? 'Publicando...' : 'Publicar'}
             </button>
           </div>
-        )}
-
-        <div className="create-post-bottom">
-          <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleImageSelect} />
-          <button className="create-post-btn" onClick={() => alert('Em breve!')}>
-            <Video size={20} color="#F44336" /><span>Vídeo</span>
-          </button>
-          <button className="create-post-btn" onClick={() => fileInputRef.current?.click()}>
-            <Image size={20} color="#4CAF50" /><span>Foto</span>
-          </button>
-          <button className="create-post-btn"><Paperclip size={20} color="#FF9800" /><span>Arquivo</span></button>
-          <button className="create-post-btn"><Smile size={20} color="#FFEB3B" /><span>Sentimento</span></button>
-          <button 
-            className="btn-primary" 
-            style={{marginLeft: 'auto', padding: '6px 16px', fontSize: '14px'}}
-            onClick={handleCreatePost}
-            disabled={loading || (!newPostContent.trim() && !postImage)}
-          >
-            {loading ? 'Publicando...' : 'Publicar'}
-          </button>
         </div>
       </div>
 
+      {/* 3. TERCEIRO — FEED DE PUBLICAÇÕES (Abaixo do campo de criação) */}
       <div className="feed-container">
         {posts.length > 0 ? (
           posts.map(post => <Post key={post.id} post={post} onDeleted={onPostDeleted} />)
@@ -302,53 +297,20 @@ const Home = () => {
         )}
       </div>
 
-      {/* Story Creation Modal */}
-      {showStoryModal && (
-        <div className="modal-overlay" onClick={(e) => { if(e.target === e.currentTarget) setShowStoryModal(false); }}>
-          <div className="modal-content card story-modal">
-            <div className="modal-header">
-              <h2>Criar Story</h2>
-              <button className="close-modal-btn" onClick={() => setShowStoryModal(false)}>✕</button>
-            </div>
-            <div className="story-create-body">
-              {storyImagePreview ? (
-                <div className="story-preview-container">
-                  <img src={storyImagePreview} alt="Preview" className="story-preview-img" />
-                  <button className="remove-image-btn" onClick={() => { setStoryImage(null); setStoryImagePreview(null); }}>
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="story-upload-area" onClick={() => storyFileRef.current?.click()}>
-                  <Plus size={40} />
-                  <p>Clique para adicionar uma imagem</p>
-                </div>
-              )}
-              <input type="file" ref={storyFileRef} style={{ display: 'none' }} accept="image/*" onChange={handleStoryImageSelect} />
-              <textarea
-                placeholder="Adicione um texto ao seu story (opcional)..."
-                value={storyText}
-                onChange={(e) => setStoryText(e.target.value)}
-                className="story-text-input"
-                maxLength={200}
-              />
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowStoryModal(false)}>Cancelar</button>
-              <button
-                className="btn-primary"
-                onClick={handleCreateStory}
-                disabled={creatingStory || (!storyImage && !storyText.trim())}
-              >
-                {creatingStory ? 'Publicando...' : 'Publicar Story'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Create Story Modal */}
+      {user && (
+        <CreateStory
+          isOpen={showCreateStory}
+          onClose={() => setShowCreateStory(false)}
+          onStoryCreated={() => {
+            setShowCreateStory(false);
+            // Refresh stories after creation
+            fetchStories();
+          }}
+        />
       )}
     </div>
   );
 };
 
 export default Home;
-
