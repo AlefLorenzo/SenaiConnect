@@ -1699,3 +1699,129 @@
     transition: none;
   }
 }
+
+
+/* Mobile conversation: use the real viewport and keep the composer attached to the bottom. */
+@media (max-width: 768px) {
+  .app-layout:has(.messages-layout) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-layout:has(.messages-layout) .app-main {
+    position: fixed;
+    inset: 0 0 var(--bottom-nav-height, 64px) 0;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .app-layout:has(.messages-layout) .app-feed-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none !important;
+    height: 100%;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .messages-layout {
+    position: relative;
+    width: 100%;
+    height: 100% !important;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .messages-chat {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+    display: none;
+  }
+
+  .messages-layout.show-chat-mobile .messages-chat {
+    display: flex;
+  }
+
+  .messages-chat > .chat-body {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+    padding: 12px;
+    padding-bottom: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .messages-chat > .chat-input-area {
+    position: relative;
+    inset: auto;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .messages-chat .input-icon-btn {
+    width: 36px;
+    height: 40px;
+  }
+
+  .messages-chat .input-icon-btn svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .messages-chat .message-input {
+    min-height: 40px;
+    max-height: 112px;
+    padding: 9px 12px;
+    font-size: 16px;
+  }
+
+  .messages-chat .send-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* A focused conversation gets the full screen, without a second navigation bar. */
+  .app-layout:has(.messages-layout.show-chat-mobile) .app-main {
+    bottom: 0;
+  }
+
+  .app-layout:has(.messages-layout.show-chat-mobile) .mobile-bottom-nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .messages-chat > .chat-input-area {
+    gap: 3px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .messages-chat .input-icon-btn {
+    width: 32px;
+    min-width: 32px;
+  }
+}
