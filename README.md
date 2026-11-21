@@ -29,6 +29,39 @@ git --version
 
 A versão esperada do Node é v24.22.1. Caso utilize nvm, execute nvm install 24.22.1 e nvm use 24.22.1 (no Windows, use o nvm-windows).
 
+## Reabrir o projeto em outro dia (Windows)
+
+Depois que a instalação inicial estiver concluída e `backend/.env` estiver preenchido, não é necessário repetir a instalação toda vez.
+
+**Primeira configuração:** na raiz do repositório, execute:
+
+~~~powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Install-Dev.ps1
+~~~
+
+Esse comando cria os arquivos `.env` somente quando ainda não existem e instala as dependências com `npm ci`. Ele nunca substitui seus arquivos `.env` existentes.
+
+**Nas próximas vezes:** abra a pasta do projeto e execute:
+
+~~~powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Start-Dev.ps1
+~~~
+
+O inicializador:
+
+1. Confere a versão do Node.js e as variáveis obrigatórias.
+2. Reinstala dependências somente quando estiverem ausentes ou desatualizadas.
+3. Detecta se API ou frontend já estão ativos para evitar abrir instâncias duplicadas.
+4. Inicia os serviços que faltam em janelas separadas.
+5. Aguarda a API confirmar acesso ao PostgreSQL do Supabase e o Vite responder antes de abrir o navegador.
+
+Para encerrar, use `Ctrl+C` nas janelas do backend e do frontend. Fechar o navegador não encerra os servidores. O banco Supabase permanece remoto e os dados não são apagados ao fechar ou reabrir o projeto.
+
+A API oferece `GET /api/health` para verificar o processo e `GET /api/health/ready` para verificar também a conexão PostgreSQL. A rota de prontidão não expõe credenciais nem dados de usuários.
+
+Se o PowerShell bloquear a execução de scripts, use o comando acima com `-ExecutionPolicy Bypass`; isso não altera a política global do Windows.
+
+---
 ## 1. Baixar o projeto
 
 ~~~bash
