@@ -129,11 +129,11 @@ const adminSettingsController = {
             );
             const [tables] = await db.query(
                 'SELECT table_name, NULL::bigint AS table_rows, ' +
-                'ROUND((pg_total_relation_size(quote_ident(table_schema) || \'.\' || quote_ident(table_name)) ' +
+                'ROUND((pg_total_relation_size(format(\'%I.%I\', table_schema, table_name)::regclass) ' +
                 '/ 1024.0 / 1024.0)::numeric, 2) AS size_mb ' +
                 'FROM information_schema.tables ' +
                 "WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' " +
-                'ORDER BY pg_total_relation_size(quote_ident(table_schema) || \'.\' || quote_ident(table_name)) DESC'
+                'ORDER BY pg_total_relation_size(format(\'%I.%I\', table_schema, table_name)::regclass) DESC'
             );
             const [version] = await db.query('SELECT version() AS version');
 
