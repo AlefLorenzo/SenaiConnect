@@ -219,6 +219,19 @@ describe('StoryViewer', () => {
     expect(storiesService.viewStory).toHaveBeenCalledWith('1');
   });
 
+  test('starts the 30-second countdown immediately when the viewer opens', () => {
+    renderStoryViewer();
+    const currentStoryProgress = screen.getByRole('progressbar', { name: 'História 1 de 2' });
+
+    expect(currentStoryProgress).toHaveAttribute('aria-valuenow', '0');
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(Number(currentStoryProgress.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+  });
+
   test('advances automatically after 30 seconds', () => {
     renderStoryViewer();
 
