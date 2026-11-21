@@ -4,6 +4,7 @@ import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Tr
 import { AuthContext } from '../context/AuthContext.jsx';
 import Avatar from './Avatar';
 import { postsService } from '../services/postsService';
+import { API_URL } from '../config/api';
 import './Post.css';
 
 /**
@@ -134,24 +135,38 @@ const Post = ({ post, onDeleted }) => {
   const handleAddComment = async (e) => {
     if (e) e.preventDefault();
     if (!newCommentText.trim()) return;
-    // Mock comment addition
-    const newComment = {
-      id: Date.now(),
-      user_id: user?.id || 1,
-      user_name: user?.name || 'Usuário Atual',
-      user_avatar: user?.avatar || null,
-      content: newCommentText,
-      created_at: new Date().toISOString()
-    };
-    setComments(prev => [...prev, newComment]);
-    setNewCommentText('');
-    setCommentsCount(prev => prev + 1);
+    try {
+      const response = await fetch(`${API_URL}/api/posts/${post.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({ content: newCommentText.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Não foi possível publicar o comentário.');
+      setNewCommentText('');
+      await fetchComments();
+    } catch (error) {
+      window.alert(error.message || 'Erro ao comentar.');
+    }
   };
 
   const handleDeleteComment = async (commentId) => {
     if (!window.confirm('Tem certeza que deseja excluir seu comentário?')) return;
-    setComments(prev => prev.filter(c => c.id !== commentId));
-    setCommentsCount(prev => Math.max(0, prev - 1));
+    try {
+      const response = await fetch(`${API_URL}/api/posts/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Não foi possível excluir o comentário.');
+      setComments(prev => prev.filter(c => String(c.id) !== String(commentId)));
+      setCommentsCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      window.alert(error.message || 'Erro ao excluir comentário.');
+    }
   };
 
   // Handle user data from mock structure (post.user object)
