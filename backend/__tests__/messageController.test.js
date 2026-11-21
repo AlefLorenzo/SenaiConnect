@@ -106,7 +106,7 @@ describe('messageController', () => {
           content: 'Teste de mensagem',
           senderId: 1,
           status: 'enviada',
-          conversationId: 2,
+          conversationId: '1_2',
         })
       );
     });
