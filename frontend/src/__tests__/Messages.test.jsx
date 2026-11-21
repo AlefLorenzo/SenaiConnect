@@ -24,6 +24,14 @@ jest.mock('../services/messagesService', () => ({
     getConversations: jest.fn().mockResolvedValue({ data: [] }),
     getMyGroups: jest.fn().mockResolvedValue({ data: [] }),
     getHistory: jest.fn().mockResolvedValue({ data: [], contact: null, isGroup: false, pagination: { page: 1, limit: 50, total: 0 } }),
+    getConversation: jest.fn().mockResolvedValue({
+      id: '1_2',
+      isGroup: false,
+      participants: [
+        { id: 1, name: 'Você', avatar: null },
+        { id: 2, name: 'Maria Silva', avatar: null, isOnline: true },
+      ],
+    }),
     sendMessage: jest.fn().mockResolvedValue({ data: { id: 1, content: 'test', status: 'sent' } }),
     markAsRead: jest.fn().mockResolvedValue({ success: true }),
     uploadMedia: jest.fn().mockResolvedValue({ data: { url: 'http://test.com/image.png' } }),
@@ -445,8 +453,8 @@ describe('Messages Page', () => {
         await waitFor(() => {
           // Chat area should be visible - it has role="region"
           expect(screen.getByRole('region')).toBeInTheDocument();
-          // And the conversation header should show the contact name
-          expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+          // The name appears in both the sidebar and the conversation header.
+          expect(screen.getByRole('banner')).toHaveTextContent('Maria Silva');
         }, { timeout: 10000 });
       } finally {
         jest.useFakeTimers();
@@ -462,6 +470,35 @@ describe('Messages Page', () => {
 
         expect(mariaItem).toHaveClass('active');
       });
+    });
+
+    test('opens a deep-linked conversation when the inbox list is empty', async () => {
+      jest.useRealTimers();
+      const originalPath = window.location.pathname + window.location.search;
+      try {
+        window.history.pushState({}, '', '/messages?conversationId=1_2');
+        messagesService.getConversation.mockResolvedValue({
+          id: '1_2',
+          isGroup: false,
+          participants: [
+            { id: 1, name: 'Você', avatar: null },
+            { id: 2, name: 'Maria Silva', avatar: null, isOnline: true },
+          ],
+        });
+
+        renderMessages({ conversations: [], groups: [] });
+
+        await waitFor(() => {
+          expect(messagesService.getConversation).toHaveBeenCalledWith('1_2', true);
+        });
+        await waitFor(() => {
+          expect(screen.getByRole('region', { name: /conversa com maria silva/i })).toBeInTheDocument();
+          expect(screen.getByText('Envie uma mensagem para iniciar a conversa!')).toBeInTheDocument();
+        });
+      } finally {
+        window.history.pushState({}, '', originalPath || '/');
+        jest.useFakeTimers();
+      }
     });
   });
 

@@ -40,6 +40,15 @@ function sanitizeInput(input) {
         .replace(/\//g, '&#x2F;');
 }
 
+function resolveIndividualPeerId(conversationId, currentUserId) {
+    const parts = String(conversationId || '').split('_').map(Number);
+    const currentId = Number(currentUserId);
+    if (parts.length !== 2 || parts.some(id => !Number.isInteger(id) || id <= 0)) return null;
+    if (!parts.includes(currentId)) return null;
+    const peerId = parts.find(id => id !== currentId);
+    return peerId && peerId !== currentId ? peerId : null;
+}
+
 const messageController = {
     // Get all conversations (individual + groups)
     getConversations: async (req, res) => {
@@ -229,7 +238,9 @@ const messageController = {
             const { id } = req.params;
 
             // Check if it's a group
-            const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [id]);
+            const [groups] = /^\d+$/.test(String(id))
+                ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
+                : [[]];
 
             if (groups.length > 0) {
                 // It's a group
@@ -255,16 +266,22 @@ const messageController = {
                 });
             }
 
-            // It's an individual conversation
-            const [user] = await db.query('SELECT id, name, avatar, role, is_online, last_seen, last_seen_privacy FROM users WHERE id = ?', [id]);
+            // Individual conversation IDs may be canonical "userA_userB" values.
+            const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : id;
+            if (!Number.isInteger(Number(peerId)) || Number(peerId) <= 0 || Number(peerId) === Number(loggedUserId)) {
+                return res.status(400).json({ error: 'Identificador de conversa inválido.' });
+            }
+            const [user] = await db.query('SELECT id, name, avatar, role, is_online, last_seen, last_seen_privacy FROM users WHERE id = ?', [peerId]);
 
             if (user.length === 0) {
                 return res.status(404).json({ error: 'Conversa não encontrada' });
             }
 
             const otherUser = user[0];
+            const canonicalConversationId = [Number(loggedUserId), Number(otherUser.id)].sort((a, b) => a - b).join('_');
             res.status(200).json({
-                id: parseInt(id),
+                id: canonicalConversationId,
+                conversationId: canonicalConversationId,
                 isGroup: false,
                 participants: [
                     { id: loggedUserId, name: 'Você', avatar: null, isOnline: true },
@@ -345,7 +362,9 @@ const messageController = {
             const offset = (page - 1) * limit;
 
             // Check if it's a group conversation
-            const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [id]);
+            const [groups] = /^\d+$/.test(String(id))
+                ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
+                : [[]];
 
             let messages = [];
             let isGroup = false;
@@ -407,8 +426,12 @@ const messageController = {
                     }
                 });
             } else {
-                // Individual messages
-                const [user] = await db.query('SELECT id, name, avatar, role, is_online, last_seen, last_seen_privacy FROM users WHERE id = ?', [id]);
+                // Individual messages use the same canonical ID as the conversation list.
+                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : id;
+                if (!Number.isInteger(Number(peerId)) || Number(peerId) <= 0 || Number(peerId) === Number(loggedUserId)) {
+                    return res.status(400).json({ error: 'Identificador de conversa inválido.' });
+                }
+                const [user] = await db.query('SELECT id, name, avatar, role, is_online, last_seen, last_seen_privacy FROM users WHERE id = ?', [peerId]);
 
                 if (user.length === 0) {
                     return res.status(404).json({ error: 'Conversa não encontrada' });
@@ -422,13 +445,13 @@ const messageController = {
                        OR (sender_id = ? AND receiver_id = ?)
                     ORDER BY created_at ASC
                     LIMIT ? OFFSET ?
-                `, [loggedUserId, id, id, loggedUserId, limit, offset]);
+                `, [loggedUserId, peerId, peerId, loggedUserId, limit, offset]);
 
                 const [totalResult] = await db.query(`
                     SELECT COUNT(*) as total FROM messages
                     WHERE (sender_id = ? AND receiver_id = ?)
                        OR (sender_id = ? AND receiver_id = ?)
-                `, [loggedUserId, id, id, loggedUserId]);
+                `, [loggedUserId, peerId, peerId, loggedUserId]);
 
                 messages = individualMessages.map(m => ({
                     id: m.id,
@@ -468,7 +491,7 @@ const messageController = {
                 // Mark messages as read
                 await db.query(
                     "UPDATE messages SET status = 'lida' WHERE sender_id = ? AND receiver_id = ? AND status = 'enviada'",
-                    [id, loggedUserId]
+                    [peerId, loggedUserId]
                 );
 
                 res.status(200).json({
@@ -718,7 +741,9 @@ const messageController = {
             const { id } = req.params;
 
             // Check if it's a group
-            const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [id]);
+            const [groups] = /^\d+$/.test(String(id))
+                ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
+                : [[]];
 
             if (groups.length > 0) {
                 // Group - update last read message
@@ -740,13 +765,18 @@ const messageController = {
                     });
                 }
             } else {
-                // Individual
+                // Individual IDs are canonical "userA_userB" values; resolve and validate the peer.
+                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : id;
+                if (!Number.isInteger(Number(peerId)) || Number(peerId) <= 0 || Number(peerId) === Number(loggedUserId)) {
+                    return res.status(400).json({ error: 'Identificador de conversa inválido.' });
+                }
+
                 await db.query(
                     "UPDATE messages SET status = 'lida' WHERE sender_id = ? AND receiver_id = ? AND status = 'enviada'",
-                    [id, loggedUserId]
+                    [peerId, loggedUserId]
                 );
 
-                socketHelper.sendToUser(id, 'messages_read', {
+                socketHelper.sendToUser(peerId, 'messages_read', {
                     conversationId: id,
                     byUserId: loggedUserId
                 });

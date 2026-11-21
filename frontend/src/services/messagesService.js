@@ -544,14 +544,17 @@ class MessagesService extends BaseService {
       formData.append('content', messageData.content);
       formData.append('type', messageData.type || 'text');
       if (messageData.replyTo) formData.append('replyTo', messageData.replyTo);
-      if (messageData.attachments) {
-        messageData.attachments.forEach((attachment, index) => {
-          formData.append(`attachments[${index}][mediaUrl]`, attachment.mediaUrl);
-          formData.append(`attachments[${index}][messageType]`, attachment.messageType);
-          formData.append(`attachments[${index}][fileName]`, attachment.fileName);
-          formData.append(`attachments[${index}][fileSize]`, attachment.fileSize);
-          formData.append(`attachments[${index}][fileType]`, attachment.fileType);
-        });
+      if (messageData.attachments?.length) {
+        // The current messages schema stores one media attachment per message.
+        if (messageData.attachments.length > 1) {
+          throw new Error('Envie um anexo por mensagem. O armazenamento atual ainda não oferece múltiplos anexos por mensagem.');
+        }
+        const attachment = messageData.attachments[0];
+        // messageController reads flat multipart fields, not nested array keys.
+        formData.append('mediaUrl', attachment.mediaUrl || '');
+        formData.append('fileName', attachment.fileName || '');
+        formData.append('fileSize', String(attachment.fileSize || ''));
+        formData.append('fileType', attachment.fileType || '');
       }
 
       const url = this.buildUrl(ENDPOINTS.MESSAGES.SEND(conversationId));

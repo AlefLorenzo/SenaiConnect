@@ -240,14 +240,33 @@ const Messages = () => {
     fetchGroups();
   }, [fetchConversations, fetchGroups]);
 
-  // Handle conversationId from URL params - auto-select conversation when navigating from profile
+  // Resolve deep links from profiles even if the inbox list is still loading.
   useEffect(() => {
-    if (urlConversationId && conversations.length > 0) {
-      const conversation = conversations.find(c => String(c.id) === String(urlConversationId));
-      if (conversation) {
-        setSelectedContact(conversation);
-      }
+    if (!urlConversationId) return;
+    let cancelled = false;
+    const existing = conversations.find(c => String(c.id) === String(urlConversationId));
+    if (existing) {
+      setSelectedContact(existing);
+      setActiveTab(existing.isGroup ? 'groups' : 'general');
+      return;
     }
+    messagesService.getConversation(urlConversationId, true)
+      .then(conversation => {
+        if (cancelled || !conversation) return;
+        const normalized = {
+          ...conversation,
+          id: String(conversation.id ?? conversation.conversationId ?? urlConversationId),
+          isGroup: Boolean(conversation.isGroup),
+          participants: conversation.participants || [],
+          unreadCount: conversation.unreadCount || conversation.unread_count || 0,
+        };
+        setSelectedContact(normalized);
+        setActiveTab(normalized.isGroup ? 'groups' : 'general');
+      })
+      .catch(error => {
+        if (!cancelled) console.error('Não foi possível abrir a conversa solicitada:', error);
+      });
+    return () => { cancelled = true; };
   }, [urlConversationId, conversations]);
 
   const fetchHistory = useCallback(async (contactId, page = 1, append = false) => {
@@ -426,13 +445,14 @@ const Messages = () => {
 
   const handleMessagesRead = useCallback((data) => {
     const byUserId = data.byUserId ?? data.by_user_id;
-    if (selectedContact && byUserId === selectedContact.id) {
+    const otherParticipantId = selectedContact ? getOtherParticipant(selectedContact)?.id : null;
+    if (selectedContact && String(byUserId) === String(otherParticipantId)) {
       setHistory(prev => prev.map(m =>
         (m.status === MESSAGE_STATUS.SENT || m.status === MESSAGE_STATUS.DELIVERED) ?
           { ...m, status: MESSAGE_STATUS.READ } : m
       ));
     }
-  }, [selectedContact]);
+  }, [selectedContact, MESSAGE_STATUS]);
 
   const handleTypingStart = useCallback((data) => {
     const { conversationId, userId, userName } = data;
@@ -1392,7 +1412,7 @@ const ConversationHeader = ({
   const otherParticipant = contact.participants?.find(p => p.name !== 'Você');
   const participantOnline = otherParticipant ? isOnline[otherParticipant.id] : false;
   const onlineCount = contact.participants?.filter(p => p.name !== 'Você' && isOnline[p.id]).length || 0;
-  const totalParticipants = contact.participants?.length || 0;
+  const totalParticipants = contact.participants?.length || Number(contact.memberCount ?? contact.member_count) || 0;
   const admins = contact.participants?.filter(p => p.isAdmin && p.name !== 'Você') || [];
 
   return (

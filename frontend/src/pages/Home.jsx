@@ -220,7 +220,7 @@ const Home = () => {
       )}
 
       {/* 1. PRIMEIRO — STORIES (Topo da Home) */}
-      {stories.length > 0 && (
+      {user && (
         <div className="stories-section">
           <MobileStories
             stories={stories}
