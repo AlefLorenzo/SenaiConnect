@@ -26,7 +26,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentStoryId, setCurrentStoryId] = useState(null);
 
-  // Keep the app navigation hidden for the entire lifetime of the story viewer.
+  // Keep the global app navigation hidden for the complete story viewing session.
   useEffect(() => {
     setStoryViewerOpen(true);
     return () => setStoryViewerOpen(false);
@@ -267,28 +267,33 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   return (
     <div className="story-viewer-overlay">
       <div className="story-viewer-container">
+
         {/* Progress Bars - Overall group progress + individual story progress */}
         <div className="story-progress-container">
+          {/* Overall group progress (thin line at top) */}
           <div className="story-group-progress" role="progressbar" aria-valuenow={Math.round(groupProgress)} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso do grupo de histórias">
             <div className="story-group-progress-fill" style={{ width: `${groupProgress}%` }} />
           </div>
+
+          {/* Individual story progress bars */}
           <div className="story-progress-bars">
-            {currentGroup.stories.map((story, index) => (
-              <div key={story.id} className="story-progress-bar-bg">
+            {currentGroup.stories.map((s, idx) => (
+              <div key={s.id} className="story-progress-bar-bg" role="progressbar" aria-valuenow={idx === currentStoryIndex ? Math.round(progress) : idx < currentStoryIndex ? 100 : 0} aria-valuemin={0} aria-valuemax={100} aria-label={`História ${idx + 1} de ${totalStoriesInGroup}`}>
                 <div
                   className="story-progress-bar-fill"
                   style={{
-                    width: index < currentStoryIndex ? '100%' : index === currentStoryIndex ? `${progress}%` : '0%',
+                    width: idx === currentStoryIndex ? `${progress}%` : idx < currentStoryIndex ? '100%' : '0%'
                   }}
                 />
               </div>
             ))}
           </div>
         </div>
-        {/* Story Header */}
+
+        {/* Header */}
         <div className="story-header">
-          <div className="story-user-info">
-            <Avatar user={{ avatar: userAvatar, name: currentGroup.user_name }} className="story-viewer-avatar" />
+          <div className="story-user-info" onClick={() => isOwner && loadViewers()}>
+            <Avatar user={{ avatar: currentGroup.user_avatar, name: currentGroup.user_name }} className="story-viewer-avatar" />
             <div>
               <span className="story-viewer-name">{currentGroup.user_name}</span>
               <span className="story-viewer-time">
@@ -319,6 +324,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
             </button>
           </div>
         </div>
+
         {/* Content */}
         <div
           className="story-content-area"
@@ -380,6 +386,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
               </div>
             </div>
           )}
+
           {/* Replies panel */}
           {showReplies && (
             <div className="story-replies-panel" role="dialog" aria-label="Responder">
@@ -398,7 +405,11 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
                 />
                 <div className="reply-footer">
                   <span className="reply-char-count">{replyText.length}/500</span>
-                  <button type="submit" className="reply-send-btn" disabled={!replyText.trim() || isReplying}>
+                  <button
+                    type="submit"
+                    className="reply-send-btn"
+                    disabled={!replyText.trim() || isReplying}
+                  >
                     {isReplying ? 'Enviando...' : 'Enviar'}
                   </button>
                 </div>
@@ -406,6 +417,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
             </div>
           )}
         </div>
+
         {/* Navigation Controls */}
         <div className="story-nav-left" onClick={(e) => { e.stopPropagation(); goToPrev(); }} aria-label="História anterior">
           {(currentStoryIndex > 0 || currentGroupIndex > 0) && <ChevronLeft size={36} color="white" />}
