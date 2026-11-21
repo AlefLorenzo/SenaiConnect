@@ -555,7 +555,6 @@ class MessagesService extends BaseService {
         formData.append('fileName', attachment.fileName || '');
         formData.append('fileSize', String(attachment.fileSize || ''));
         formData.append('fileType', attachment.fileType || '');
-        formData.append('type', attachment.messageType || messageData.type || 'document');
       }
 
       const url = this.buildUrl(ENDPOINTS.MESSAGES.SEND(conversationId));
