@@ -1,229 +1,137 @@
-/**
- * Posts Service
- * Mock implementation using mockPosts.js data
- */
+import { API_URL, getAuthHeader } from '../config/api';
 
-import { mockPosts, mockUserPosts, mockEdgeCasePosts } from '../mock/mockPosts';
+async function request(endpoint, options = {}) {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...getAuthHeader(),
+      ...(options.headers || {}),
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || data.message || `Falha na API (${response.status})`);
+  return data;
+}
+
+function normalizePost(row) {
+  const user = row.user || {
+    id: row.user_id,
+    name: row.user_name || 'Usuário',
+    avatar: row.user_avatar || null,
+    role: row.user_role || 'aluno',
+    isVerified: Boolean(row.is_verified),
+  };
+  return {
+    ...row,
+    user,
+    is_liked: Boolean(row.is_liked ?? row.liked),
+    is_saved: Boolean(row.is_saved ?? row.saved),
+    likes_count: Number(row.likes_count || 0),
+    comments_count: Number(row.comments_count || 0),
+  };
+}
 
 class PostsService {
   constructor() {
-    // Store posts in memory for mutations (like, save, create)
-    this.posts = [...mockPosts];
+    this.posts = [];
     this.listeners = new Set();
   }
 
-  // Notify all listeners of changes
   notify() {
-    this.listeners.forEach(cb => cb(this.posts));
+    this.listeners.forEach((listener) => listener(this.posts));
   }
 
-  // Subscribe to changes
   subscribe(callback) {
     this.listeners.add(callback);
     return () => this.listeners.delete(callback);
   }
 
-  // Get feed posts (for home page)
-  async getFeed(params = {}) {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const { page = 1, limit = 10 } = params;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-
-    // Return posts sorted by created_at descending (newest first)
-    const sortedPosts = [...this.posts].sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    );
-
-    return {
-      posts: sortedPosts.slice(start, end),
-      total: sortedPosts.length,
-      page,
-      limit,
-      hasMore: end < sortedPosts.length
-    };
+  async getFeed() {
+    const rows = await request('/api/posts');
+    this.posts = (Array.isArray(rows) ? rows : rows.data || []).map(normalizePost);
+    return { posts: this.posts, total: this.posts.length, page: 1, limit: this.posts.length, hasMore: false };
   }
 
-  // Get posts by user ID
   async getUserPosts(userId) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    const userPosts = mockUserPosts[userId] || [];
-    return userPosts.sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    );
+    const rows = await request(`/api/users/${encodeURIComponent(userId)}/posts`);
+    return (Array.isArray(rows) ? rows : rows.data || []).map(normalizePost);
   }
 
-  // Get single post by ID
   async getPost(postId) {
-    await new Promise(resolve => setTimeout(resolve, 150));
-
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) {
-      throw new Error('Post não encontrado');
-    }
+    const { posts } = await this.getFeed();
+    const post = posts.find((item) => String(item.id) === String(postId));
+    if (!post) throw new Error('Publicação não encontrada.');
     return post;
   }
 
-  // Create a new post
   async createPost(postData) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const newPost = {
-      id: Date.now(), // Simple ID generation
-      user_id: postData.user_id || 1, // Default to current user
-      user: postData.user || {
-        id: 1,
-        name: 'Usuário Atual',
-        avatar: null,
-        role: 'aluno',
-        isVerified: true
-      },
-      content: postData.content,
-      attachment_url: postData.attachment_url || null,
-      attachment_type: postData.attachment_type || null,
-      likes_count: 0,
-      comments_count: 0,
-      shares_count: 0,
-      is_liked: false,
-      is_saved: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    // Add to beginning of posts array
-    this.posts.unshift(newPost);
+    if (!postData.content?.trim() && !postData.attachment_url) {
+      throw new Error('Escreva algo ou anexe uma imagem antes de publicar.');
+    }
+    await request('/api/posts', {
+      method: 'POST',
+      body: JSON.stringify({
+        content: postData.content || '',
+        attachment_url: postData.attachment_url || null,
+        attachment_type: postData.attachment_type || null,
+        attachment_name: postData.attachment_name || null,
+      }),
+    });
+    await this.getFeed();
     this.notify();
-
-    return newPost;
+    return this.posts[0] || null;
   }
 
-  // Update post
   async updatePost(postId, updates) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const index = this.posts.findIndex(p => p.id === postId);
-    if (index === -1) {
-      throw new Error('Post não encontrado');
-    }
-
-    this.posts[index] = {
-      ...this.posts[index],
-      ...updates,
-      updated_at: new Date().toISOString()
-    };
+    await request(`/api/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    await this.getFeed();
     this.notify();
-
-    return this.posts[index];
+    return this.posts.find((post) => String(post.id) === String(postId));
   }
 
-  // Delete post
   async deletePost(postId) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const index = this.posts.findIndex(p => p.id === postId);
-    if (index === -1) {
-      throw new Error('Post não encontrado');
-    }
-
-    this.posts.splice(index, 1);
+    await request(`/api/posts/${postId}`, { method: 'DELETE' });
+    this.posts = this.posts.filter((post) => String(post.id) !== String(postId));
     this.notify();
-
     return { success: true };
   }
 
-  // Like/Unlike post
   async toggleLike(postId) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) {
-      throw new Error('Post não encontrado');
+    const result = await request(`/api/posts/${postId}/like`, { method: 'POST', body: '{}' });
+    const post = this.posts.find((item) => String(item.id) === String(postId));
+    if (post) {
+      post.is_liked = Boolean(result.liked);
+      post.likes_count = Number(result.likes_count ?? Math.max(0, post.likes_count + (post.is_liked ? 1 : -1)));
+      this.notify();
+      return { is_liked: post.is_liked, likes_count: post.likes_count };
     }
-
-    post.is_liked = !post.is_liked;
-    post.likes_count += post.is_liked ? 1 : -1;
-    this.notify();
-
-    return { is_liked: post.is_liked, likes_count: post.likes_count };
+    await this.getFeed();
+    return { is_liked: Boolean(result.liked), likes_count: this.posts.find((item) => String(item.id) === String(postId))?.likes_count || 0 };
   }
 
-  // Save/Unsave post
   async toggleSave(postId) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) {
-      throw new Error('Post não encontrado');
-    }
-
-    post.is_saved = !post.is_saved;
+    const result = await request(`/api/posts/${postId}/save`, { method: 'POST', body: '{}' });
+    const post = this.posts.find((item) => String(item.id) === String(postId));
+    if (post) post.is_saved = Boolean(result.saved);
     this.notify();
-
-    return { is_saved: post.is_saved };
+    return { is_saved: Boolean(result.saved) };
   }
 
-  // Share post
-  async sharePost(postId) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const post = this.posts.find(p => p.id === postId);
-    if (!post) {
-      throw new Error('Post não encontrado');
-    }
-
-    post.shares_count += 1;
-    this.notify();
-
-    return { shares_count: post.shares_count };
+  async getSavedPosts(userId) {
+    const rows = await request(`/api/users/${encodeURIComponent(userId)}/saved`);
+    return (Array.isArray(rows) ? rows : rows.data || []).map(normalizePost);
   }
 
-  // Get saved posts
-  async getSavedPosts() {
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    return this.posts.filter(p => p.is_saved).sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    );
-  }
-
-  // Get liked posts
-  async getLikedPosts() {
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    return this.posts.filter(p => p.is_liked).sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    );
-  }
-
-  // Search posts
-  async searchPosts(query, params = {}) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const { page = 1, limit = 10 } = params;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-
-    const lowerQuery = query.toLowerCase();
-    const filtered = this.posts.filter(p =>
-      p.content.toLowerCase().includes(lowerQuery) ||
-      p.user.name.toLowerCase().includes(lowerQuery)
-    ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    return {
-      posts: filtered.slice(start, end),
-      total: filtered.length,
-      page,
-      limit,
-      hasMore: end < filtered.length
-    };
+  async searchPosts(query) {
+    const { posts } = await this.getFeed();
+    const needle = String(query || '').toLocaleLowerCase('pt-BR');
+    return { posts: posts.filter((post) => (post.content || '').toLocaleLowerCase('pt-BR').includes(needle)) };
   }
 }
 
-// Export singleton instance
 export const postsService = new PostsService();
-
-// Also export class for testing
 export default PostsService;

@@ -85,7 +85,11 @@ const AdminLogin = () => {
       const data = await res.json();
 
       if (res.ok) {
-        login(data.token, data.user);
+        if (!data.user || !data.user.admin_role) {
+          setError('Esta conta não possui permissão de administrador.');
+          return;
+        }
+        login(data.token, data.user, data.session);
         navigate(data.redirectTo || '/admin/dashboard');
       } else {
         setError(data.error || 'Credenciais inválidas. Verifique e tente novamente.');

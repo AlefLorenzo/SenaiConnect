@@ -383,7 +383,7 @@ const messageController = {
                     FROM group_messages gm
                     JOIN users u ON u.id = gm.sender_id
                     WHERE gm.group_id = ?
-                    ORDER BY gm.created_at ASC
+                    ORDER BY gm.created_at DESC
                     LIMIT ? OFFSET ?
                 `, [id, limit, offset]);
 
@@ -443,7 +443,7 @@ const messageController = {
                     SELECT * FROM messages
                     WHERE (sender_id = ? AND receiver_id = ?)
                        OR (sender_id = ? AND receiver_id = ?)
-                    ORDER BY created_at ASC
+                    ORDER BY created_at DESC
                     LIMIT ? OFFSET ?
                 `, [loggedUserId, peerId, peerId, loggedUserId, limit, offset]);
 
@@ -1053,8 +1053,8 @@ const messageController = {
 
             if (isAdmin) {
                 await db.query(
-                    'INSERT INTO group_admins (group_id, admin_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE admin_id = ?',
-                    [id, userId, userId]
+                    'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE assigned_by = ?',
+                    [id, userId, loggedUserId, loggedUserId]
                 );
             } else {
                 await db.query(

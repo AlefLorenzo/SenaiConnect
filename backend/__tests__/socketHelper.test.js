@@ -3,6 +3,8 @@ const mockIo = {
   to: jest.fn().mockReturnThis(),
   emit: jest.fn(),
   on: jest.fn(),
+  use: jest.fn(),
+  use: jest.fn(),
   sockets: {
     sockets: new Map(),
   },
@@ -24,6 +26,7 @@ const socketHelper = require('../socketHelper');
 describe('socketHelper', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDb.query.mockReset();
     mockIo.to.mockClear();
     mockIo.emit.mockClear();
     // Clear internal maps if accessible
@@ -67,10 +70,8 @@ describe('socketHelper', () => {
 
       await socketHelper.broadcastToConversation('1_2', 'test_event', { data: 'test' }, 1);
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT * FROM groups_table WHERE id = ?',
-        ['1_2']
-      );
+      expect(mockDb.query).not.toHaveBeenCalled();
+      expect(mockIo.to).not.toHaveBeenCalled();
     });
 
     test('broadcasts to group conversation', async () => {
@@ -99,10 +100,7 @@ describe('socketHelper', () => {
 
       await socketHelper.emitMessageStatus('1_2', 123, 'delivered', 1);
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT * FROM groups_table WHERE id = ?',
-        ['1_2']
-      );
+      expect(mockDb.query).not.toHaveBeenCalled();
     });
   });
 
@@ -117,6 +115,43 @@ describe('socketHelper', () => {
 
       // Just verify it doesn't throw
       await expect(socketHelper.notifyContactsOnlineStatus(1, true)).resolves.not.toThrow();
+      expect(mockDb.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('own_members.group_id'),
+        [1, 1]
+      );
     });
   });
+  describe('isConversationMember', () => {
+    test('requires the authenticated profile to belong to the group', async () => {
+      mockDb.query.mockResolvedValueOnce([[{ 1: 1 }]]);
+
+      await expect(socketHelper.isConversationMember(12, 44)).resolves.toBe(true);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1',
+        [44, 12]
+      );
+    });
+
+    test('allows direct conversations only when the authenticated user is in the canonical pair', async () => {
+      mockDb.query.mockResolvedValueOnce([[{ id: 24 }]]);
+
+      await expect(socketHelper.isConversationMember(12, '12_24')).resolves.toBe(true);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('FROM users u'),
+        [24, 12, 12]
+      );
+    });
+
+    test('rejects direct conversation identifiers that omit the authenticated user', async () => {
+      await expect(socketHelper.isConversationMember(12, '20_24')).resolves.toBe(false);
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+
+    test('rejects malformed conversation identifiers', async () => {
+      await expect(socketHelper.isConversationMember(12, '12_x')).resolves.toBe(false);
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+  });
+
 });

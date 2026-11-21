@@ -1,7 +1,7 @@
 const db = require('../db');
-const bcrypt = require('bcrypt');
 const socketHelper = require('../socketHelper');
 const { logAdminAction } = require('./adminAuthController');
+const { supabaseAuthRequest } = require('../services/supabaseAuth');
 
 const adminUsersController = {
     // Listar usuários com filtros e paginação
@@ -33,7 +33,7 @@ const adminUsersController = {
 
             const query = `
                 SELECT id, name, email, role, avatar, unit, area, course, created_at,
-                       is_blocked, is_private, admin_role, unit_id, onboarding_completed, last_login
+                       is_blocked, is_private, admin_role, unit_id, onboarding_completed, NULL::timestamptz AS last_login
                 FROM users
                 ${whereClause}
                 ORDER BY created_at DESC
@@ -50,7 +50,7 @@ const adminUsersController = {
             const [[{ totalStudents }]] = await db.query("SELECT COUNT(*) as totalStudents FROM users WHERE role = 'Aluno'");
             const [[{ totalTeachers }]] = await db.query("SELECT COUNT(*) as totalTeachers FROM users WHERE role = 'Professor'");
             const [[{ totalAdmins }]] = await db.query("SELECT COUNT(*) as totalAdmins FROM users WHERE admin_role IS NOT NULL");
-            const [[{ totalBlocked }]] = await db.query("SELECT COUNT(*) as totalBlocked FROM users WHERE is_blocked = 1");
+            const [[{ totalBlocked }]] = await db.query("SELECT COUNT(*) as totalBlocked FROM users WHERE is_blocked = TRUE");
 
             res.json({
                 users,
@@ -79,7 +79,7 @@ const adminUsersController = {
                 SELECT id, name, email, role, avatar, cover_image, bio, state, city, unit, area, course,
                        links, skills, skills_to_learn, interests, objective, onboarding_completed,
                        is_private, hide_email, notification_prefs, is_blocked, admin_role, unit_id,
-                       created_at, deleted_at, last_login
+                       created_at, deleted_at, NULL::timestamptz AS last_login
                 FROM users
                 WHERE id = ?
             `, [id]);
@@ -152,7 +152,7 @@ const adminUsersController = {
             }
 
             const user = users[0];
-            const newStatus = block ? 1 : 0;
+            const newStatus = Boolean(block);
 
             if (user.is_blocked === newStatus) {
                 return res.status(400).json({ error: `Usuário já está ${block ? 'bloqueado' : 'desbloqueado'}` });
@@ -179,7 +179,7 @@ const adminUsersController = {
 
             res.json({
                 message: block ? 'Usuário bloqueado. O login será recusado.' : 'Usuário desbloqueado.',
-                is_blocked: !!newStatus
+                is_blocked: newStatus
             });
         } catch (error) {
             console.error('Erro ao bloquear/desbloquear:', error);
@@ -307,34 +307,36 @@ const adminUsersController = {
         }
     },
 
-    // Resetar senha do usuário (admin)
+    // Solicitar redefinição de senha pelo Supabase Auth (sem gravar hashes legados no perfil).
     resetPassword: async (req, res) => {
         try {
             const admin = req.admin;
             const { id } = req.params;
-            const { new_password } = req.body;
+            const [users] = await db.query('SELECT id, name, email, auth_user_id FROM users WHERE id = ?', [id]);
+            if (users.length === 0) return res.status(404).json({ error: 'Usuário não encontrado.' });
+            if (!users[0].email) return res.status(400).json({ error: 'O usuário não possui e-mail cadastrado.' });
 
-            if (!new_password || new_password.length < 6) {
-                return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' });
-            }
+            const frontendUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+            const redirectTo = encodeURIComponent(frontendUrl + '/reset-password');
+            await supabaseAuthRequest('recover?redirect_to=' + redirectTo, {
+                body: { email: users[0].email }
+            });
 
-            const [users] = await db.query('SELECT id, name FROM users WHERE id = ?', [id]);
-            if (users.length === 0) {
-                return res.status(404).json({ error: 'Usuário não encontrado' });
-            }
+            await logAdminAction(
+                admin.id, 'USER_PASSWORD_RESET_REQUESTED', 'user', Number(id),
+                `Enviou solicitação de redefinição de senha para ${users[0].name}`, null, req
+            );
 
-            const hash = await bcrypt.hash(new_password, 10);
-            await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, id]);
-
-            await logAdminAction(admin.id, 'USER_PASSWORD_RESET', 'user', parseInt(id), `Resetou senha de ${users[0].name}`, null, req);
-
-            res.json({ message: 'Senha redefinida com sucesso' });
+            return res.json({
+                message: 'Solicitação enviada. Se a conta já estiver ativada no Supabase Auth, o usuário receberá um link no e-mail institucional.'
+            });
         } catch (error) {
-            console.error('Erro ao resetar senha:', error);
-            res.status(500).json({ error: 'Erro ao redefinir senha' });
+            console.error('Erro ao solicitar redefinição de senha:', error);
+            return res.status(error.status || 500).json({
+                error: error.message || 'Não foi possível solicitar a redefinição de senha.'
+            });
         }
     },
-
     // Histórico de atividade do usuário
     getActivity: async (req, res) => {
         try {

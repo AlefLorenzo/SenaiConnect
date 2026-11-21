@@ -7,7 +7,7 @@ const followController = {
             const userId = req.user.id;
             const followedId = req.params.id;
 
-            if (userId === parseInt(followedId)) {
+            if (Number(userId) === Number(followedId)) {
                 return res.status(400).json({ error: 'Você não pode seguir a si mesmo.' });
             }
 

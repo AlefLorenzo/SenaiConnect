@@ -31,7 +31,7 @@ class SearchService extends BaseService {
       return this.mockGetSuggestions();
     }
 
-    const data = await this.get(ENDPOINTS.SEARCH.PANEL);
+    const data = await this.get(`${ENDPOINTS.SEARCH.BASE}/suggestions`);
     this.setCache(cacheKey, data);
     return data;
   }

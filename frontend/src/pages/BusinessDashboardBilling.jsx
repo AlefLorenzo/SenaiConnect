@@ -106,7 +106,7 @@ const BusinessDashboardBilling = () => {
     }, [socket]);
 
     const formatDate = (dateStr) => {
-        return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+        return dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     };
 
     const formatDateTime = (dateStr) => {
@@ -231,7 +231,7 @@ const BusinessDashboardBilling = () => {
                                         </td>
                                         <td>
                                             <div className="actions">
-                                                {invoice.pix_qr_code && (
+                                                {(invoice.pix_qr_code || invoice.pix_code) && (
                                                     <button className="action-btn" onClick={() => showPix(invoice)} title="Ver PIX">
                                                         <FileText size={16} />
                                                     </button>

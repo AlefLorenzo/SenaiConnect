@@ -58,14 +58,16 @@ const Groups = () => {
     if (loadingGroups) return;
     try {
       setLoadingGroups(true);
-      const result = await groupsService.getAllGroups({ page, limit: 20 });
-      const data = result.data || [];
+      const result = activeTab === 'mine'
+        ? await groupsService.getMyGroups(true)
+        : await groupsService.getAllGroups({ page, limit: 20 });
+      const data = Array.isArray(result) ? result : (result.data || []);
       if (append) {
         setGroups(prev => [...prev, ...data]);
       } else {
         setGroups(data);
       }
-      setHasMoreGroups(data.length >= 20);
+      setHasMoreGroups(activeTab === 'discover' && data.length >= 20);
       setGroupsPage(page);
     } catch (err) {
       console.error('Erro ao buscar grupos:', err);
@@ -76,8 +78,11 @@ const Groups = () => {
   };
 
   useEffect(() => {
+    setGroups([]);
+    setGroupsPage(1);
+    setHasMoreGroups(activeTab === 'discover');
     fetchGroups(1, false);
-  }, []);
+  }, [activeTab]);
 
   // Infinite scroll observer for groups
   useEffect(() => {

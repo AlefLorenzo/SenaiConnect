@@ -22,7 +22,7 @@ async function cleanupExpiredStories() {
     const [expiredStories] = await connection.execute(`
       SELECT id, user_id, media_url
       FROM stories
-      WHERE created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      WHERE created_at < (NOW() - INTERVAL '24 hours')
     `);
 
     if (expiredStories.length === 0) {
@@ -140,7 +140,7 @@ async function getExpiringSoonStories() {
     SELECT s.id, s.user_id, s.created_at, u.socket_id
     FROM stories s
     JOIN users u ON s.user_id = u.id
-    WHERE s.created_at BETWEEN DATE_SUB(NOW(), INTERVAL 25 HOUR) AND DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    WHERE s.created_at BETWEEN (NOW() - INTERVAL '25 hours') AND (NOW() - INTERVAL '24 hours')
     AND u.socket_id IS NOT NULL
   `);
   return stories;

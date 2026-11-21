@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const postRoutes = require('./routes/postRoutes');
 const userRoutes = require('./routes/userRoutes');
 const groupRoutes = require('./routes/groupRoutes');
@@ -14,6 +15,14 @@ const storyRoutes = require('./routes/storyRoutes');
 const highlightRoutes = require('./routes/highlightRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const passwordRoutes = require('./routes/passwordRoutes');
+const businessRoutes = require('./routes/businessRoutes');
+const engagementRoutes = require('./routes/engagementRoutes');
+const followRoutes = require('./routes/followRoutes');
+const friendRoutes = require('./routes/friendRoutes');
+const matchRoutes = require('./routes/matchRoutes');
+const moderationRoutes = require('./routes/moderationRoutes');
+const searchRoutes = require('./routes/searchRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 const path = require('path');
 
 const socketHelper = require('./socketHelper');
@@ -66,11 +75,17 @@ const allowedOrigins = [
   'http://localhost:5209',
 ];
 
+const configuredOrigins = [
+  ...(process.env.FRONTEND_URL || '').split(','),
+  ...(process.env.FRONTEND_URLS || '').split(',')
+].map((value) => value.trim()).filter(Boolean);
+const allowedOriginSet = new Set([...allowedOrigins, ...configuredOrigins]);
+
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOriginSet.has(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
@@ -83,6 +98,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
@@ -94,6 +110,17 @@ app.use('/api/stories', storyRoutes);
 app.use('/api/stories', highlightRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/password', passwordRoutes);
+app.use('/api/business', businessRoutes);
+app.use('/api/engagement', engagementRoutes);
+app.use('/api/follows', followRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/match', matchRoutes);
+app.use('/api/moderation', moderationRoutes);
+app.use('/api/search', searchRoutes);
+
+// Public read-only listings use the existing /api/events and /api/courses paths.
+app.use('/api', publicRoutes);
+app.use('/api', engagementRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -103,7 +130,7 @@ app.get('/', (req, res) => {
     res.status(200).json({ message: 'API SENAI Connect Rodando (MVC) na porta 5000!' });
 });
 
-const PORT = 5000; // Alterado para 5000 pois a 3000 pode estar ocupada
+const PORT = Number(process.env.PORT || 5000);
 server.listen(PORT, () => {
     console.log(`Servidor MVC rodando na porta ${PORT}`);
 

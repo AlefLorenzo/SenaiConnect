@@ -18,7 +18,7 @@ const AdminSettings = () => {
 
     const fetchSettings = async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/settings`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -44,7 +44,7 @@ const AdminSettings = () => {
         setSaving(true);
         setSuccessMessage('');
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/settings`, {
                 method: 'PUT',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -64,7 +64,7 @@ const AdminSettings = () => {
     const handleReset = async () => {
         if (!window.confirm('Tem certeza? Todas as configurações voltarão aos valores padrão.')) return;
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/settings/reset`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
@@ -82,7 +82,7 @@ const AdminSettings = () => {
 
     const handleClearCache = async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             await fetch(`${API_URL}/api/admin/settings/clear-cache`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
@@ -94,6 +94,30 @@ const AdminSettings = () => {
         }
     };
 
+    const handleExportAudit = async () => {
+        try {
+            const token = sessionStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/admin/audit/export`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Não foi possível exportar a auditoria.');
+            }
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = 'senai-connect-auditoria.csv';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            console.error('Erro ao exportar auditoria:', error);
+            window.alert(error.message || 'Não foi possível exportar a auditoria.');
+        }
+    };
     const tabs = [
         { id: 'general', label: 'Geral', icon: Globe },
         { id: 'notifications', label: 'Notificações', icon: Bell },
@@ -349,7 +373,7 @@ const AdminSettings = () => {
                             </SettingRow>
                             <SettingRow>
                                 <SettingInfo label="Exportar Dados de Auditoria" desc="Gera relatório completo de todas as ações administrativas (CSV)" />
-                                <Button variant="secondary" onClick={() => window.open(`${API_URL}/api/admin/audit/export`, '_blank')}>
+                                <Button variant="secondary" onClick={handleExportAudit}>
                                     <Download size={18} /> Exportar CSV
                                 </Button>
                             </SettingRow>

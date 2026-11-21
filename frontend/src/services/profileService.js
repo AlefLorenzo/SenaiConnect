@@ -43,33 +43,16 @@ class ProfileService extends BaseService {
   /**
    * Update user profile
    */
-  async updateProfile(profileData) {
+  async updateProfile(profileData, userId) {
     if (this.isMockMode()) {
       return this.mockUpdateProfile(profileData);
     }
-
-    const formData = new FormData();
-    Object.entries(profileData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (key === 'skills' && Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (key === 'links' && Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (key === 'avatar' || key === 'cover_image') {
-          // File uploads handled separately
-        } else {
-          formData.append(key, value);
-        }
-      }
-    });
-
-    const url = this.buildUrl(ENDPOINTS.USERS.PROFILE('me'));
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: getAuthHeader(),
-      body: formData,
-    });
-    return this.handleResponse(response);
+    if (!userId || !Number.isFinite(Number(userId))) {
+      throw new Error('Identificador do usuário inválido para atualizar o perfil.');
+    }
+    const data = await this.put(`${ENDPOINTS.USERS.BASE}/${encodeURIComponent(userId)}`, profileData);
+    this.invalidateProfile(userId);
+    return data;
   }
 
   /**
@@ -125,7 +108,7 @@ class ProfileService extends BaseService {
       return this.mockGetStats(userId);
     }
 
-    const data = await this.get(ENDPOINTS.USERS.STATS(userId));
+    const data = await this.get(ENDPOINTS.FOLLOWS.STATS(userId));
     this.setCache(cacheKey, data);
     return data;
   }

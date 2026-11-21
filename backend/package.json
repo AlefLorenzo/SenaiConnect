@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test": "node --check db.js && node --check server.js && node --check routes/businessRoutes.js && node --check controllers/authController.js && node --check middlewares/auth.js && node --check middlewares/adminAuth.js && node --check controllers/adminUsersController.js && node --check controllers/adminSettingsController.js && node --check socketHelper.js && node --check scripts/migrate-mysql-to-supabase.js && jest --coverage",
+    "test:watch": "jest --watch",
+    "db:copy:dry-run": "node scripts/migrate-mysql-to-supabase.js",
+    "db:copy:apply": "node scripts/migrate-mysql-to-supabase.js --apply --confirm-copy"
   },
   "keywords": [],
   "author": "",
@@ -19,7 +21,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "mysql2": "^3.22.3",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
     "jest": "^30.5.2"

@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const db = require('./db');
+const { supabaseAuthRequest } = require('./services/supabaseAuth');
 
 // Map of userId -> Set of socketId
 const userSockets = new Map();
@@ -48,12 +49,53 @@ const allowedOrigins = [
   'http://localhost:5209',
 ];
 
+const configuredOrigins = [
+  ...(process.env.FRONTEND_URL || '').split(','),
+  ...(process.env.FRONTEND_URLS || '').split(',')
+].map((value) => value.trim()).filter(Boolean);
+const allowedOriginSet = new Set([...allowedOrigins, ...configuredOrigins]);
+
+async function isConversationMember(userId, conversationId) {
+  const currentUserId = Number(userId);
+  const key = String(conversationId || '').trim();
+  if (!Number.isSafeInteger(currentUserId) || currentUserId <= 0 || !key) return false;
+
+  if (/^\d+$/.test(key)) {
+    const groupId = Number(key);
+    if (!Number.isSafeInteger(groupId) || groupId <= 0) return false;
+    const [members] = await db.query(
+      'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1',
+      [groupId, currentUserId]
+    );
+    return members.length > 0;
+  }
+
+  const match = key.match(/^(\d+)_(\d+)$/);
+  if (!match) return false;
+  const firstId = Number(match[1]);
+  const secondId = Number(match[2]);
+  if (
+    !Number.isSafeInteger(firstId) || !Number.isSafeInteger(secondId) ||
+    firstId <= 0 || secondId <= 0 || firstId === secondId ||
+    ![firstId, secondId].includes(currentUserId)
+  ) return false;
+
+  const peerId = firstId === currentUserId ? secondId : firstId;
+  const [peers] = await db.query(
+    'SELECT u.id FROM users u WHERE u.id = ? AND u.is_blocked = FALSE ' +
+    'AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id = ? AND b.blocked_id = u.id) ' +
+    'AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id = u.id AND b.blocked_id = ?)',
+    [peerId, currentUserId, currentUserId]
+  );
+  return peers.length > 0;
+}
+
 function init(server) {
   ioInstance = new Server(server, {
     cors: {
       origin: function(origin, callback) {
         if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) {
+        if (allowedOriginSet.has(origin)) {
           return callback(null, true);
         }
         return callback(new Error('Not allowed by CORS'));
@@ -62,36 +104,51 @@ function init(server) {
     },
     // Disable WebSocket transport to avoid upgrade issues through proxy
     // Use only polling for stability
-    transports: ['polling'],
+    transports: ['websocket', 'polling'],
     // Enable built-in ping/pong for polling stability
     pingInterval: 25000,
     pingTimeout: 60000
   });
 
-  ioInstance.on('connection', (socket) => {
-    console.log(`Socket conectado: ${socket.id}`);
-    console.log(`  Transport: ${socket.conn.transport.name}`);
-    console.log(`  Remote address: ${socket.handshake.address}`);
-    console.log(`  Origin: ${socket.handshake.headers.origin}`);
-    console.log(`  Query: ${JSON.stringify(socket.handshake.query)}`);
+  ioInstance.use(async (socket, next) => {
+    try {
+      const token = String(socket.handshake.auth?.token || '').trim();
+      if (!token) return next(new Error('unauthorized'));
 
-    socket.on('register', async (userId) => {
-      if (!userId) return;
-      const uId = parseInt(userId);
-      socket.userId = uId;
+      const authUser = await supabaseAuthRequest('user', {
+        method: 'GET',
+        accessToken: token
+      });
+      if (!authUser || !authUser.id) return next(new Error('unauthorized'));
 
-      if (!userSockets.has(uId)) {
-        userSockets.set(uId, new Set());
+      const [profiles] = await db.query(
+        'SELECT id, name, is_blocked FROM users WHERE auth_user_id = ?',
+        [authUser.id]
+      );
+      if (!profiles.length || profiles[0].is_blocked) {
+        return next(new Error('unauthorized'));
       }
-      userSockets.get(uId).add(socket.id);
-      console.log(`Usuário ${uId} registrado no socket ${socket.id}`);
 
-      // Update user online status in database
-      await db.query('UPDATE users SET is_online = 1, last_seen = NOW() WHERE id = ?', [uId]);
+      socket.userId = Number(profiles[0].id);
+      socket.authUserId = authUser.id;
+      socket.userName = profiles[0].name;
+      return next();
+    } catch (error) {
+      console.warn('Conexão Socket.IO recusada: autenticação inválida.');
+      return next(new Error('unauthorized'));
+    }
+  });
 
-      // Notify contacts that user is online
-      notifyContactsOnlineStatus(uId, true);
-    });
+  ioInstance.on('connection', (socket) => {
+    const userId = socket.userId;
+    console.log('Socket autenticado:', socket.id, 'usuário:', userId);
+
+    if (!userSockets.has(userId)) userSockets.set(userId, new Set());
+    userSockets.get(userId).add(socket.id);
+
+    db.query('UPDATE users SET is_online = TRUE, last_seen = NOW() WHERE id = ?', [userId])
+      .then(() => notifyContactsOnlineStatus(userId, true))
+      .catch((error) => console.error('Falha ao atualizar presença online:', error));
 
     socket.on('disconnect', async (reason) => {
       console.log(`Socket desconectado: ${socket.id}, reason: ${reason}, transport: ${socket.conn?.transport?.name}, readyState: ${socket.conn?.transport?.transport?.socket?.readyState}`);
@@ -124,121 +181,79 @@ function init(server) {
       socket.emit('heartbeat_ack', { timestamp: Date.now(), serverTime: Date.now() });
     });
 
-    // Typing indicators
-    socket.on('typing_start', (data) => {
-      const { conversationId } = data;
-      if (conversationId) {
-        // Broadcast to all in conversation except sender
+    // Event handlers trust only the identity established by the Socket.IO middleware.
+    socket.on('typing_start', async (data = {}) => {
+      const conversationId = String(data.conversationId || '');
+      try {
+        if (!await isConversationMember(userId, conversationId)) return;
         const viewers = conversationViewers.get(conversationId);
-        if (viewers) {
-          viewers.forEach(userId => {
-            if (userId !== socket.userId) {
-              sendToUser(userId, 'typing_start', {
-                conversationId,
-                userId: socket.userId,
-                userName: data.userName || 'Someone',
-              });
-            }
-          });
-        }
+        if (!viewers) return;
+
+        viewers.forEach((viewerId) => {
+          if (viewerId !== userId) {
+            sendToUser(viewerId, 'typing_start', {
+              conversationId,
+              userId,
+              userName: socket.userName || 'Usuário'
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Falha ao validar digitação:', error);
       }
     });
 
-    socket.on('typing_stop', (data) => {
-      const { conversationId } = data;
-      if (conversationId) {
-        // Broadcast to all in conversation except sender
+    socket.on('typing_stop', async (data = {}) => {
+      const conversationId = String(data.conversationId || '');
+      try {
+        if (!await isConversationMember(userId, conversationId)) return;
         const viewers = conversationViewers.get(conversationId);
-        if (viewers) {
-          viewers.forEach(userId => {
-            if (userId !== socket.userId) {
-              sendToUser(userId, 'typing_stop', {
-                conversationId,
-                userId: socket.userId,
-              });
-            }
-          });
-        }
+        if (!viewers) return;
+
+        viewers.forEach((viewerId) => {
+          if (viewerId !== userId) {
+            sendToUser(viewerId, 'typing_stop', { conversationId, userId });
+          }
+        });
+      } catch (error) {
+        console.error('Falha ao validar fim da digitação:', error);
       }
     });
 
-    // Conversation view tracking (for typing indicators)
-    socket.on('join_conversation', (conversationId) => {
-      if (!conversationViewers.has(conversationId)) {
-        conversationViewers.set(conversationId, new Set());
+    socket.on('join_conversation', async (conversationId) => {
+      const key = String(conversationId || '');
+      try {
+        if (!await isConversationMember(userId, key)) return;
+        if (!conversationViewers.has(key)) conversationViewers.set(key, new Set());
+        conversationViewers.get(key).add(userId);
+      } catch (error) {
+        console.error('Falha ao validar entrada na conversa:', error);
       }
-      conversationViewers.get(conversationId).add(socket.userId);
     });
 
     socket.on('leave_conversation', (conversationId) => {
-      if (conversationViewers.has(conversationId)) {
-        conversationViewers.get(conversationId).delete(socket.userId);
-        if (conversationViewers.get(conversationId).size === 0) {
-          conversationViewers.delete(conversationId);
-        }
+      const key = String(conversationId || '');
+      const viewers = conversationViewers.get(key);
+      if (!viewers) return;
+      viewers.delete(userId);
+      if (viewers.size === 0) conversationViewers.delete(key);
+    });
+
+    socket.on('messages_read', async (data = {}) => {
+      const conversationId = String(data.conversationId || '');
+      try {
+        if (!await isConversationMember(userId, conversationId)) return;
+        await broadcastToConversation(conversationId, 'messages_read', {
+          conversationId,
+          byUserId: userId
+        }, userId);
+      } catch (error) {
+        console.error('Falha ao validar confirmação de leitura:', error);
       }
     });
 
-    // Messages read
-    socket.on('messages_read', (data) => {
-      const { conversationId, byUserId } = data;
-      // Broadcast to conversation participants that messages were read
-      broadcastToConversation(conversationId, 'messages_read', {
-        conversationId,
-        byUserId,
-      }, byUserId);
-    });
-
-    // Group events
-    socket.on('group_member_joined', async (data) => {
-      const { groupId, userId, userName } = data;
-      // Broadcast to group members
-      broadcastToGroup(groupId, 'group_member_joined', {
-        groupId,
-        userId,
-        userName,
-        timestamp: Date.now()
-      }, socket.userId);
-    });
-
-    socket.on('group_member_left', async (data) => {
-      const { groupId, userId, userName } = data;
-      broadcastToGroup(groupId, 'group_member_left', {
-        groupId,
-        userId,
-        userName,
-        timestamp: Date.now()
-      }, socket.userId);
-    });
-
-    socket.on('group_admin_changed', async (data) => {
-      const { groupId, userId, isAdmin } = data;
-      broadcastToGroup(groupId, 'group_admin_changed', {
-        groupId,
-        userId,
-        isAdmin,
-        timestamp: Date.now()
-      });
-    });
-
-    socket.on('group_updated', async (data) => {
-      const { groupId, name, description, avatar } = data;
-      broadcastToGroup(groupId, 'group_updated', {
-        groupId,
-        name,
-        description,
-        avatar,
-        timestamp: Date.now()
-      });
-    });
-
-    socket.on('group_deleted', async (data) => {
-      const { groupId } = data;
-      broadcastToGroup(groupId, 'group_deleted', {
-        groupId,
-        timestamp: Date.now()
-      });
-    });
+    // Group lifecycle events are emitted by trusted API controllers only.
+    // A browser cannot forge membership, administrator, update or deletion events.
   });
 
   return ioInstance;
@@ -262,9 +277,13 @@ async function notifyContactsOnlineStatus(userId, isOnline) {
     const [groupMembers] = await db.query(`
       SELECT DISTINCT gm.user_id
       FROM group_members gm
-      JOIN groups_table g ON g.id = gm.group_id
       WHERE gm.user_id != ?
-    `, [userId]);
+        AND gm.group_id IN (
+          SELECT own_members.group_id
+          FROM group_members own_members
+          WHERE own_members.user_id = ?
+        )
+    `, [userId, userId]);
 
     const allContactIds = new Set([
       ...contacts.map(c => c.id),
@@ -298,10 +317,8 @@ function sendToUser(userId, event, data) {
 }
 
 function sendToGroup(groupId, event, data, excludeUserId = null) {
-  // This would need group members - for now just broadcast
-  if (ioInstance) {
-    ioInstance.emit(event, data);
-  }
+  // Group events must be delivered only to authenticated members of that group.
+  return broadcastToGroup(groupId, event, data, excludeUserId);
 }
 
 function broadcast(event, data) {
@@ -313,6 +330,17 @@ function broadcast(event, data) {
 // Broadcast to all participants in a conversation (individual or group)
 async function broadcastToConversation(conversationId, event, data, excludeUserId = null) {
   try {
+    const conversationKey = String(conversationId || '');
+    const directMatch = conversationKey.match(/^(\d+)_(\d+)$/);
+    if (directMatch) {
+      const firstId = Number(directMatch[1]);
+      const secondId = Number(directMatch[2]);
+      const excludedId = Number(excludeUserId || 0);
+      const peerId = firstId === excludedId ? secondId : secondId === excludedId ? firstId : 0;
+      if (peerId > 0) sendToUser(peerId, event, data);
+      return;
+    }
+
     // Check if it's a group
     const [groups] = await db.query('SELECT * FROM groups_table WHERE id = ?', [conversationId]);
 
@@ -404,5 +432,6 @@ module.exports = {
   broadcastToConversation,
   broadcastToGroup,
   notifyContactsOnlineStatus,
-  emitMessageStatus
+  emitMessageStatus,
+  isConversationMember
 };

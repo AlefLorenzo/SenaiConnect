@@ -52,7 +52,7 @@ const AdminUsers = () => {
     const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -83,7 +83,7 @@ const AdminUsers = () => {
 
     const fetchStats = useCallback(async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/users/stats`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -120,7 +120,7 @@ const AdminUsers = () => {
     const toggleBlock = async (id, currentlyBlocked) => {
         if (!window.confirm(`Tem certeza que deseja ${currentlyBlocked ? 'desbloquear' : 'bloquear'} este usuário?`)) return;
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/users/${id}/block`, {
                 method: 'PATCH',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -163,7 +163,7 @@ const AdminUsers = () => {
     const handleEditSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/users/${editModal.id}/profile`, {
                 method: 'PATCH',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

@@ -7,11 +7,13 @@ import Avatar from '../components/Avatar';
 import StoryHighlights from '../components/StoryHighlights';
 import profileService from '../services/profileService';
 import messagesService from '../services/messagesService';
+import FollowButton from '../components/FollowButton';
+import { API_URL } from '../config/api';
 import './Profile.css';
 
 const Profile = () => {
   const { id } = useParams();
-  const { user: loggedInUser, setUser: setLoggedInUser } = useContext(AuthContext);
+  const { user: loggedInUser, setUser: setLoggedInUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const userId = id ? parseInt(id) : loggedInUser?.id;
@@ -25,6 +27,9 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('posts');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ followers: 0, following: 0 });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // Edit profile modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -100,6 +105,38 @@ const Profile = () => {
     }
   }, [userId, isOwnProfile]);
 
+  useEffect(() => {
+    if (!userId || isOwnProfile) return;
+    let active = true;
+    fetch(`${API_URL}/api/follows/${userId}/status`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` },
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o seguimento.');
+        if (active) setIsFollowing(Boolean(data.isFollowing));
+      })
+      .catch((error) => console.error('Erro ao verificar seguimento:', error));
+    return () => { active = false; };
+  }, [userId, isOwnProfile]);
+
+  const handleToggleFollow = async () => {
+    if (!userId || followLoading) return;
+    setFollowLoading(true);
+    try {
+      await profileService.toggleFollow(userId, !isFollowing);
+      setIsFollowing((current) => !current);
+      setStats((current) => ({
+        ...current,
+        followers: Math.max(0, Number(current.followers || 0) + (isFollowing ? -1 : 1)),
+      }));
+    } catch (error) {
+      window.alert(error.message || 'Não foi possível atualizar o seguimento.');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   const handleAvatarFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -119,24 +156,14 @@ const Profile = () => {
     try {
       let finalAvatar = avatarInput;
 
-      // Upload avatar if a new file was selected
+      // O backend de perfil recebe JSON; a imagem é persistida no registro do usuário.
       if (avatarFile) {
-        const reader = new FileReader();
-        const base64 = await new Promise((resolve) => {
-          reader.onload = (ev) => resolve(ev.target.result);
+        finalAvatar = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Não foi possível ler a imagem selecionada.'));
           reader.readAsDataURL(avatarFile);
         });
-
-        // Use profileService.uploadAvatar for avatar upload
-        try {
-          const uploadData = await profileService.uploadAvatar(avatarFile);
-          finalAvatar = uploadData.avatar || avatarPreview;
-        } catch (uploadErr) {
-          console.error('Erro ao fazer upload da foto:', uploadErr);
-          alert('Erro ao fazer upload da foto.');
-          setSaving(false);
-          return;
-        }
       }
 
       const updateBody = {
@@ -151,7 +178,7 @@ const Profile = () => {
       };
 
       // Use profileService.updateProfile
-      const result = await profileService.updateProfile(updateBody);
+      const result = await profileService.updateProfile(updateBody, loggedInUser.id);
       if (result) {
         const updatedFields = { ...updateBody, avatar: finalAvatar };
         setProfileUser(prev => ({ ...prev, ...updatedFields }));
@@ -195,7 +222,7 @@ const Profile = () => {
               <Avatar user={profileUser} className="profile-main-avatar" />
             </div>
             <div className="profile-actions">
-              {!isOwnProfile && <button className="btn-primary" onClick={() => alert('Seguindo!')}>Seguir</button>}
+              {!isOwnProfile && <FollowButton isFollowing={isFollowing} loading={followLoading} onToggle={handleToggleFollow} targetUserId={userId} />}
               {!isOwnProfile && (
                 <button className="btn-secondary" onClick={async () => {
                   try {
@@ -219,9 +246,18 @@ const Profile = () => {
                   <span>Configurações</span>
                 </Link>
               )}
-              <button className="icon-btn-border" onClick={() => alert('Mais opções')}>
-                <MoreHorizontal size={18} />
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button className="icon-btn-border" aria-label="Mais opções do perfil" aria-expanded={moreMenuOpen} onClick={() => setMoreMenuOpen((open) => !open)}>
+                  <MoreHorizontal size={18} />
+                </button>
+                {moreMenuOpen && (
+                  <div role="menu" style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 30, minWidth: 190, padding: 8, background: 'var(--surface, #fff)', border: '1px solid var(--border, #ddd)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,.14)' }}>
+                    {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', marginBottom: 6 }} onClick={() => { setMoreMenuOpen(false); navigate('/settings'); }}><Settings size={16} /> Configurações</button>}
+                    {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', color: '#c62828' }} onClick={async () => { setMoreMenuOpen(false); await logout(); navigate('/', { replace: true }); }}>Sair da conta</button>}
+                    {!isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%' }} onClick={() => setMoreMenuOpen(false)}>Fechar</button>}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

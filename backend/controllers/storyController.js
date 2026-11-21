@@ -21,7 +21,7 @@ const storyController = {
                     s.privacy = 'public'
                     OR s.user_id = ${viewerId || 0}
                     OR (s.privacy = 'followers' AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM close_friends WHERE user_id = s.user_id AND friend_id = ${viewerId || 0}
@@ -34,7 +34,7 @@ const storyController = {
                         SELECT 1 FROM story_privacy_exceptions spe
                         WHERE spe.story_id = s.id AND spe.exception_type = 'exclude' AND spe.user_id = ${viewerId || 0}
                     ) AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM story_privacy_exceptions spe
@@ -118,7 +118,7 @@ const storyController = {
                     s.privacy = 'public'
                     OR s.user_id = ${viewerId || 0}
                     OR (s.privacy = 'followers' AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM close_friends WHERE user_id = s.user_id AND friend_id = ${viewerId || 0}
@@ -131,7 +131,7 @@ const storyController = {
                         SELECT 1 FROM story_privacy_exceptions spe
                         WHERE spe.story_id = s.id AND spe.exception_type = 'exclude' AND spe.user_id = ${viewerId || 0}
                     ) AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM story_privacy_exceptions spe
@@ -173,6 +173,7 @@ const storyController = {
             const storyPrivacy = privacy || 'public'; // public, followers, close_friends
 
             const connection = await db.getConnection();
+            let storyId;
             try {
                 await connection.beginTransaction();
 
@@ -181,7 +182,7 @@ const storyController = {
                     [userId, media_url || null, media_type || null, text_content || null, expiresAt, storyPrivacy, background_color || null, text_overlay_data ? JSON.stringify(text_overlay_data) : null]
                 );
 
-                const storyId = result.insertId;
+                storyId = result.insertId;
 
                 // Handle privacy exceptions (exclude/include lists)
                 if (privacy_exceptions && Array.isArray(privacy_exceptions) && privacy_exceptions.length > 0) {
@@ -209,7 +210,7 @@ const storyController = {
                 `SELECT s.*, u.name as user_name, u.avatar as user_avatar
                  FROM stories s JOIN users u ON s.user_id = u.id
                  WHERE s.id = ?`,
-                [result.insertId]
+                [storyId]
             );
 
             // Emite via socket para todos

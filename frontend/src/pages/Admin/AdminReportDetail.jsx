@@ -52,7 +52,7 @@ const AdminReportDetail = () => {
     const fetchReport = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/reports/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -79,7 +79,7 @@ const AdminReportDetail = () => {
         }
         setActionLoading(action);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             let res;
 
             switch (action) {
