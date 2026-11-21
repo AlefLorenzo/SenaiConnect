@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
@@ -99,13 +99,30 @@ const Home = () => {
   const [storyGroups, setStoryGroups] = useState([]);
   const [stories, setStories] = useState([]);
 
+  // Update the ring immediately after each story is successfully marked as viewed.
+  const handleStoryViewed = useCallback((storyId) => {
+    setStories((currentGroups) => currentGroups.map((group) => {
+      const updatedStories = (group.stories || []).map((story) =>
+        String(story.id) === String(storyId) ? { ...story, viewed: true } : story
+      );
+
+      return {
+        ...group,
+        stories: updatedStories,
+        hasUnviewed: updatedStories.some((story) => story.viewed !== true),
+      };
+    }));
+  }, []);
+
   // Transform storyGroups into story groups for MobileStories (one item per user)
   useEffect(() => {
     const storyGroupsForMobile = (storyGroups || [])
       .filter(group => group && group.stories && group.stories.length > 0)
       .map(group => {
         const stories = group.stories || [];
-        const hasUnviewed = stories.some(story => story.views_count === 0 || story.views_count === undefined);
+        // The API exposes the current viewer's read state; views_count is a
+        // popularity counter and must never be used to infer whether I viewed it.
+        const hasUnviewed = stories.some(story => story.viewed !== true);
         return {
           id: group.user_id,
           user_id: group.user_id,
@@ -250,6 +267,7 @@ const Home = () => {
           storyGroups={stories}
           initialGroupIndex={viewingStoryIndex}
           onClose={() => setViewingStoryIndex(null)}
+          onStoryViewed={handleStoryViewed}
         />
       )}
 
