@@ -120,6 +120,7 @@ app.use('/api/search', searchRoutes);
 
 // Public read-only listings use the existing /api/events and /api/courses paths.
 app.use('/api', publicRoutes);
+app.use('/api', engagementRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
