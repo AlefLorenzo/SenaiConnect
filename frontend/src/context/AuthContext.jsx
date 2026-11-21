@@ -232,7 +232,7 @@ export const AuthProvider = ({ children }) => {
     const isAdmin = Boolean(user && user.admin_role);
 
     return (
-        <AuthContext.Provider value={{ user, setUser, login, logout, loading, isAdmin }}>
+        <AuthContext.Provider value={{ user, setUser, login, logout, loading, isAdmin, authSession }}>
             {children}
         </AuthContext.Provider>
     );
