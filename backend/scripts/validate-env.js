@@ -6,7 +6,7 @@ const errors = [];
 
 function hasValue(name) {
   const value = String(process.env[name] || '').trim();
-  return value.length > 0 && !/^(COLE_AQUI|CHANGEME|CHANGE_ME|YOUR_|\[.*\])$/i.test(value);
+  return value.length > 0 && !/^(COLE_AQUI.*|CHANGEME.*|CHANGE_ME.*|YOUR_.*|\[.*\])$/i.test(value);
 }
 
 function requireOneOf(names, label) {
