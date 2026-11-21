@@ -466,6 +466,8 @@ async function run() {
     password: process.env.MYSQL_SOURCE_PASSWORD || '',
     database: process.env.MYSQL_SOURCE_DATABASE || 'redesocial',
     waitForConnections: true,
+    supportBigNumbers: true,
+    bigNumberStrings: true,
     connectionLimit: 5,
     timezone: 'Z',
     dateStrings: false
