@@ -136,7 +136,7 @@ describe('MySQL to PostgreSQL query compatibility', () => {
 
   test('preserves camelCase result aliases returned by legacy controllers', () => {
     const result = translateQuery(
-      'SELECT COUNT(*) AS thisWeek, COUNT(*) AS reportsReceived FROM admin_logs',
+      'SELECT COUNT(*) AS thisWeek, COUNT(*) AS "reportsReceived" FROM admin_logs',
       []
     );
 
