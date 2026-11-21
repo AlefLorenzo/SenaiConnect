@@ -136,7 +136,7 @@ const Dashboard = () => {
     const fetchDashboardData = useCallback(async () => {
         try {
             setError(null);
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const [statsRes, chartsRes, activityRes] = await Promise.all([
                 fetch(`${API_URL}/api/admin/dashboard`, { headers: { Authorization: `Bearer ${token}` } }),
                 fetch(`${API_URL}/api/admin/dashboard/charts`, { headers: { Authorization: `Bearer ${token}` } }),
