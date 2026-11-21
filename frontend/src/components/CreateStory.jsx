@@ -123,7 +123,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
     if (lastAtIndex !== -1 && lastAtIndex === textBeforeCursor.length - 1 ||
         (lastAtIndex !== -1 && /^@[\w.]*$/.test(textBeforeCursor.slice(lastAtIndex)))) {
       const query = textBeforeCursor.slice(lastAtIndex + 1);
-      setMentionTriggerRef({ start: lastAtIndex, end: cursorPos });
+      mentionTriggerRef.current = { start: lastAtIndex, end: cursorPos };
       if (query.length > 0 || query.length === 0) {
         setShowMentions(true);
         setMentionQuery(query);
@@ -294,6 +294,52 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
     setCropMode(true);
     // Initialize crop area to center 80% of image
     setCropArea({ x: 10, y: 10, width: 80, height: 80 });
+  };
+
+  // Resize the crop rectangle from the selected corner.
+  const startCropDrag = (event, handle) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const bounds = overlayContainerRef.current?.getBoundingClientRect();
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const initial = { ...cropArea };
+    const minSize = 10;
+
+    const handleMove = (moveEvent) => {
+      const dx = ((moveEvent.clientX - startX) / bounds.width) * 100;
+      const dy = ((moveEvent.clientY - startY) / bounds.height) * 100;
+      let { x, y, width, height } = initial;
+
+      if (handle.includes('l')) {
+        const right = initial.x + initial.width;
+        x = Math.min(right - minSize, Math.max(0, initial.x + dx));
+        width = right - x;
+      } else if (handle.includes('r')) {
+        width = Math.min(100 - initial.x, Math.max(minSize, initial.width + dx));
+      }
+
+      if (handle.includes('t')) {
+        const bottom = initial.y + initial.height;
+        y = Math.min(bottom - minSize, Math.max(0, initial.y + dy));
+        height = bottom - y;
+      } else if (handle.includes('b')) {
+        height = Math.min(100 - initial.y, Math.max(minSize, initial.height + dy));
+      }
+
+      setCropArea({ x, y, width, height });
+    };
+
+    const handleEnd = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd, { once: true });
   };
 
   const applyCrop = async () => {
