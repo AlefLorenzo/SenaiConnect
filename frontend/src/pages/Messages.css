@@ -1202,6 +1202,7 @@
 @media (max-width: 768px) {
   .messages-layout {
     height: calc(100vh - var(--bottom-nav-height));
+    height: calc(100dvh - var(--bottom-nav-height));
     position: relative;
   }
 
