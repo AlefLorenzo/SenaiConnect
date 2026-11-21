@@ -88,10 +88,47 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
     };
   }, []);
 
-  // Gradient border colors for unviewed stories (Instagram style)
-  const getStoryGradient = useCallback((hasUnviewed) => {
-    if (!hasUnviewed) return null;
-    return 'conic-gradient(from 0deg, #F58529 0deg, #DD2A7B 45deg, #8134AF 90deg, #515BD4 135deg, #00C9FF 180deg, #F58529 360deg)';
+  // WhatsApp-style status: green for unseen, grey for seen, segmented when mixed.
+  const getStoryViewState = useCallback((story) => {
+    const items = Array.isArray(story.stories) ? story.stories : [];
+    const hasExplicitReadState = items.some((item) => typeof item.viewed === 'boolean');
+
+    if (!items.length || !hasExplicitReadState) {
+      return story.hasUnviewed ? 'unviewed' : 'viewed';
+    }
+
+    const viewed = items.map((item) => item.viewed === true);
+    if (viewed.every(Boolean)) return 'viewed';
+    if (viewed.some(Boolean)) return 'mixed';
+    return 'unviewed';
+  }, []);
+
+  const getStoryRingBackground = useCallback((story) => {
+    const items = Array.isArray(story.stories) ? story.stories : [];
+    const hasExplicitReadState = items.some((item) => typeof item.viewed === 'boolean');
+
+    if (!items.length || !hasExplicitReadState) {
+      return story.hasUnviewed ? '#25D366' : '#89969F';
+    }
+
+    const viewed = items.map((item) => item.viewed === true);
+    if (viewed.every(Boolean)) return '#89969F';
+    if (viewed.every((isViewed) => !isViewed)) return '#25D366';
+
+    const segmentSize = 360 / viewed.length;
+    const gap = Math.min(5, segmentSize * 0.12);
+    const stops = viewed.flatMap((isViewed, index) => {
+      const start = index * segmentSize;
+      const end = (index + 1) * segmentSize;
+      const colorEnd = end - gap;
+      const color = isViewed ? '#89969F' : '#25D366';
+      return [
+        `${color} ${start}deg ${colorEnd}deg`,
+        `transparent ${colorEnd}deg ${end}deg`,
+      ];
+    });
+
+    return `conic-gradient(${stops.join(', ')})`;
   }, []);
 
   const canScrollRight = scrollPosition < scrollWidth - containerWidth - 10;
@@ -102,7 +139,7 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
     <div key={`skeleton-${index}`} className="story-item skeleton" role="listitem" aria-label="Carregando história">
       <div className="story-ring-container">
         <div className="story-avatar skeleton-avatar" />
-        <div className="story-gradient-ring skeleton-ring" aria-hidden="true" />
+        <div className="story-status-ring skeleton-ring" aria-hidden="true" />
       </div>
       <span className="story-username skeleton-text" />
     </div>
@@ -141,16 +178,16 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
               displayStories.map((story, index) => (
                 <div
                   key={story.id ?? `story-${index}`}
-                  className={`story-item ${story.hasUnviewed ? 'unviewed' : 'viewed'} ${isScrolling ? 'scrolling' : ''}`}
+                  className={`story-item ${story.isAdd ? 'add' : getStoryViewState(story)} ${isScrolling ? 'scrolling' : ''}`}
                   role="listitem"
                   onClick={() => handleStoryClick(story)}
                   onKeyDown={(e) => handleKeyDown(e, story)}
                   tabIndex={0}
                   style={{
-                    '--story-gradient': getStoryGradient(story.hasUnviewed),
+                    '--story-ring-background': getStoryRingBackground(story),
                     '--has-unviewed': story.hasUnviewed ? '1' : '0'
                   }}
-                  aria-label={story.isAdd ? 'Adicionar história' : `${story.user_name}${story.hasUnviewed ? ', história não vista' : ''}${story.storyCount ? `, ${story.storyCount} histórias` : ''}`}
+                  aria-label={story.isAdd ? 'Adicionar história' : `${story.user_name}, ${getStoryViewState(story) === 'unviewed' ? 'status não visualizado' : getStoryViewState(story) === 'viewed' ? 'status visualizado' : 'status parcialmente visualizado'}${story.storyCount ? `, ${story.storyCount} histórias` : ''}`}
                 >
                   <div className="story-ring-container">
                     {story.isAdd ? (
@@ -172,19 +209,12 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
                           className="story-avatar"
                           size={64}
                         />
-                        {story.hasUnviewed && (
-                          <div className="story-gradient-ring" aria-hidden="true" />
-                        )}
+                        <div
+                          className="story-status-ring"
+                          data-view-state={getStoryViewState(story)}
+                          aria-hidden="true"
+                        />
                       </>
-                    )}
-
-                    {/* Viewed indicator - checkmark for viewed stories */}
-                    {!story.isAdd && !story.hasUnviewed && (
-                      <div className="story-viewed-badge" aria-label="Visto">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                      </div>
                     )}
 
                     {!story.isAdd && story.storyCount > 1 && (
@@ -196,9 +226,14 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
 
                   <span className="story-username">{story.user_name}</span>
 
-                  {/* Unviewed indicator text for screen readers */}
-                  {story.hasUnviewed && !story.isAdd && (
-                    <span className="sr-only">História não vista</span>
+                  {!story.isAdd && (
+                    <span className="sr-only">
+                      {getStoryViewState(story) === 'unviewed'
+                        ? 'Status não visualizado'
+                        : getStoryViewState(story) === 'viewed'
+                          ? 'Status visualizado'
+                          : 'Status parcialmente visualizado'}
+                    </span>
                   )}
                 </div>
               ))
