@@ -26,6 +26,7 @@ const socketHelper = require('../socketHelper');
 describe('socketHelper', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDb.query.mockReset();
     mockIo.to.mockClear();
     mockIo.emit.mockClear();
     // Clear internal maps if accessible
