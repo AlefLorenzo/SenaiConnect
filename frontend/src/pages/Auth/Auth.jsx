@@ -46,7 +46,8 @@ const Auth = () => {
 
       if (data.token && data.user) {
         login(data.token, data.user, data.session);
-        navigate('/');
+        // Administradores entram diretamente no painel; alunos seguem para o feed.
+        navigate(data.user.admin_role ? '/admin/dashboard' : '/', { replace: true });
         return;
       }
 
