@@ -33,7 +33,7 @@ const adminUsersController = {
 
             const query = `
                 SELECT id, name, email, role, avatar, unit, area, course, created_at,
-                       is_blocked, is_private, admin_role, unit_id, onboarding_completed, last_login
+                       is_blocked, is_private, admin_role, unit_id, onboarding_completed, NULL::timestamptz AS last_login
                 FROM users
                 ${whereClause}
                 ORDER BY created_at DESC
@@ -50,7 +50,7 @@ const adminUsersController = {
             const [[{ totalStudents }]] = await db.query("SELECT COUNT(*) as totalStudents FROM users WHERE role = 'Aluno'");
             const [[{ totalTeachers }]] = await db.query("SELECT COUNT(*) as totalTeachers FROM users WHERE role = 'Professor'");
             const [[{ totalAdmins }]] = await db.query("SELECT COUNT(*) as totalAdmins FROM users WHERE admin_role IS NOT NULL");
-            const [[{ totalBlocked }]] = await db.query("SELECT COUNT(*) as totalBlocked FROM users WHERE is_blocked = 1");
+            const [[{ totalBlocked }]] = await db.query("SELECT COUNT(*) as totalBlocked FROM users WHERE is_blocked = TRUE");
 
             res.json({
                 users,
@@ -79,7 +79,7 @@ const adminUsersController = {
                 SELECT id, name, email, role, avatar, cover_image, bio, state, city, unit, area, course,
                        links, skills, skills_to_learn, interests, objective, onboarding_completed,
                        is_private, hide_email, notification_prefs, is_blocked, admin_role, unit_id,
-                       created_at, deleted_at, last_login
+                       created_at, deleted_at, NULL::timestamptz AS last_login
                 FROM users
                 WHERE id = ?
             `, [id]);
@@ -152,7 +152,7 @@ const adminUsersController = {
             }
 
             const user = users[0];
-            const newStatus = block ? 1 : 0;
+            const newStatus = Boolean(block);
 
             if (user.is_blocked === newStatus) {
                 return res.status(400).json({ error: `Usuário já está ${block ? 'bloqueado' : 'desbloqueado'}` });
