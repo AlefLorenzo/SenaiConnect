@@ -5,7 +5,7 @@ const INSTITUTIONAL_EMAIL = /^[^\s@]+@(estudante|docente)\.senai\.com$/i;
 
 async function findProfile(authUserId) {
     const [profiles] = await db.query(
-        'SELECT id, auth_user_id, name, email, role, admin_role, avatar, bio, cover_image, state, city, unit, area, course, links, onboarding_completed, is_blocked FROM users WHERE auth_user_id = ?',
+        'SELECT id, auth_user_id, name, email, role, admin_role, unit_id, avatar, bio, cover_image, state, city, unit, area, course, links, onboarding_completed, is_blocked FROM users WHERE auth_user_id = ?',
         [authUserId]
     );
     return profiles[0] || null;
@@ -18,6 +18,7 @@ function publicUser(profile) {
         email: profile.email,
         role: profile.role,
         admin_role: profile.admin_role || null,
+        unit_id: profile.unit_id || null,
         avatar: profile.avatar,
         bio: profile.bio,
         cover_image: profile.cover_image,
@@ -182,7 +183,7 @@ const authController = {
     me: async (req, res) => {
         try {
             const [users] = await db.query(
-                'SELECT id, name, email, role, admin_role, avatar, bio, cover_image, state, city, unit, area, course, links, onboarding_completed, is_blocked FROM users WHERE id = ?',
+                'SELECT id, name, email, role, admin_role, unit_id, avatar, bio, cover_image, state, city, unit, area, course, links, onboarding_completed, is_blocked FROM users WHERE id = ?',
                 [req.user.id]
             );
             if (users.length === 0) return res.status(404).json({ error: 'Perfil SENAI Connect não encontrado.' });
