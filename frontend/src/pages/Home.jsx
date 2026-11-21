@@ -25,6 +25,7 @@ const Home = () => {
   const [showCreateStory, setShowCreateStory] = useState(false);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
+  const creatingPostRef = useRef(false);
 
   // Check for creation type from sessionStorage (set by FAB via MobileCreateSheet)
   useEffect(() => {
@@ -139,8 +140,8 @@ const Home = () => {
 
   // Subscribe to posts service changes (for real-time updates from other components)
   useEffect(() => {
-    const unsubscribe = postsService.subscribe(() => {
-      fetchPosts();
+    const unsubscribe = postsService.subscribe((updatedPosts) => {
+      setPosts(Array.isArray(updatedPosts) ? [...updatedPosts] : []);
     });
     return unsubscribe;
   }, []);
@@ -169,7 +170,8 @@ const Home = () => {
   };
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !postImage) return;
+    if (creatingPostRef.current || (!newPostContent.trim() && !postImage)) return;
+    creatingPostRef.current = true;
     setLoading(true);
     try {
       let attachment_url = null;
@@ -209,6 +211,7 @@ const Home = () => {
     } catch (error) {
       alert('Erro ao publicar post.');
     } finally {
+      creatingPostRef.current = false;
       setLoading(false);
     }
   };
