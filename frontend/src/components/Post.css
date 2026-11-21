@@ -414,3 +414,104 @@
   vertical-align: middle;
   margin-right: 1px;
 }
+
+/* Feed cards must shrink to the viewport instead of their text/media min-content width. */
+.post-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.post-header,
+.post-user-info,
+.post-user-name,
+.post-content,
+.comments-section,
+.comment-input-form {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.post-user-info {
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.post-user-name {
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+.post-content,
+.comment-content-text,
+.doc-name {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.post-card img,
+.post-card video {
+  display: block;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .post-card {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 12px;
+  }
+
+  .post-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .post-user-info {
+    gap: 8px;
+  }
+
+  .post-user-name {
+    gap: 5px;
+    font-size: 14px;
+  }
+
+  .post-content {
+    padding: 0 12px 12px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .post-actions {
+    width: 100%;
+    min-width: 0;
+    padding: 4px 8px;
+  }
+
+  .post-actions .action-btn {
+    min-width: 0;
+    padding: 8px 3px;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .comments-section {
+    padding: 12px;
+  }
+
+  .comment-input-form {
+    gap: 6px;
+  }
+
+  .comment-input-field {
+    min-width: 0;
+    width: 1%;
+    padding: 8px 12px;
+  }
+}
+
