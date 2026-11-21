@@ -69,7 +69,7 @@ class PostsService {
     if (!postData.content?.trim() && !postData.attachment_url) {
       throw new Error('Escreva algo ou anexe uma imagem antes de publicar.');
     }
-    await request('/api/posts', {
+    const createdRow = await request('/api/posts', {
       method: 'POST',
       body: JSON.stringify({
         content: postData.content || '',
@@ -78,9 +78,18 @@ class PostsService {
         attachment_name: postData.attachment_name || null,
       }),
     });
-    await this.getFeed();
+
+    const createdPost = normalizePost({
+      ...createdRow,
+      user: createdRow.user || postData.user || undefined,
+      user_id: createdRow.user_id ?? postData.user_id ?? postData.user?.id,
+    });
+    this.posts = [
+      createdPost,
+      ...this.posts.filter((post) => String(post.id) !== String(createdPost.id)),
+    ];
     this.notify();
-    return this.posts[0] || null;
+    return createdPost;
   }
 
   async updatePost(postId, updates) {
