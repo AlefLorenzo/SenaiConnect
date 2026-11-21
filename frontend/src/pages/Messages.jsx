@@ -285,14 +285,14 @@ const Messages = () => {
       if (append) {
         // Prepend older messages (page 2+) to the beginning
         setHistory(prev => {
-          const newMessages = data.filter(msg => !messageIdsRef.current.has(msg.id));
-          newMessages.forEach(msg => messageIdsRef.current.add(msg.id));
+          const newMessages = data.filter(msg => !messageIdsRef.current.has(String(msg.id)));
+          newMessages.forEach(msg => messageIdsRef.current.add(String(msg.id)));
           return [...newMessages, ...prev];
         });
       } else {
         // Initial load: show chronological order (oldest at top)
         messageIdsRef.current.clear();
-        data.forEach(msg => messageIdsRef.current.add(msg.id));
+        data.forEach(msg => messageIdsRef.current.add(String(msg.id)));
         setHistory(data);
       }
       setHasMoreHistory(result.pagination?.hasMore || data.length >= 30);
@@ -443,15 +443,15 @@ const Messages = () => {
           if (current.tempId && normalizedMessageId) {
             const reconciled = [...prev];
             reconciled[duplicateIndex] = { ...msg, tempId: current.tempId };
-            messageIdsRef.current.delete(current.id);
-            messageIdsRef.current.delete(current.tempId);
-            messageIdsRef.current.add(msgId);
+            messageIdsRef.current.delete(String(current.id));
+            messageIdsRef.current.delete(String(current.tempId));
+            messageIdsRef.current.add(normalizedMessageId);
             return reconciled;
           }
           return prev;
         }
 
-        if (normalizedMessageId && messageIdsRef.current.has(msgId)) return prev;
+        if (normalizedMessageId && messageIdsRef.current.has(normalizedMessageId)) return prev;
         if (normalizedMessageId) messageIdsRef.current.add(msgId);
         return [...prev, msg];
       });
@@ -595,7 +595,7 @@ const Messages = () => {
       m.tempId === tempId ? { ...message, tempId: m.tempId } : m
     ));
     // Update messageIdsRef to include the confirmed message ID
-    messageIdsRef.current.add(message.id);
+    messageIdsRef.current.add(String(message.id));
   }, []);
 
   // Auto-scroll to bottom on new messages (but not when loading history)
@@ -827,7 +827,7 @@ const Messages = () => {
           m.tempId === tempId ? { ...result, tempId } : m
         ));
         messageIdsRef.current.delete(tempId);
-        messageIdsRef.current.add(result.id);
+        messageIdsRef.current.add(String(result.id));
         fetchConversations();
         fetchGroups();
       } else {
