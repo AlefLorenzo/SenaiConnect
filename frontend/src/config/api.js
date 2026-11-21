@@ -55,7 +55,7 @@ export const ENDPOINTS = {
     BASE: '/api/stories',
     CREATE: '/api/stories',
     VIEW: (id) => `/api/stories/${id}/view`,
-    FEED: '/api/stories/feed',
+    FEED: '/api/stories',
     USER: (id) => `/api/stories/user/${id}`,
     HIGHLIGHTS: (userId) => `/api/stories/user/${userId}/highlights`,
     CREATE_HIGHLIGHT: (userId) => `/api/stories/user/${userId}/highlights`,
