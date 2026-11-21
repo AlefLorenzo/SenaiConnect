@@ -181,15 +181,20 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   }, [isPaused, goToNext]);
 
   useEffect(() => {
+    // Start counting at the moment this story becomes active, not after the
+    // first animation frame. This also makes the initial story start instantly.
+    lastTimeRef.current = performance.now();
     requestRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(requestRef.current);
+
+    return () => {
+      cancelAnimationFrame(requestRef.current);
+    };
   }, [currentGroupIndex, currentStoryIndex, isPaused, animate]);
 
   // Reset progress when story changes
   useEffect(() => {
     setProgress(0);
     progressRef.current = 0;
-    lastTimeRef.current = null;
     setShowReactions(false);
     setShowReplies(false);
     setReplyText('');
