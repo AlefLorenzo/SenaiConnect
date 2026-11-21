@@ -580,6 +580,19 @@ async function run() {
         tx, sourceConnection, source, target, plan.deferredFks
       );
       await synchronizeIdentitySequences(tx, plan.manifest);
+
+      // Do not commit a partial copy. Every compatible table must have the
+      // exact same row count as the source before the transaction can finish.
+      for (const tablePlan of plan.manifest) {
+        const copiedRows = await getRowCount(tx, tablePlan.table);
+        if (copiedRows !== tablePlan.sourceRows) {
+          throw new Error(
+            'Validação da cópia falhou em ' + tablePlan.table +
+            ': origem=' + tablePlan.sourceRows + ', destino=' + copiedRows +
+            '. A transação será revertida.'
+          );
+        }
+      }
     });
 
     console.log('\nCópia concluída dentro de uma única transação.');
