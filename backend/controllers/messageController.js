@@ -83,11 +83,18 @@ const messageController = {
                     ) as unread_count
                 FROM users u
                 WHERE u.id != ?
+                AND EXISTS (
+                    SELECT 1
+                    FROM messages thread_message
+                    WHERE (thread_message.sender_id = u.id AND thread_message.receiver_id = ?)
+                       OR (thread_message.sender_id = ? AND thread_message.receiver_id = u.id)
+                )
                 AND ${buildPrivacyWhereClause(loggedUserId, 'u')}
                 ORDER BY last_interaction DESC, u.name ASC
             `;
             const [individuals] = await db.query(individualQuery, [
-                loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId
+                loggedUserId, loggedUserId, loggedUserId,
+                loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId
             ]);
 
             // Get group conversations
@@ -128,20 +135,61 @@ const messageController = {
             `;
             const [groups] = await db.query(groupQuery, [loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId]);
 
-            // Fetch participants and admin_ids for each group separately (avoid JSON_ARRAYAGG)
-            for (const group of groups) {
-                const [participants] = await db.query(`
-                    SELECT u2.id, u2.name, u2.avatar, gm2.role, u2.is_online, u2.last_seen
+            // Load all group participants/admins in batches instead of running two queries per group.
+            const groupIds = groups.map(group => Number(group.conversation_id)).filter(Number.isSafeInteger);
+            if (groupIds.length > 0) {
+                const placeholders = groupIds.map(() => '?').join(',');
+                const [allParticipants] = await db.query(`
+                    SELECT gm2.group_id, u2.id, u2.name, u2.avatar, gm2.role, u2.is_online, u2.last_seen
                     FROM group_members gm2
                     JOIN users u2 ON u2.id = gm2.user_id
-                    WHERE gm2.group_id = ?
-                `, [group.conversation_id]);
-                group.participants = participants;
+                    WHERE gm2.group_id IN (${placeholders})
+                    ORDER BY gm2.group_id, u2.name
+                `, groupIds);
+                const [allAdmins] = await db.query(`
+                    SELECT group_id, admin_id
+                    FROM group_admins
+                    WHERE group_id IN (${placeholders})
+                `, groupIds);
+                const [lastSenders] = await db.query(`
+                    SELECT group_id, sender_name
+                    FROM (
+                        SELECT gm.group_id, u.name AS sender_name,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY gm.group_id
+                                   ORDER BY gm.created_at DESC, gm.id DESC
+                               ) AS row_number
+                        FROM group_messages gm
+                        JOIN users u ON u.id = gm.sender_id
+                        WHERE gm.group_id IN (${placeholders})
+                    ) ranked
+                    WHERE row_number = 1
+                `, groupIds);
 
-                const [admins] = await db.query(`
-                    SELECT admin_id FROM group_admins WHERE group_id = ?
-                `, [group.conversation_id]);
-                group.admin_ids = admins.map(a => a.admin_id);
+                const participantsByGroup = new Map();
+                const adminsByGroup = new Map();
+                const senderByGroup = new Map();
+                for (const participant of allParticipants) {
+                    const key = Number(participant.group_id);
+                    if (!participantsByGroup.has(key)) participantsByGroup.set(key, []);
+                    const { group_id, ...member } = participant;
+                    participantsByGroup.get(key).push(member);
+                }
+                for (const admin of allAdmins) {
+                    const key = Number(admin.group_id);
+                    if (!adminsByGroup.has(key)) adminsByGroup.set(key, []);
+                    adminsByGroup.get(key).push(admin.admin_id);
+                }
+                for (const row of lastSenders) {
+                    senderByGroup.set(Number(row.group_id), row.sender_name);
+                }
+
+                for (const group of groups) {
+                    const key = Number(group.conversation_id);
+                    group.participants = participantsByGroup.get(key) || [];
+                    group.admin_ids = adminsByGroup.get(key) || [];
+                    group.last_message_sender_name = senderByGroup.get(key) || 'Unknown';
+                }
             }
 
             const conversations = [];
@@ -187,19 +235,7 @@ const messageController = {
                 const participants = group.participants || [];
                 const adminIds = group.admin_ids || [];
 
-                // Get sender name for last message
-                let lastMessageSenderName = 'Unknown';
-                if (group.last_message) {
-                    const [lastMsg] = await db.query(`
-                        SELECT u.name FROM group_messages gm
-                        JOIN users u ON u.id = gm.sender_id
-                        WHERE gm.group_id = ? AND gm.content = ?
-                        ORDER BY gm.created_at DESC LIMIT 1
-                    `, [group.conversation_id, group.last_message]);
-                    if (lastMsg.length > 0) {
-                        lastMessageSenderName = lastMsg[0].name;
-                    }
-                }
+                const lastMessageSenderName = group.last_message_sender_name || 'Unknown';
 
                 conversations.push({
                     conversation_id: group.conversation_id,
