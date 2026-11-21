@@ -218,7 +218,10 @@ class StoriesService extends BaseService {
       return { success: true };
     }
 
-    return this.post(ENDPOINTS.STORIES.VIEW(storyId), {});
+    const result = await this.post(ENDPOINTS.STORIES.VIEW(storyId), {});
+    // Refresh cached feed data so the seen/unseen ring stays accurate across navigation.
+    this.invalidateCache();
+    return result;
   }
 
   /**
