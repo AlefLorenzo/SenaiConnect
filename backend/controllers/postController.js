@@ -6,6 +6,10 @@ const postController = {
         try {
             const viewerId = req.user?.id || null;
 
+            const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+            const limit = Math.min(40, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+            const offset = (page - 1) * limit;
+
             const query = `
                 SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.role as user_role,
                 ${buildEmailSelectClause(viewerId, 'u')},
@@ -18,10 +22,16 @@ const postController = {
                 JOIN users u ON p.user_id = u.id
                 WHERE p.group_id IS NULL
                 AND ${buildPrivacyWhereClause(viewerId, 'u')}
-                ORDER BY p.created_at DESC
+                ORDER BY p.created_at DESC, p.id DESC
+                LIMIT ? OFFSET ?
             `;
-            const [posts] = await db.query(query);
-            res.status(200).json(posts);
+            const [rows] = await db.query(query, [limit + 1, offset]);
+            const hasMore = rows.length > limit;
+            const posts = hasMore ? rows.slice(0, limit) : rows;
+            res.status(200).json({
+                data: posts,
+                pagination: { page, limit, hasMore }
+            });
         } catch (error) {
             console.error('Erro ao buscar posts:', error);
             res.status(500).json({ error: 'Erro ao buscar posts' });
