@@ -179,7 +179,7 @@ const adminUsersController = {
 
             res.json({
                 message: block ? 'Usuário bloqueado. O login será recusado.' : 'Usuário desbloqueado.',
-                is_blocked: !!newStatus
+                is_blocked: newStatus
             });
         } catch (error) {
             console.error('Erro ao bloquear/desbloquear:', error);
