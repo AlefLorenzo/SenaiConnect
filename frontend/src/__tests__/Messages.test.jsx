@@ -445,8 +445,8 @@ describe('Messages Page', () => {
         await waitFor(() => {
           // Chat area should be visible - it has role="region"
           expect(screen.getByRole('region')).toBeInTheDocument();
-          // And the conversation header should show the contact name
-          expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+          // The name appears in both the sidebar and the conversation header.
+          expect(screen.getByRole('banner')).toHaveTextContent('Maria Silva');
         }, { timeout: 10000 });
       } finally {
         jest.useFakeTimers();
