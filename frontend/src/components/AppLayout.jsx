@@ -1,11 +1,13 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { StoryViewerContext } from '../context/StoryViewerContext.jsx';
 import MobileBottomNav from './MobileBottomNav';
 import './AppLayout.css';
 
 const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
+  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -34,29 +36,29 @@ const AppLayout = ({ children }) => {
                          location.pathname !== '/onboarding';
 
   return (
-    <div className="app-layout">
-      {/* Main Content Area */}
-      <main className="app-main" role="main">
-        <div className="app-feed-container">
-          {children}
-        </div>
-      </main>
+    <StoryViewerContext.Provider value={{ setStoryViewerOpen: setIsStoryViewerOpen }}>
+      <div className="app-layout">
+        {/* Main Content Area */}
+        <main className="app-main" role="main">
+          <div className="app-feed-container">
+            {children}
+          </div>
+        </main>
 
-      {/* Mobile Bottom Navigation - shown on ALL screen sizes including messages */}
-      {showBottomNav && user && (
-        <MobileBottomNav
-          onCreatePost={handleCreatePost}
-          onCreateStory={() => {
-            // Navigate to home for story creation
-            handleNavigateHome();
-            sessionStorage.setItem('createStory', 'true');
-          }}
-          onNavigateHome={handleNavigateHome}
-        />
-      )}
-
-
-    </div>
+        {/* Hide the global navigation while a story is open, like WhatsApp */}
+        {showBottomNav && !isStoryViewerOpen && user && (
+          <MobileBottomNav
+            onCreatePost={handleCreatePost}
+            onCreateStory={() => {
+              // Navigate to home for story creation
+              handleNavigateHome();
+              sessionStorage.setItem('createStory', 'true');
+            }}
+            onNavigateHome={handleNavigateHome}
+          />
+        )}
+      </div>
+    </StoryViewerContext.Provider>
   );
 };
 
