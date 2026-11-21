@@ -37,8 +37,10 @@ requireOneOf(['DATABASE_URL', 'SUPABASE_DB_URL'], 'Banco PostgreSQL');
 
 validateUrl('SUPABASE_URL', ['https:', 'http:']);
 
-const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-if (databaseUrl && hasValue('DATABASE_URL') || databaseUrl && hasValue('SUPABASE_DB_URL')) {
+const databaseUrl = hasValue('DATABASE_URL')
+  ? process.env.DATABASE_URL
+  : (hasValue('SUPABASE_DB_URL') ? process.env.SUPABASE_DB_URL : '');
+if (databaseUrl) {
   try {
     const parsed = new URL(databaseUrl);
     if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
