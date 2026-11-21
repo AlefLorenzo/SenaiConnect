@@ -461,8 +461,9 @@ class MessagesService extends BaseService {
   async getHistory(conversationId, params = {}) {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 200));
-      const cacheKey = `history_${conversationId}_${JSON.stringify(params)}`;
-      if (this.isCacheValid(cacheKey)) {
+      const { forceRefresh = false, ...queryParams } = params;
+      const cacheKey = `history_${conversationId}_${JSON.stringify(queryParams)}`;
+      if (!forceRefresh && this.isCacheValid(cacheKey)) {
         return this.cache.get(cacheKey).data;
       }
 
@@ -487,12 +488,13 @@ class MessagesService extends BaseService {
       return data;
     }
 
-    const cacheKey = `history_${conversationId}_${JSON.stringify(params)}`;
-    if (this.isCacheValid(cacheKey)) {
+    const { forceRefresh = false, ...queryParams } = params;
+    const cacheKey = `history_${conversationId}_${JSON.stringify(queryParams)}`;
+    if (!forceRefresh && this.isCacheValid(cacheKey)) {
       return this.cache.get(cacheKey).data;
     }
 
-    const response = await this.getPaginated(ENDPOINTS.MESSAGES.HISTORY(conversationId), params);
+    const response = await this.getPaginated(ENDPOINTS.MESSAGES.HISTORY(conversationId), queryParams);
     // Backend returns { data: messages[], contact, isGroup, pagination }
     // Transform to expected format
     const messages = response.data || response.messages || [];
