@@ -7,7 +7,7 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import { StoryViewerContext } from '../context/StoryViewerContext.jsx';
 import './StoryViewer.css';
 
-const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact }) => {
+const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact, onStoryViewed }) => {
   const { user } = useContext(AuthContext);
   const { setStoryViewerOpen } = useContext(StoryViewerContext);
   const [currentGroupIndex, setCurrentGroupIndex] = useState(initialGroupIndex);
@@ -196,10 +196,12 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     // Load reactions for new story
     if (storyId) {
       loadReactions(storyId);
-      // Mark as viewed
-      storiesService.viewStory(storyId).catch(console.error);
+      // Update the current user's read state only after the server confirms it.
+      storiesService.viewStory(storyId)
+        .then(() => onStoryViewed?.(storyId))
+        .catch(console.error);
     }
-  }, [storyId]);
+  }, [storyId, onStoryViewed]);
 
   // Load story reactions
   const loadReactions = async (id) => {
