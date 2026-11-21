@@ -445,13 +445,14 @@ const Messages = () => {
 
   const handleMessagesRead = useCallback((data) => {
     const byUserId = data.byUserId ?? data.by_user_id;
-    if (selectedContact && byUserId === selectedContact.id) {
+    const otherParticipantId = getOtherParticipant(selectedContact)?.id;
+    if (selectedContact && String(byUserId) === String(otherParticipantId)) {
       setHistory(prev => prev.map(m =>
         (m.status === MESSAGE_STATUS.SENT || m.status === MESSAGE_STATUS.DELIVERED) ?
           { ...m, status: MESSAGE_STATUS.READ } : m
       ));
     }
-  }, [selectedContact]);
+  }, [selectedContact, MESSAGE_STATUS]);
 
   const handleTypingStart = useCallback((data) => {
     const { conversationId, userId, userName } = data;
