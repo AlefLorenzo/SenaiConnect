@@ -10,6 +10,11 @@ import { getAuthHeader } from '../config/api';
 import { USE_MOCK } from '../config/api';
 import { mockConversations, mockMessages } from '../mock/mockMessages';
 
+function createClientMessageId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+}
+
 class MessagesService extends BaseService {
   constructor() {
     super('messages');
@@ -63,6 +68,7 @@ class MessagesService extends BaseService {
     const queueItem = {
       id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...messageData,
+      clientMessageId: messageData.clientMessageId || messageData.tempId || createClientMessageId(),
       timestamp: Date.now(),
       retries: 0,
       status: 'queued'
@@ -151,7 +157,8 @@ class MessagesService extends BaseService {
           type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : item.type || 'text',
           message_type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : item.type || 'text',
           attachments: uploadedAttachments,
-          replyTo: item.replyTo
+          replyTo: item.replyTo,
+          clientMessageId: item.clientMessageId || item.tempId || item.id
         };
 
         const result = await this.sendMessage(item.conversationId, messageData, { retries: 1 });
@@ -538,11 +545,14 @@ class MessagesService extends BaseService {
     }
 
     const { retries = 2, retryDelay = 1000 } = options;
+    // Generate once, outside the retry loop, so every HTTP retry represents the same message.
+    const clientMessageId = messageData.clientMessageId || createClientMessageId();
 
     const attempt = async (attemptNumber) => {
       const formData = new FormData();
       formData.append('content', messageData.content);
       formData.append('type', messageData.type || 'text');
+      formData.append('clientMessageId', clientMessageId);
       if (messageData.replyTo) formData.append('replyTo', messageData.replyTo);
       if (messageData.attachments?.length) {
         // The current messages schema stores one media attachment per message.
