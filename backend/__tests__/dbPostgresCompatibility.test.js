@@ -134,6 +134,16 @@ describe('MySQL to PostgreSQL query compatibility', () => {
     expect(result.text).toMatch(/RETURNING id$/);
   });
 
+  test('preserves camelCase result aliases returned by legacy controllers', () => {
+    const result = translateQuery(
+      'SELECT COUNT(*) AS thisWeek, COUNT(*) AS reportsReceived FROM admin_logs',
+      []
+    );
+
+    expect(result.text).toContain('AS "thisWeek"');
+    expect(result.text).toContain('AS "reportsReceived"');
+  });
+
   test('converts MySQL pagination to PostgreSQL order', () => {
     const result = translateQuery(
       'SELECT id FROM users ORDER BY id LIMIT ?, ?',
