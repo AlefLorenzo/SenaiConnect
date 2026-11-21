@@ -1196,17 +1196,7 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA public TO authenticated;
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, anon, authenticated;
-REVOKE SELECT ON TABLE public.users FROM authenticated;
-GRANT SELECT (
-    id, name, username, email, role, admin_role, unit_id, avatar, cover_image, bio,
-    state, city, unit, area, course, links, skills, skills_to_learn, interests, objective,
-    settings, notification_prefs, accessibility_prefs, privacy_showprofile, privacy_showemail,
-    is_private, hide_email, is_blocked, is_business_owner, business_id,
-    onboarding_completed, is_verified, is_online, last_seen, last_seen_privacy,
-    xp, level, deleted_at, created_at, updated_at
-) ON TABLE public.users TO authenticated;
-GRANT UPDATE (name,username,avatar,cover_image,bio,state,city,unit,area,course,links,skills,skills_to_learn,interests,objective,settings,notification_prefs,accessibility_prefs,privacy_showprofile,privacy_showemail,is_private,hide_email)
-  ON public.users TO authenticated;
+GRANT SELECT ON public.users TO authenticated;
 
 CREATE POLICY users_select_own_profile ON public.users AS PERMISSIVE FOR SELECT TO authenticated USING ((auth_user_id = ( SELECT auth.uid() AS uid)));
 CREATE POLICY users_update_own_profile ON public.users AS PERMISSIVE FOR UPDATE TO authenticated USING ((auth_user_id = ( SELECT auth.uid() AS uid))) WITH CHECK ((auth_user_id = ( SELECT auth.uid() AS uid)));
