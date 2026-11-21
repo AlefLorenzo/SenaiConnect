@@ -81,6 +81,14 @@ const Home = () => {
     return () => window.removeEventListener('createPostTypeChanged', handleCreatePostTypeChanged);
   }, []);
 
+  // Open the story composer when requested from the mobile create sheet,
+  // including when the user is already on the home route.
+  useEffect(() => {
+    const openStoryComposer = () => setShowCreateStory(true);
+    window.addEventListener('createStoryRequested', openStoryComposer);
+    return () => window.removeEventListener('createStoryRequested', openStoryComposer);
+  }, []);
+
   // Story viewing state (for StoryViewer when clicking on stories from MobileStories)
   const [viewingStoryIndex, setViewingStoryIndex] = useState(null);
   const [storyGroups, setStoryGroups] = useState([]);
