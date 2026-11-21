@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend tests
+    name: Backend tests and syntax validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,12 +33,17 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: npm ci
+      - name: Validate syntax in every backend JavaScript file
+        working-directory: backend
+        run: |
+          find . -type d -name node_modules -prune -o -type f -name '*.js' -print0 |
+            xargs -0 -r -n1 node --check
       - name: Run backend tests
         working-directory: backend
         run: npm test -- --runInBand
 
   frontend:
-    name: Frontend tests and production build
+    name: Frontend lint, tests and production build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -52,6 +57,9 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
+      - name: Run frontend ESLint
+        working-directory: frontend
+        run: npm run lint
       - name: Run frontend tests
         working-directory: frontend
         run: npm test -- --runInBand
