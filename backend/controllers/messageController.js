@@ -238,7 +238,7 @@ const messageController = {
             const { id } = req.params;
 
             // Check if it's a group
-            const [groups] = /^\\d+$/.test(String(id))
+            const [groups] = /^\d+$/.test(String(id))
                 ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
                 : [[]];
 
@@ -362,7 +362,7 @@ const messageController = {
             const offset = (page - 1) * limit;
 
             // Check if it's a group conversation
-            const [groups] = /^\\d+$/.test(String(id))
+            const [groups] = /^\d+$/.test(String(id))
                 ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
                 : [[]];
 
@@ -741,7 +741,7 @@ const messageController = {
             const { id } = req.params;
 
             // Check if it's a group
-            const [groups] = /^\\d+$/.test(String(id))
+            const [groups] = /^\d+$/.test(String(id))
                 ? await db.query('SELECT * FROM groups_table WHERE id = ?', [id])
                 : [[]];
 
