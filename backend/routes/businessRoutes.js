@@ -57,7 +57,6 @@ router.get('/businesses', authenticateToken, businessController.listBusinesses);
 
 // Perfil público de empresa
 router.get('/businesses/:id', authenticateToken, businessController.getBusiness);
-router.get('/:id', authenticateToken, businessController.getBusiness);
 
 // Espaços publicitários disponíveis
 router.get('/ad-spaces', authenticateToken, adSpaceController.listAdSpaces);
@@ -188,5 +187,8 @@ router.delete('/admin/ad-spaces/:id', adSpaceController.adminDeleteAdSpace);
 
 // --- DENÚNCIAS ---
 // TODO: Adicionar rotas para business_reports
+
+// Keep the generic company profile route last: otherwise it captures /my-business.
+router.get('/:id', authenticateToken, businessController.getBusiness);
 
 module.exports = router;
