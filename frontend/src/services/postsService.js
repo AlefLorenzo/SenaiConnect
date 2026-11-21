@@ -47,10 +47,28 @@ class PostsService {
     return () => this.listeners.delete(callback);
   }
 
-  async getFeed() {
-    const rows = await request('/api/posts');
-    this.posts = (Array.isArray(rows) ? rows : rows.data || []).map(normalizePost);
-    return { posts: this.posts, total: this.posts.length, page: 1, limit: this.posts.length, hasMore: false };
+  async getFeed({ page = 1, limit = 20, append = false } = {}) {
+    const response = await request(`/api/posts?page=${page}&limit=${limit}`);
+    const rows = Array.isArray(response) ? response : response.data || [];
+    const incomingPosts = rows.map(normalizePost);
+
+    if (append) {
+      const existingIds = new Set(this.posts.map((post) => String(post.id)));
+      this.posts = [
+        ...this.posts,
+        ...incomingPosts.filter((post) => !existingIds.has(String(post.id))),
+      ];
+    } else {
+      this.posts = incomingPosts;
+    }
+
+    return {
+      posts: this.posts,
+      total: response.pagination?.total ?? this.posts.length,
+      page: response.pagination?.page ?? page,
+      limit: response.pagination?.limit ?? limit,
+      hasMore: Boolean(response.pagination?.hasMore),
+    };
   }
 
   async getUserPosts(userId) {
