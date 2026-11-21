@@ -21,7 +21,7 @@ const storyController = {
                     s.privacy = 'public'
                     OR s.user_id = ${viewerId || 0}
                     OR (s.privacy = 'followers' AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM close_friends WHERE user_id = s.user_id AND friend_id = ${viewerId || 0}
@@ -34,7 +34,7 @@ const storyController = {
                         SELECT 1 FROM story_privacy_exceptions spe
                         WHERE spe.story_id = s.id AND spe.exception_type = 'exclude' AND spe.user_id = ${viewerId || 0}
                     ) AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM story_privacy_exceptions spe
@@ -118,7 +118,7 @@ const storyController = {
                     s.privacy = 'public'
                     OR s.user_id = ${viewerId || 0}
                     OR (s.privacy = 'followers' AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM close_friends WHERE user_id = s.user_id AND friend_id = ${viewerId || 0}
@@ -131,7 +131,7 @@ const storyController = {
                         SELECT 1 FROM story_privacy_exceptions spe
                         WHERE spe.story_id = s.id AND spe.exception_type = 'exclude' AND spe.user_id = ${viewerId || 0}
                     ) AND EXISTS (
-                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND following_id = s.user_id
+                        SELECT 1 FROM follows WHERE follower_id = ${viewerId || 0} AND followed_id = s.user_id
                     ))
                     OR (s.privacy = 'close_friends' AND EXISTS (
                         SELECT 1 FROM story_privacy_exceptions spe
