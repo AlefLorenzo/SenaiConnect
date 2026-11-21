@@ -350,7 +350,7 @@ async function insertBatch(tx, tablePlan, sourceRows) {
   for (const sourceRow of sourceRows) {
     const row = {};
     for (const column of tablePlan.insertColumns) {
-      let value = mapSourceColumn(tableName, sourceRow, column.column_name);
+      const value = mapSourceColumn(tableName, sourceRow, column.column_name);
       if (value === undefined) continue;
 
       if (tableName === 'system_settings' && column.column_name === 'setting_value') {
@@ -360,10 +360,16 @@ async function insertBatch(tx, tablePlan, sourceRows) {
       }
     }
 
-    tuples.push('(' + colNames.map((columnName) => {
+    const tuple = colNames.map((columnName) => {
       values.push(Object.prototype.hasOwnProperty.call(row, columnName) ? row[columnName] : null);
-      return '
-    }).join(', ') + ')');
+      const placeholder = '$' + values.length;
+      const column = tablePlan.insertColumns.find((item) => item.column_name === columnName);
+      return column && ['json', 'jsonb'].includes(column.data_type)
+        ? placeholder + '::jsonb'
+        : placeholder;
+    });
+
+    tuples.push('(' + tuple.join(', ') + ')');
   }
 
   const hasIdentity = tablePlan.insertColumns.some((column) => column.is_identity === 'YES');
