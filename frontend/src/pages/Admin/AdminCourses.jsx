@@ -25,7 +25,7 @@ const AdminCourses = () => {
     const fetchCourses = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -71,7 +71,7 @@ const AdminCourses = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Tem certeza que deseja excluir este curso?')) return;
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/courses/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
