@@ -2,6 +2,9 @@
 
 .app-layout {
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   background: var(--color-bg-main, #fafafa);
@@ -19,12 +22,15 @@
   flex-direction: column;
   min-height: 0; /* Allow flex children to shrink */
   overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Feed container - centered with max-width like Instagram Web */
 .app-feed-container {
   width: 100%;
   max-width: 680px; /* Instagram-like max width */
+  min-width: 0;
   margin: 0 auto;
   padding: var(--space-4);
   padding-bottom: calc(var(--space-4) + var(--bottom-nav-height)); /* Space for bottom nav */
@@ -162,18 +168,19 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .app-feed-container {
-    padding: var(--space-3);
-    padding-bottom: calc(var(--space-3) + var(--bottom-nav-height));
+    padding: 10px 12px calc(64px + env(safe-area-inset-bottom));
   }
 
   .app-layout .mobile-bottom-nav-inner {
     height: 56px;
-    padding: 0 var(--space-3);
+    padding: 0 8px;
   }
 
   .app-layout .mobile-nav-item {
     font-size: 10px;
-    min-width: 48px;
+    min-width: 0;
+    padding-left: 4px;
+    padding-right: 4px;
   }
 
   .app-layout .create-button-inner {
@@ -200,4 +207,10 @@
   .app-layout .create-button-inner {
     transition: none;
   }
+}
+
+@media (max-width: 480px) {
+  .app-feed-container { padding-left: 10px; padding-right: 10px; }
+  .app-layout .mobile-bottom-nav-inner { max-width: 100%; }
+  .app-layout .create-button-inner { width: 42px; height: 42px; }
 }
