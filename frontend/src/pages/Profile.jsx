@@ -199,15 +199,14 @@ const Profile = () => {
               {!isOwnProfile && (
                 <button className="btn-secondary" onClick={async () => {
                   try {
-                    const conversation = await messagesService.createConversation(userId);
-                    if (conversation) {
-                      navigate(`/messages?conversationId=${conversation.id}`);
-                    } else {
-                      navigate('/messages');
-                    }
+                    const response = await messagesService.createConversation(userId);
+                    const conversation = response?.data || response?.conversation || response;
+                    const conversationId = conversation?.id ?? conversation?.conversationId ?? conversation?.conversation_id;
+                    if (!conversationId) throw new Error('O servidor não retornou o identificador da conversa.');
+                    navigate(`/messages?conversationId=${encodeURIComponent(String(conversationId))}`);
                   } catch (err) {
-                    console.error('Erro ao criar conversa:', err);
-                    navigate('/messages');
+                    console.error('Erro ao abrir conversa:', err);
+                    window.alert(err.message || 'Não foi possível abrir a conversa. Tente novamente.');
                   }
                 }}>
                   <MessageCircle size={18} />
