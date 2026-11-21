@@ -145,7 +145,16 @@ function translateQuery(originalSql, originalParams = []) {
   sql = sql.replace(/\bCURDATE\s*\(\s*\)/gi, 'CURRENT_DATE');
   sql = sql.replace(/\bDATABASE\s*\(\s*\)/gi, 'current_schema()');
   sql = sql.replace(/\bIFNULL\s*\(/gi, 'COALESCE(');
-  sql = sql.replace(/\bLIKE\b/gi, 'ILIKE');
+  sql = sql.replace(/\bDATE_FORMAT\s*\(\s*([\\w.]+)\s*,\s*'([^']*)'\s*\)/gi, (match, expression, format) => {
+    const pgFormat = format
+      .replace(/%Y/g, 'YYYY').replace(/%y/g, 'YY')
+      .replace(/%m/g, 'MM').replace(/%d/g, 'DD')
+      .replace(/%H/g, 'HH24').replace(/%h/g, 'HH12')
+      .replace(/%i/g, 'MI').replace(/%s/g, 'SS')
+      .replace(/%b/g, 'Mon').replace(/%M/g, 'Month').replace(/%W/g, 'Day');
+    return 'TO_CHAR(' + expression + ', \' ' + pgFormat.replace(/'/g, "''") + '\')';
+  });
+  sql = sql.replace(/\\bLIKE\\b/gi, 'ILIKE');
   sql = sql.replace(new RegExp(String.fromCharCode(96), 'g'), '"');
 
   sql = sql.replace(/\bINSERT\s+IGNORE\s+INTO\b/i, () => {
@@ -157,6 +166,10 @@ function translateQuery(originalSql, originalParams = []) {
   const insertTable = insertMatch
     ? (insertMatch[2] || insertMatch[1]).replace(/"/g, '').toLowerCase()
     : null;
+  const insertColumnsMatch = sql.match(/\\bINSERT\\s+INTO\\s+[^\\(]+\\(([^\\)]*)\\)\\s*VALUES\\b/i);
+  const insertColumns = insertColumnsMatch
+    ? insertColumnsMatch[1].split(',').map((column) => column.trim().replace(/"/g, '').split('.').pop().toLowerCase())
+    : [];
 
   const duplicateMatch = sql.match(/\s+ON\s+DUPLICATE\s+KEY\s+UPDATE[\s\S]*$/i);
   if (duplicateMatch) {
@@ -238,7 +251,10 @@ function translateQuery(originalSql, originalParams = []) {
             return '(' + row.map(appendParameter).join(', ') + ')';
           }).join(', ');
         } else {
-          output += appendParameter(value);
+          const parameterColumn = insertColumns.length
+            ? insertColumns[paramIndex - 1 < 0 ? 0 : (paramIndex - 1) % insertColumns.length]
+            : null;
+          output += appendParameter(value, parameterColumn);
         }
       } else {
         output += char;
