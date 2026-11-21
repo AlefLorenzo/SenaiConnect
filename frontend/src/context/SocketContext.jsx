@@ -335,6 +335,13 @@ export const SocketProvider = ({ children }) => {
     });
   }, [user, startHeartbeat, stopHeartbeat, processOfflineQueue, fetchMissedMessages, emitToHandlers]);
 
+  // Keep the live socket on the current Supabase access token after token refresh.
+  useEffect(() => {
+    if (user?.id && authSession?.access_token) {
+      updateSocketAuth(authSession.access_token);
+    }
+  }, [user?.id, authSession?.access_token]);
+
   // Initialize socket when user logs in
   useEffect(() => {
     console.log('[SocketContext] Effect running, user:', user?.id);
