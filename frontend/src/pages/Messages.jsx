@@ -406,31 +406,61 @@ const Messages = () => {
 
   // Socket event handlers
   const handleNewMessage = useCallback((msg) => {
-    const msgId = msg.id || msg.tempId;
-    if (processedSocketMessagesRef.current.has(msgId)) return;
-    processedSocketMessagesRef.current.add(msgId);
+    const msgId = msg.id ?? msg.message_id ?? msg.tempId;
+    const normalizedMessageId = msgId == null ? null : String(msgId);
+    if (normalizedMessageId && processedSocketMessagesRef.current.has(normalizedMessageId)) return;
+    if (normalizedMessageId) processedSocketMessagesRef.current.add(normalizedMessageId);
 
     const senderId = msg.sender_id ?? msg.senderId;
     const receiverId = msg.receiver_id ?? msg.receiverId;
     const conversationId = msg.conversation_id ?? msg.conversationId;
+    const belongsToOpenConversation = selectedContact && (
+      String(conversationId) === String(selectedContact.id) ||
+      String(senderId) === String(selectedContact.id) ||
+      String(receiverId) === String(selectedContact.id)
+    );
 
-    if (selectedContact && (conversationId === selectedContact.id ||
-        (senderId === selectedContact.id || receiverId === selectedContact.id))) {
-      // Check if message already exists in history (deduplication)
-      const exists = history.some(m => m.id === msgId) ||
-                     history.some(m => m.content === msg.content && m.senderId === senderId &&
-                       Math.abs(new Date(m.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 1000);
-      if (!exists) {
-        setHistory(prev => [...prev, msg]);
-      }
-      // Send read receipt if we're viewing this conversation
+    if (belongsToOpenConversation) {
+      setHistory(prev => {
+        const duplicateIndex = prev.findIndex(existing => {
+          if (normalizedMessageId && String(existing.id) === normalizedMessageId) return true;
+          if (msg.tempId && String(existing.tempId) === String(msg.tempId)) return true;
+
+          // Reconcile the server echo with the optimistic outgoing message.
+          const existingSender = existing.sender_id ?? existing.senderId;
+          const isPendingOwnMessage = String(existingSender) === String(user?.id) &&
+            (existing.status === MESSAGE_STATUS.SENDING || existing.tempId);
+          const samePayload = isPendingOwnMessage &&
+            String(existing.content ?? '') === String(msg.content ?? '') &&
+            Math.abs(new Date(existing.createdAt ?? existing.created_at).getTime() -
+              new Date(msg.createdAt ?? msg.created_at).getTime()) < 30000;
+          return Boolean(samePayload);
+        });
+
+        if (duplicateIndex >= 0) {
+          const current = prev[duplicateIndex];
+          if (current.tempId && normalizedMessageId) {
+            const reconciled = [...prev];
+            reconciled[duplicateIndex] = { ...msg, tempId: current.tempId };
+            messageIdsRef.current.delete(current.id);
+            messageIdsRef.current.delete(current.tempId);
+            messageIdsRef.current.add(msgId);
+            return reconciled;
+          }
+          return prev;
+        }
+
+        if (normalizedMessageId && messageIdsRef.current.has(msgId)) return prev;
+        if (normalizedMessageId) messageIdsRef.current.add(msgId);
+        return [...prev, msg];
+      });
+
       sendMessagesRead(selectedContact.id);
     } else {
-      // Update conversation list
       fetchConversations();
       fetchGroups();
     }
-  }, [selectedContact, history, sendMessagesRead, fetchConversations, fetchGroups]);
+  }, [selectedContact, sendMessagesRead, fetchConversations, fetchGroups, user?.id, MESSAGE_STATUS]);
 
   const handleMessageStatus = useCallback((data) => {
     const { messageId, tempId, status } = data;
