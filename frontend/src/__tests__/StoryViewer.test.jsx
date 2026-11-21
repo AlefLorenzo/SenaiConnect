@@ -118,6 +118,29 @@ describe('StoryViewer', () => {
     jest.useRealTimers();
   });
 
+  test('locks document and feed scrolling while the story viewer is open', () => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalRootOverflow = document.documentElement.style.overflow;
+
+    const { unmount } = renderStoryViewer();
+
+    expect(document.documentElement).toHaveClass('story-viewer-open');
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    expect(document.body.style.position).toBe('fixed');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    const touchMove = new Event('touchmove', { bubbles: true, cancelable: true });
+    document.body.dispatchEvent(touchMove);
+    expect(touchMove.defaultPrevented).toBe(true);
+
+    unmount();
+
+    expect(document.documentElement).not.toHaveClass('story-viewer-open');
+    expect(document.body.style.position).toBe('');
+    expect(document.body.style.overflow).toBe(originalBodyOverflow);
+    expect(document.documentElement.style.overflow).toBe(originalRootOverflow);
+  });
+
   test('renders story viewer with first story', () => {
     renderStoryViewer();
     // Use more specific selector - the user name appears in both Avatar and header
