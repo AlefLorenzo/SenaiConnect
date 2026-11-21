@@ -445,7 +445,7 @@ const Messages = () => {
 
   const handleMessagesRead = useCallback((data) => {
     const byUserId = data.byUserId ?? data.by_user_id;
-    const otherParticipantId = getOtherParticipant(selectedContact)?.id;
+    const otherParticipantId = selectedContact ? getOtherParticipant(selectedContact)?.id : null;
     if (selectedContact && String(byUserId) === String(otherParticipantId)) {
       setHistory(prev => prev.map(m =>
         (m.status === MESSAGE_STATUS.SENT || m.status === MESSAGE_STATUS.DELIVERED) ?
