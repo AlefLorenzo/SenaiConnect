@@ -152,6 +152,7 @@ function App() {
               <Route path="/business/profile" element={<BusinessProfilePage />} />
 
               {/* Auth routes (public) */}
+              <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -169,7 +170,6 @@ function App() {
                 <Route path="events" element={<AdminEvents />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="settings" element={<AdminSettings />} />
-                <Route path="login" element={<AdminLogin />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>
 
