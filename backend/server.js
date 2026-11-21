@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const postRoutes = require('./routes/postRoutes');
 const userRoutes = require('./routes/userRoutes');
 const groupRoutes = require('./routes/groupRoutes');
@@ -83,6 +84,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
@@ -103,7 +105,7 @@ app.get('/', (req, res) => {
     res.status(200).json({ message: 'API SENAI Connect Rodando (MVC) na porta 5000!' });
 });
 
-const PORT = 5000; // Alterado para 5000 pois a 3000 pode estar ocupada
+const PORT = Number(process.env.PORT || 5000);
 server.listen(PORT, () => {
     console.log(`Servidor MVC rodando na porta ${PORT}`);
 
