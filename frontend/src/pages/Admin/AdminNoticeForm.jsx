@@ -70,7 +70,7 @@ const AdminNoticeForm = () => {
         mountedRef.current = true;
         const loadNotice = async () => {
             try {
-                const token = sessionStorage.getItem('admin_token');
+                const token = sessionStorage.getItem('token');
                 const res = await fetch(`${API_URL}/api/admin/notices/${id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -149,7 +149,7 @@ const AdminNoticeForm = () => {
         formData.append('file', file);
         formData.append('folder', 'notices');
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/upload`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
@@ -174,7 +174,7 @@ const AdminNoticeForm = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const recipients = buildRecipients();
 
             // Upload files if selected
