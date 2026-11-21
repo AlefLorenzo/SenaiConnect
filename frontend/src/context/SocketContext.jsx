@@ -156,7 +156,9 @@ export const SocketProvider = ({ children }) => {
 
     try {
       const { messagesService } = await import('../services/messagesService');
-      const conversations = await messagesService.getConversations();
+      // Bypass the service cache so reconnection recovery sees messages committed moments ago.
+      messagesService.clearCache();
+      const conversations = await messagesService.getConversations('all', true);
 
       for (const conv of conversations.data || conversations) {
         if (conv.last_message?.createdAt) {
@@ -172,6 +174,7 @@ export const SocketProvider = ({ children }) => {
           }
         }
       }
+      localStorage.setItem(`last_seen_${user?.id}`, Date.now().toString());
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403') || err.message?.includes('Token')) {
         console.warn('Skipping missed messages fetch - auth required:', err.message);
@@ -182,6 +185,27 @@ export const SocketProvider = ({ children }) => {
       missedMessagesCheckRef.current = false;
     }
   }, [emitToHandlers]);
+
+  // When the realtime transport is unavailable, recover new messages from the database.
+  // This keeps inboxes usable while Socket.IO is reconnecting or a mobile browser suspends it.
+  useEffect(() => {
+    if (!user?.id || isConnected || USE_MOCK) return undefined;
+
+    const recoverMessages = () => {
+      if (document.visibilityState !== 'visible') return;
+      const lastSeen = Number(localStorage.getItem(`last_seen_${user.id}`) || 0);
+      fetchMissedMessages(lastSeen);
+    };
+
+    recoverMessages();
+    const intervalId = window.setInterval(recoverMessages, 12000);
+    window.addEventListener('online', recoverMessages);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('online', recoverMessages);
+    };
+  }, [user?.id, isConnected, fetchMissedMessages]);
 
   // Setup socket event listeners
   const setupSocketListeners = useCallback((socket) => {
