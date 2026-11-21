@@ -362,6 +362,7 @@ const db = {
     const query = makeQueryHandler(connection);
     return {
       query,
+      execute: query,
       beginTransaction: () => connection.unsafe('BEGIN'),
       commit: () => connection.unsafe('COMMIT'),
       rollback: () => connection.unsafe('ROLLBACK'),
