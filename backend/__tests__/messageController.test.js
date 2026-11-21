@@ -198,9 +198,9 @@ describe('messageController', () => {
         if (sql.includes('INSERT INTO group_messages')) {
           return Promise.resolve([{ insertId: 1 }]);
         }
-        // Query 4: Get new message with sender info
-        if (sql.includes('group_messages gm') && sql.includes('JOIN users')) {
-          return Promise.resolve([ [{
+        // Query 4: Read inserted message by its ID (idempotent insert flow).
+        if (sql.includes('SELECT * FROM group_messages WHERE id = ?')) {
+          return Promise.resolve([[{
             id: 1,
             group_id: 1,
             sender_id: 1,
@@ -212,11 +212,13 @@ describe('messageController', () => {
             attachment_size: null,
             attachment_type: null,
             created_at: new Date(),
-            sender_name: 'Test User',
-            sender_avatar: null,
-          } ]]);
+          }]]);
         }
-        // Query 5: Get group members (excluding sender)
+        // Query 5: Load sender details after reading the inserted message.
+        if (sql.includes('SELECT name, avatar FROM users WHERE id = ?')) {
+          return Promise.resolve([[{ name: 'Test User', avatar: null }]]);
+        }
+        // Query 6: Get group members (excluding sender)
         if (sql.includes('group_members') && sql.includes('user_id != ?')) {
           return Promise.resolve([[{ user_id: 2 }, { user_id: 3 }, { user_id: 4 }]]);
         }
@@ -295,7 +297,7 @@ describe('messageController', () => {
           return Promise.resolve([[{ id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all' }]]);
         }
         // Query 3: Get messages
-        if (sql.includes('SELECT * FROM messages') && sql.includes('ORDER BY created_at ASC')) {
+        if (sql.includes('SELECT * FROM messages') && sql.includes('ORDER BY created_at DESC')) {
           const mockMessages = [
             { id: 1, content: 'Msg 1', sender_id: 1, receiver_id: 2, status: 'lida', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T10:30:00Z' },
             { id: 2, content: 'Msg 2', sender_id: 2, receiver_id: 1, status: 'enviada', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:00:00Z' },
