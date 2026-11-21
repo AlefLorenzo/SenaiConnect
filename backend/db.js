@@ -341,6 +341,7 @@ function makeQueryHandler(client) {
 
 const db = {
   query: (...args) => makeQueryHandler(getSqlClient())(...args),
+  execute: (...args) => makeQueryHandler(getSqlClient())(...args),
 
   getConnection: async () => {
     const connection = await getSqlClient().reserve();
