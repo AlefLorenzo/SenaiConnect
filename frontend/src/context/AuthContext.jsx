@@ -17,7 +17,7 @@ function readStoredSession() {
 }
 
 function saveSession(session) {
-    if (session && session.access_token) {
+    if (session && session.access_token && session.refresh_token) {
         localStorage.setItem(SESSION_KEY, JSON.stringify(session));
         sessionStorage.setItem('token', session.access_token);
     }
@@ -36,8 +36,42 @@ async function loadProfile(token) {
     return { response, data };
 }
 
+async function refreshAccessSession(refreshToken) {
+    const response = await fetch(API_URL + '/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const error = new Error(data.error || 'Não foi possível renovar a sessão.');
+        error.status = response.status;
+        throw error;
+    }
+
+    if (!data.session || !data.token || !data.session.refresh_token) {
+        const error = new Error('O servidor retornou uma sessão de renovação incompleta.');
+        error.status = 502;
+        throw error;
+    }
+
+    return data;
+}
+
+function getSessionExpiry(session) {
+    const explicitExpiry = Number(session && session.expires_at);
+    if (Number.isFinite(explicitExpiry) && explicitExpiry > 0) {
+        return explicitExpiry;
+    }
+
+    const expiresIn = Number(session && session.expires_in);
+    return Math.floor(Date.now() / 1000) + (Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 3600);
+}
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [authSession, setAuthSession] = useState(() => readStoredSession());
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -61,7 +95,10 @@ export const AuthProvider = ({ children }) => {
             let token = (storedSession && storedSession.access_token) || sessionStorage.getItem('token');
 
             if (!token) {
-                if (active) setLoading(false);
+                if (active) {
+                    setAuthSession(null);
+                    setLoading(false);
+                }
                 return;
             }
 
@@ -70,37 +107,37 @@ export const AuthProvider = ({ children }) => {
                 let currentSession = storedSession;
 
                 if (result.response.status === 401 && storedSession && storedSession.refresh_token) {
-                    const refreshResponse = await fetch(API_URL + '/api/auth/refresh', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refresh_token: storedSession.refresh_token })
-                    });
-                    const refreshed = await refreshResponse.json().catch(() => ({}));
-
-                    if (refreshResponse.ok && refreshed.session && refreshed.token) {
-                        currentSession = refreshed.session;
-                        token = refreshed.token;
-                        saveSession(currentSession);
-                        result = await loadProfile(token);
-                    }
+                    const refreshed = await refreshAccessSession(storedSession.refresh_token);
+                    currentSession = refreshed.session;
+                    token = refreshed.token;
+                    result = await loadProfile(token);
                 }
 
                 if (!active) return;
 
                 if (result.response.ok && result.data && !result.data.error) {
                     setUser(result.data);
+                    setAuthSession(currentSession || null);
                     if (currentSession) saveSession(currentSession);
                     else sessionStorage.setItem('token', token);
-                } else if (result.response.status === 401 || result.response.status === 403 || result.response.status === 404) {
+                } else if ([401, 403, 404].includes(result.response.status)) {
                     clearSession();
+                    setAuthSession(null);
                     setUser(null);
                 } else {
-                    // Não apaga a sessão em falhas temporárias de rede/servidor.
+                    // Falhas temporárias não invalidam uma sessão que ainda pode ser renovada.
                     setUser(null);
+                    setAuthSession(currentSession || null);
                 }
             } catch (error) {
                 console.error('Não foi possível restaurar a sessão:', error);
-                if (active) setUser(null);
+                if (active) {
+                    if ([400, 401, 403].includes(error.status)) {
+                        clearSession();
+                        setAuthSession(null);
+                    }
+                    setUser(null);
+                }
             } finally {
                 if (active) setLoading(false);
             }
@@ -112,12 +149,65 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
-    const login = useCallback((token, userData, authSession) => {
-        if (authSession && authSession.access_token) {
-            saveSession(authSession);
+    // Renova o access token automaticamente antes de expirar. A renovação usa
+    // o endpoint do backend para manter a chave e a lógica do Supabase no servidor.
+    useEffect(() => {
+        if (USE_MOCK || !authSession || !authSession.refresh_token) return undefined;
+
+        let cancelled = false;
+        let timeoutId = null;
+
+        const schedule = (delay) => {
+            if (cancelled) return;
+            if (timeoutId) window.clearTimeout(timeoutId);
+            timeoutId = window.setTimeout(renew, delay);
+        };
+
+        const renew = async () => {
+            if (cancelled) return;
+
+            try {
+                const refreshed = await refreshAccessSession(authSession.refresh_token);
+                if (cancelled) return;
+
+                saveSession(refreshed.session);
+                setAuthSession(refreshed.session);
+                setUser(refreshed.user || null);
+            } catch (error) {
+                if (cancelled) return;
+
+                if ([400, 401, 403].includes(error.status)) {
+                    clearSession();
+                    setAuthSession(null);
+                    setUser(null);
+                    return;
+                }
+
+                console.warn('A renovação automática da sessão falhou temporariamente:', error);
+                // Erros de rede/limite/servidor são tentados novamente sem desconectar o usuário.
+                schedule(error.status === 429 ? 60000 : 30000);
+            }
+        };
+
+        const secondsUntilExpiry = getSessionExpiry(authSession) - Math.floor(Date.now() / 1000);
+        schedule(Math.max(1000, (secondsUntilExpiry - 60) * 1000));
+
+        return () => {
+            cancelled = true;
+            if (timeoutId) window.clearTimeout(timeoutId);
+        };
+    }, [authSession]);
+
+    const login = useCallback((token, userData, session) => {
+        if (session && session.access_token && session.refresh_token) {
+            saveSession(session);
+            setAuthSession(session);
         } else if (token) {
+            localStorage.removeItem(SESSION_KEY);
             sessionStorage.setItem('token', token);
+            setAuthSession(null);
         }
+
         setUser(userData || null);
     }, []);
 
@@ -133,7 +223,9 @@ export const AuthProvider = ({ children }) => {
                 console.warn('A sessão local será encerrada; o servidor não respondeu ao logout.', error);
             }
         }
+
         clearSession();
+        setAuthSession(null);
         setUser(null);
     }, []);
 
