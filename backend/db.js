@@ -136,7 +136,7 @@ function translateQuery(originalSql, originalParams = []) {
     throw new TypeError('A consulta SQL precisa ser uma string não vazia.');
   }
 
-  const params = Array.isArray(originalParams) ? originalParams : [originalParams];
+  let params = Array.isArray(originalParams) ? originalParams : [originalParams];
   let sql = normalizeMysqlQuotes(originalSql.trim());
   let ignoreConflicts = false;
 
@@ -160,6 +160,8 @@ function translateQuery(originalSql, originalParams = []) {
 
   const duplicateMatch = sql.match(/\s+ON\s+DUPLICATE\s+KEY\s+UPDATE[\s\S]*$/i);
   if (duplicateMatch) {
+    const removedParameters = (duplicateMatch[0].match(/\?/g) || []).length;
+    if (removedParameters > 0) params = params.slice(0, Math.max(0, params.length - removedParameters));
     const conflictClause = UPSERT_CONFLICTS[insertTable];
     if (!conflictClause) {
       throw new Error(
@@ -171,8 +173,8 @@ function translateQuery(originalSql, originalParams = []) {
   }
 
   sql = sql.replace(
-    /\b(is_valid|is_active|is_read|is_sponsored|is_edited|deleted_for_everyone|is_private|is_pinned|send_notification|used|privacy_showemail|hide_email|is_blocked|is_business_owner|onboarding_completed|is_verified|is_online)\s*=\s*([01])\b/gi,
-    (match, column, value) => column + ' = ' + (value === '1' ? 'TRUE' : 'FALSE')
+    /\b(is_valid|is_active|is_read|is_sponsored|is_edited|deleted_for_everyone|is_private|is_pinned|send_notification|used|privacy_showemail|hide_email|is_blocked|is_business_owner|onboarding_completed|is_verified|is_online)\s*(=|<>|!=)\s*([01])\b/gi,
+    (match, column, operator, value) => column + ' ' + operator + ' ' + (value === '1' ? 'TRUE' : 'FALSE')
   );
 
   let output = '';
