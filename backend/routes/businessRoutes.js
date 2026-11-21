@@ -45,20 +45,20 @@ async function getBusinessAnalytics(req, res) {
 
         const [totals, daily, posts, campaigns] = await Promise.all([
             db.query(
-                \`SELECT
-                    (SELECT COUNT(*) FROM ad_impressions WHERE business_id = ? AND is_valid = TRUE AND viewed_at >= NOW() - INTERVAL '\${interval}') AS impressions,
-                    (SELECT COUNT(*) FROM ad_clicks WHERE business_id = ? AND is_valid = TRUE AND clicked_at >= NOW() - INTERVAL '\${interval}') AS clicks,
+                `SELECT
+                    (SELECT COUNT(*) FROM ad_impressions WHERE business_id = ? AND is_valid = TRUE AND viewed_at >= NOW() - INTERVAL '${interval}') AS impressions,
+                    (SELECT COUNT(*) FROM ad_clicks WHERE business_id = ? AND is_valid = TRUE AND clicked_at >= NOW() - INTERVAL '${interval}') AS clicks,
                     (SELECT COUNT(*) FROM business_followers WHERE business_id = ?) AS followers,
                     (SELECT COUNT(*) FROM business_posts WHERE business_id = ? AND status = 'published') AS posts,
                     (SELECT COUNT(*) FROM business_stories WHERE business_id = ? AND expires_at > NOW()) AS stories,
                     (SELECT COUNT(*) FROM business_campaigns WHERE business_id = ?) AS campaigns,
-                    (SELECT COALESCE(SUM(spent), 0) FROM business_campaigns WHERE business_id = ?) AS spent\`,
+                    (SELECT COALESCE(SUM(spent), 0) FROM business_campaigns WHERE business_id = ?) AS spent`,
                 [businessId, businessId, businessId, businessId, businessId, businessId, businessId]
             ),
             db.query(
-                \`WITH days AS (
+                `WITH days AS (
                     SELECT generate_series(
-                        date_trunc('day', NOW() - INTERVAL '\${interval}'),
+                        date_trunc('day', NOW() - INTERVAL '${interval}'),
                         date_trunc('day', NOW()),
                         INTERVAL '1 day'
                     ) AS day
@@ -67,14 +67,14 @@ async function getBusinessAnalytics(req, res) {
                     SELECT date_trunc('day', viewed_at) AS day, COUNT(*)::int AS total
                     FROM ad_impressions
                     WHERE business_id = ? AND is_valid = TRUE
-                      AND viewed_at >= NOW() - INTERVAL '\${interval}'
+                      AND viewed_at >= NOW() - INTERVAL '${interval}'
                     GROUP BY 1
                 ),
                 clicks AS (
                     SELECT date_trunc('day', clicked_at) AS day, COUNT(*)::int AS total
                     FROM ad_clicks
                     WHERE business_id = ? AND is_valid = TRUE
-                      AND clicked_at >= NOW() - INTERVAL '\${interval}'
+                      AND clicked_at >= NOW() - INTERVAL '${interval}'
                     GROUP BY 1
                 )
                 SELECT
@@ -87,27 +87,27 @@ async function getBusinessAnalytics(req, res) {
                 FROM days
                 LEFT JOIN impressions ON impressions.day = days.day
                 LEFT JOIN clicks ON clicks.day = days.day
-                ORDER BY days.day\`,
+                ORDER BY days.day`,
                 [businessId, businessId]
             ),
             db.query(
-                \`SELECT id, content, post_type, views_count, likes_count, comments_count
+                `SELECT id, content, post_type, views_count, likes_count, comments_count
                  FROM business_posts
-                 WHERE business_id = ? AND created_at >= NOW() - INTERVAL '\${interval}'
+                 WHERE business_id = ? AND created_at >= NOW() - INTERVAL '${interval}'
                  ORDER BY (likes_count + comments_count + shares_count) DESC, created_at DESC
-                 LIMIT 5\`,
+                 LIMIT 5`,
                 [businessId]
             ),
             db.query(
-                \`SELECT id, name, billing_model,
+                `SELECT id, name, billing_model,
                         impressions_count AS impressions,
                         clicks_count AS clicks,
                         ctr,
                         spent
                  FROM business_campaigns
-                 WHERE business_id = ? AND created_at >= NOW() - INTERVAL '\${interval}'
+                 WHERE business_id = ? AND created_at >= NOW() - INTERVAL '${interval}'
                  ORDER BY clicks_count DESC, created_at DESC
-                 LIMIT 5\`,
+                 LIMIT 5`,
                 [businessId]
             )
         ]);
@@ -169,19 +169,19 @@ async function getBusinessBilling(req, res) {
 
         const [invoiceRows, countRows, summaryRows] = await Promise.all([
             db.query(
-                \`SELECT invoices.*,
+                `SELECT invoices.*,
                         business_campaigns.name AS campaign_name
                  FROM invoices
                  LEFT JOIN business_campaigns
                    ON business_campaigns.id = invoices.campaign_id
                  WHERE invoices.business_id = ?
                  ORDER BY invoices.created_at DESC
-                 LIMIT ? OFFSET ?\`,
+                 LIMIT ? OFFSET ?`,
                 [businessId, limit, offset]
             ),
             db.query('SELECT COUNT(*) AS total FROM invoices WHERE business_id = ?', [businessId]),
             db.query(
-                \`SELECT
+                `SELECT
                     COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) AS "totalPaid",
                     COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) AS "totalPending",
                     COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) AS "totalRevenue",
@@ -190,7 +190,7 @@ async function getBusinessBilling(req, res) {
                         AND paid_at < date_trunc('month', NOW()) + INTERVAL '1 month'
                         THEN amount ELSE 0 END), 0) AS "thisMonth"
                  FROM invoices
-                 WHERE business_id = ?\`,
+                 WHERE business_id = ?`,
                 [businessId]
             )
         ]);
@@ -215,9 +215,9 @@ async function getBusinessBilling(req, res) {
 function escapePdfText(value) {
     return String(value ?? '')
         .normalize('NFD')
-        .replace(/[\\u0300-\\u036f]/g, '')
-        .replace(/[^\\x20-\\x7E]/g, '')
-        .replace(/([\\\\()])/g, '\\\\$1');
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\x20-\x7E]/g, '')
+        .replace(/([\\()])/g, '\\$1');
 }
 
 function createInvoicePdf(invoice) {
@@ -237,39 +237,39 @@ function createInvoicePdf(invoice) {
     const commands = ['BT', '/F1 16 Tf', '50 790 Td', '(' + escapePdfText(lines[0]) + ') Tj', '/F1 10 Tf'];
     for (const line of lines.slice(1)) commands.push('0 -28 Td', '(' + escapePdfText(line) + ') Tj');
     commands.push('ET');
-    const stream = commands.join('\\n');
+    const stream = commands.join('\n');
     const objects = [
         '<< /Type /Catalog /Pages 2 0 R >>',
         '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
         '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
         '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-        '<< /Length ' + Buffer.byteLength(stream, 'ascii') + ' >>\\nstream\\n' + stream + '\\nendstream'
+        '<< /Length ' + Buffer.byteLength(stream, 'ascii') + ' >>\nstream\n' + stream + '\nendstream'
     ];
 
-    let pdf = '%PDF-1.4\\n';
+    let pdf = '%PDF-1.4\n';
     const offsets = [0];
     objects.forEach((object, index) => {
         offsets.push(Buffer.byteLength(pdf, 'ascii'));
-        pdf += (index + 1) + ' 0 obj\\n' + object + '\\nendobj\\n';
+        pdf += (index + 1) + ' 0 obj\n' + object + '\nendobj\n';
     });
     const xrefOffset = Buffer.byteLength(pdf, 'ascii');
-    pdf += 'xref\\n0 ' + (objects.length + 1) + '\\n0000000000 65535 f \\n';
-    for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, '0') + ' 00000 n \\n';
-    pdf += 'trailer\\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\\nstartxref\\n' + xrefOffset + '\\n%%EOF';
+    pdf += 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n';
+    for (const offset of offsets.slice(1)) pdf += String(offset).padStart(10, '0') + ' 00000 n \n';
+    pdf += 'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefOffset + '\n%%EOF';
     return Buffer.from(pdf, 'ascii');
 }
 
 async function downloadBusinessInvoice(req, res) {
     try {
         const [rows] = await db.query(
-            \`SELECT invoices.*, businesses.company_name,
+            `SELECT invoices.*, businesses.company_name,
                     business_campaigns.name AS campaign_name
              FROM invoices
              JOIN businesses ON businesses.id = invoices.business_id
              LEFT JOIN business_campaigns ON business_campaigns.id = invoices.campaign_id
              WHERE invoices.id = ? AND invoices.business_id = businesses.id
                AND businesses.owner_user_id = ?
-             LIMIT 1\`,
+             LIMIT 1`,
             [req.params.id, req.user.id]
         );
         if (!rows.length) return res.status(404).json({ error: 'Fatura não encontrada para esta empresa.' });
