@@ -267,7 +267,7 @@ const messageController = {
             }
 
             // Individual conversation IDs may be canonical "userA_userB" values.
-            const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : Number(id);
+            const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : id;
             if (!Number.isInteger(peerId) || peerId <= 0 || peerId === Number(loggedUserId)) {
                 return res.status(400).json({ error: 'Identificador de conversa inválido.' });
             }
@@ -427,7 +427,7 @@ const messageController = {
                 });
             } else {
                 // Individual messages use the same canonical ID as the conversation list.
-                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : Number(id);
+                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : id;
                 if (!Number.isInteger(peerId) || peerId <= 0 || peerId === Number(loggedUserId)) {
                     return res.status(400).json({ error: 'Identificador de conversa inválido.' });
                 }
@@ -766,7 +766,7 @@ const messageController = {
                 }
             } else {
                 // Individual IDs are canonical "userA_userB" values; resolve and validate the peer.
-                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : Number(id);
+                const peerId = String(id).includes('_') ? resolveIndividualPeerId(id, loggedUserId) : id;
                 if (!Number.isInteger(peerId) || peerId <= 0 || peerId === Number(loggedUserId)) {
                     return res.status(400).json({ error: 'Identificador de conversa inválido.' });
                 }
