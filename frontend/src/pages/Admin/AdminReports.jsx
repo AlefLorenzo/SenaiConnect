@@ -49,7 +49,7 @@ const AdminReports = () => {
     const fetchReports = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -80,7 +80,7 @@ const AdminReports = () => {
 
     const fetchStats = useCallback(async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/reports/stats`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -281,7 +281,7 @@ const AdminReports = () => {
 
 const startReview = async (id) => {
     try {
-        const token = sessionStorage.getItem('admin_token');
+        const token = sessionStorage.getItem('token');
         const res = await fetch(`${API_URL}/api/admin/reports/${id}/review`, {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${token}` }
