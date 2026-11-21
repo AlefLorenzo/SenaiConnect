@@ -26,7 +26,7 @@ const UPSERT_CONFLICTS = {
   group_muted: 'ON CONFLICT (group_id, user_id) DO UPDATE SET muted_at = NOW()',
   group_important: 'ON CONFLICT (group_id, user_id) DO UPDATE SET marked_at = NOW()',
   group_last_read: 'ON CONFLICT (group_id, user_id) DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id',
-  group_admins: 'ON CONFLICT (group_id, admin_id) DO UPDATE SET assigned_at = NOW()'
+  group_admins: 'ON CONFLICT (group_id, admin_id) DO UPDATE SET assigned_at = NOW(), assigned_by = EXCLUDED.assigned_by'
 };
 
 let sqlClient;
