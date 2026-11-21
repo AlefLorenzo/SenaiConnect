@@ -17,7 +17,7 @@ export default defineConfig([
       globals: {
         ...globals.browser,
         ...globals.node,
-        jest: 'readonly',
+        ...globals.jest,
       },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
@@ -28,6 +28,8 @@ export default defineConfig([
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/purity': 'warn',
       'react-hooks/immutability': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': 'warn',
     },
