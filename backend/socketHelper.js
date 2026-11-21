@@ -104,7 +104,7 @@ function init(server) {
     },
     // Disable WebSocket transport to avoid upgrade issues through proxy
     // Use only polling for stability
-    transports: ['polling'],
+    transports: ['websocket', 'polling'],
     // Enable built-in ping/pong for polling stability
     pingInterval: 25000,
     pingTimeout: 60000
