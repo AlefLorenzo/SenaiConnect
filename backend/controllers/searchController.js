@@ -74,13 +74,13 @@ const searchController = {
 
             // People you might know (same course/unit, not yet following) - with privacy
             const [people] = await db.query(
-                `SELECT u.id, u.name, u.avatar, u.role, u.bio, u.course, u.unit,
+                `SELECT u.id, u.name, u.avatar, u.role, u.bio, u.course, u.unit, u.is_online,
                  ${buildEmailSelectClause(userId, 'u')},
                  ${buildProfileVisibilityClause(userId, 'u')},
+                 EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = u.id) as is_following,
                  (SELECT COUNT(*) FROM follows WHERE followed_id = u.id) as followers_count
                  FROM users u
                  WHERE u.id != ?
-                 AND NOT EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = u.id)
                  AND NOT EXISTS (SELECT 1 FROM blocks WHERE blocker_id = ? AND blocked_id = u.id)
                  AND ${buildPrivacyWhereClause(userId, 'u')}
                  ORDER BY
@@ -92,7 +92,7 @@ const searchController = {
                      ELSE 4
                    END,
                    followers_count DESC
-                 LIMIT 8`,
+                 LIMIT 100`,
                 [userId, userId, userId, me?.course || '', me?.unit || '', me?.course || '', me?.unit || '']
             );
 
