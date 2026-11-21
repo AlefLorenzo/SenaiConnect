@@ -1,36 +1,67 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
-const SECRET_KEY = process.env.JWT_SECRET || 'senai_connect_super_secret_key';
+const db = require('../db');
+const { supabaseAuthRequest } = require('../services/supabaseAuth');
 
-function requireAdmin(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+async function requireAdmin(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 
-    if (!token) {
-        return res.status(401).json({ error: 'Token administrativo não fornecido.' });
+        if (!token) {
+            return res.status(401).json({ error: 'Token administrativo não fornecido.' });
+        }
+
+        const authUser = await supabaseAuthRequest('user', {
+            method: 'GET',
+            accessToken: token
+        });
+
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Sessão administrativa inválida ou expirada.' });
+        }
+
+        const [profiles] = await db.query(
+            'SELECT id, name, email, role, admin_role, unit_id, is_blocked FROM users WHERE auth_user_id = ?',
+            [authUser.id]
+        );
+
+        if (!profiles.length || !profiles[0].admin_role) {
+            return res.status(403).json({ error: 'Acesso negado: esta conta não possui permissão administrativa.' });
+        }
+
+        const profile = profiles[0];
+        if (profile.is_blocked) {
+            return res.status(403).json({ error: 'Conta administrativa bloqueada.' });
+        }
+
+        req.admin = {
+            id: profile.id,
+            user_id: profile.id,
+            authUserId: authUser.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role,
+            admin_role: profile.admin_role,
+            unit_id: profile.unit_id
+        };
+
+        return next();
+    } catch (error) {
+        if (error.status === 401 || error.status === 403) {
+            return res.status(error.status).json({ error: 'Sessão administrativa inválida ou sem permissão.' });
+        }
+        console.error('Falha ao validar sessão administrativa:', error);
+        return res.status(error.status || 503).json({
+            error: error.status === 503 ? error.message : 'Não foi possível validar a sessão administrativa.'
+        });
     }
-
-    jwt.verify(token, SECRET_KEY, (err, decoded) => {
-        if (err) {
-            return res.status(403).json({ error: 'Token inválido ou expirado.' });
-        }
-
-        // Validação: usuário deve ter admin_role
-        if (!decoded.admin_role) {
-            return res.status(403).json({ error: 'Acesso negado: Usuário não possui papel administrativo.' });
-        }
-
-        req.admin = decoded;
-        next();
-    });
 }
 
 function requireRole(roles) {
     return (req, res, next) => {
         if (!req.admin || !roles.includes(req.admin.admin_role)) {
-            return res.status(403).json({ error: 'Acesso negado: Você não possui permissão para esta ação.' });
+            return res.status(403).json({ error: 'Acesso negado: você não possui permissão para esta ação.' });
         }
-        next();
+        return next();
     };
 }
 
@@ -40,27 +71,17 @@ function requireUnitAccess(targetUnitId) {
             return res.status(403).json({ error: 'Acesso negado.' });
         }
 
-        // Super admin pode acessar tudo
-        if (req.admin.admin_role === 'super_admin') {
+        if (req.admin.admin_role === 'super_admin') return next();
+
+        if (req.admin.admin_role === 'admin_unidade' &&
+            Number(req.admin.unit_id) === Number(targetUnitId)) {
             return next();
         }
 
-        // Admin de unidade só acessa a própria
-        if (req.admin.admin_role === 'admin_unidade') {
-            if (parseInt(req.admin.unit_id) !== parseInt(targetUnitId)) {
-                return res.status(403).json({ error: 'Acesso negado: Você só tem permissão para gerenciar a sua própria unidade.' });
-            }
-            return next();
-        }
-
-        // Outros papéis requerem configurações adicionais no futuro
-        return res.status(403).json({ error: 'Acesso negado: Permissão não configurada para seu papel.' });
+        return res.status(403).json({
+            error: 'Acesso negado: você só pode gerenciar a própria unidade.'
+        });
     };
 }
 
-module.exports = {
-    requireAdmin,
-    requireRole,
-    requireUnitAccess,
-    SECRET_KEY
-};
+module.exports = { requireAdmin, requireRole, requireUnitAccess };
