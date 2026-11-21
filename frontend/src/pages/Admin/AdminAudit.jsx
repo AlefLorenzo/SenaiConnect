@@ -44,7 +44,7 @@ const AdminAudit = () => {
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -77,7 +77,7 @@ const AdminAudit = () => {
 
     const fetchStats = useCallback(async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/audit/stats`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -94,7 +94,7 @@ const AdminAudit = () => {
 
     const fetchActions = useCallback(async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/audit/actions`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
