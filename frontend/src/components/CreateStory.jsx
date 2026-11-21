@@ -180,9 +180,10 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
       return;
     }
 
-    const maxSize = mediaType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const selectedMediaType = file.type.startsWith('video/') ? 'video' : 'image';
+    const maxSize = selectedMediaType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      setError(mediaType === 'video' ? 'Vídeo deve ter no máximo 50MB' : 'Imagem deve ter no máximo 10MB');
+      setError(selectedMediaType === 'video' ? 'Vídeo deve ter no máximo 50MB' : 'Imagem deve ter no máximo 10MB');
       return;
     }
 
