@@ -199,8 +199,13 @@ export const SocketProvider = ({ children }) => {
 
     const recoverMessages = () => {
       if (document.visibilityState !== 'visible') return;
-      const lastSeen = Number(localStorage.getItem(`last_seen_${user.id}`) || 0);
-      fetchMissedMessages(lastSeen);
+      const storedLastSeen = localStorage.getItem(`last_seen_${user.id}`);
+      // First visit: establish a checkpoint instead of downloading the entire message history.
+      if (!storedLastSeen) {
+        localStorage.setItem(`last_seen_${user.id}`, Date.now().toString());
+        return;
+      }
+      fetchMissedMessages(Number(storedLastSeen));
     };
 
     recoverMessages();
