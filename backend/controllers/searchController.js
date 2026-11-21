@@ -92,7 +92,7 @@ const searchController = {
                      ELSE 4
                    END,
                    followers_count DESC
-                 LIMIT 100`,
+                 `,
                 [userId, userId, userId, me?.course || '', me?.unit || '', me?.course || '', me?.unit || '']
             );
 
