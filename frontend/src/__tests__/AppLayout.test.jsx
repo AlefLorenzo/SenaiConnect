@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import { AuthContext } from '../context/AuthContext';
 import { StoryViewerContext } from '../context/StoryViewerContext';
+import { SocketContext } from '../context/SocketContext';
 
 jest.mock('../components/MobileBottomNav', () => {
   const React = require('react');
@@ -44,9 +45,14 @@ describe('AppLayout story navigation behavior', () => {
   const renderLayout = () => render(
     <MemoryRouter initialEntries={['/']}>
       <AuthContext.Provider value={{ user: { id: 1 } }}>
-        <AppLayout>
-          <StoryHarness />
-        </AppLayout>
+        <SocketContext.Provider value={{
+          fetchUnreadCount: jest.fn(),
+          fetchUnreadMessagesCount: jest.fn(),
+        }}>
+          <AppLayout>
+            <StoryHarness />
+          </AppLayout>
+        </SocketContext.Provider>
       </AuthContext.Provider>
     </MemoryRouter>
   );

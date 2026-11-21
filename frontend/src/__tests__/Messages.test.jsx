@@ -66,6 +66,7 @@ jest.mock('../context/SocketContext.jsx', () => {
     sendTypingStart: jest.fn(),
     sendTypingStop: jest.fn(),
     sendMessagesRead: jest.fn(),
+    fetchUnreadMessagesCount: jest.fn().mockResolvedValue(undefined),
     queueMessage: jest.fn(),
     retryMessage: jest.fn(),
     MESSAGE_STATUS: {
