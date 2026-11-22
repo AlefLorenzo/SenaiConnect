@@ -247,6 +247,21 @@ export default function GroupInfoModal({ groupId, group, currentUserId, onClose,
               <button type="button" onClick={() => { onClose(); onSearch?.(); }}><span><Search size={19} /></span>Buscar</button>
             </div>
 
+            {admins.length > 0 && (
+              <section className="group-info-admins-section">
+                <h4>Administradores</h4>
+                <div className="group-info-admins-list">
+                  {admins.map(admin => (
+                    <div className="group-info-admin-person" key={admin.id}>
+                      <Avatar user={admin} className="group-info-member-avatar" />
+                      <span>{admin.name || 'Usuário'}</span>
+                      {Number(admin.id) === me && <small>Você</small>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section className="group-info-section">
               <div className="group-info-section-heading">
                 <div><h4>Participantes</h4><span>{members.length} pessoas · {admins.length} administradores</span></div>
