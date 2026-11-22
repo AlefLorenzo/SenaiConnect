@@ -33,9 +33,10 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    touch-action: pan-x;
+    /* Arraste horizontal no trilho sem bloquear a rolagem vertical do feed. */
+    touch-action: pan-x pan-y;
     overscroll-behavior-x: contain;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: auto;
 }
 
 .story-bar-container::-webkit-scrollbar {
@@ -228,10 +229,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-    .story-bar {
-        top: var(--header-height);
-    }
-
     .story-bar-content {
         padding: 0 var(--space-4);
     }
