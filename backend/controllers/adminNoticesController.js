@@ -4,6 +4,33 @@ const { logAdminAction } = require('./adminAuthController');
 const notificationController = require('./notificationController');
 
 const adminNoticesController = {
+    getRecipientOptions: async (req, res) => {
+        try {
+            const [courses] = await db.query(`
+                SELECT DISTINCT TRIM(course) AS value
+                FROM users
+                WHERE COALESCE(TRIM(course), '') <> ''
+                  AND is_blocked = 0
+                  AND deleted_at IS NULL
+                ORDER BY value ASC
+            `);
+            const [units] = await db.query(`
+                SELECT DISTINCT TRIM(unit) AS value
+                FROM users
+                WHERE COALESCE(TRIM(unit), '') <> ''
+                  AND is_blocked = 0
+                  AND deleted_at IS NULL
+                ORDER BY value ASC
+            `);
+            res.json({
+                courses: courses.map(row => row.value),
+                units: units.map(row => row.value)
+            });
+        } catch (error) {
+            console.error('Erro ao carregar opções de destinatários:', error);
+            res.status(500).json({ error: 'Não foi possível carregar cursos e unidades.' });
+        }
+    },
     // Listar todos os avisos com filtros
     listNotices: async (req, res) => {
         try {
