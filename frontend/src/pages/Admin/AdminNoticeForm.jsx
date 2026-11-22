@@ -5,6 +5,19 @@ import './AdminNoticeForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+const toLocalDateTimeInput = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+const fromLocalDateTimeInput = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
 const PRIORITY_OPTIONS = [
     { value: 'urgent', label: 'Urgente', desc: 'Notificação imediata para todos destinatários', icon: Shield, color: '#DC2626', bg: '#FEF2F2' },
     { value: 'important', label: 'Importante', desc: 'Destaque no mural, notificação padrão', icon: Shield, color: '#FF6B00', bg: '#FFF3E8' },
@@ -98,8 +111,8 @@ const AdminNoticeForm = () => {
                         content: notice.content,
                         priority: notice.priority,
                         recipients: notice.recipients,
-                        published_at: notice.published_at ? new Date(notice.published_at).toISOString().slice(0, 16) : '',
-                        expires_at: notice.expires_at ? new Date(notice.expires_at).toISOString().slice(0, 16) : '',
+                        published_at: toLocalDateTimeInput(notice.published_at),
+                        expires_at: toLocalDateTimeInput(notice.expires_at),
                         is_pinned: notice.is_pinned,
                         send_notification: notice.send_notification,
                         image_url: notice.image_url || '',
@@ -216,6 +229,8 @@ const AdminNoticeForm = () => {
 
             const payload = {
                 ...nextFormData,
+                published_at: fromLocalDateTimeInput(nextFormData.published_at),
+                expires_at: fromLocalDateTimeInput(nextFormData.expires_at),
                 recipients: JSON.stringify(recipients),
                 is_pinned: formData.is_pinned ? 1 : 0,
                 send_notification: formData.send_notification ? 1 : 0
