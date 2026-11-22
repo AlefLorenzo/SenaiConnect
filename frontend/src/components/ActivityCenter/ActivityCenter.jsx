@@ -384,7 +384,8 @@ const ActivityCenter = () => {
 
   return (
     <div className="activity-center">
-      {/* Header */}
+      {/* Cabeçalho e filtros permanecem juntos no topo durante a rolagem */}
+      <div className="activity-center__sticky-shell">
       <header className="activity-center__header">
         <h1 className="activity-center__title">Central de Atividades</h1>
         {showMarkAllRead && (
@@ -404,6 +405,7 @@ const ActivityCenter = () => {
         onFilterChange={handleFilterChange}
         unreadCount={unreadCount}
       />
+      </div>
 
       {/* Activity Sections */}
       <div className="activity-center__content" role="feed" aria-label="Atividades">
