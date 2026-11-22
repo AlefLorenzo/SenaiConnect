@@ -1,5 +1,6 @@
 const db = require('../db');
 const socketHelper = require('../socketHelper');
+const { getEligibleGroupContacts, getEligibleGroupParticipantIds } = require('../utils/groupEligibility');
 
 const groupController = {
     // Get all public groups (for discovery)
@@ -130,12 +131,38 @@ const groupController = {
         }
     },
 
+    getEligibleContacts: async (req, res) => {
+        try {
+            const contacts = await getEligibleGroupContacts(req.user.id);
+            return res.status(200).json(contacts);
+        } catch (error) {
+            console.error('Erro ao buscar contatos elegíveis para grupos:', error);
+            return res.status(500).json({ error: 'Erro ao buscar contatos para o grupo.' });
+        }
+    },
+
     create: async (req, res) => {
         try {
             const { name, description, icon, participants } = req.body;
             const creatorId = req.user.id;
 
-            if (!name) return res.status(400).json({ error: 'O nome do grupo é obrigatório.' });
+            if (!name || typeof name !== 'string' || !name.trim()) {
+                return res.status(400).json({ error: 'O nome do grupo é obrigatório.' });
+            }
+
+            const requestedParticipantIds = Array.isArray(participants)
+                ? [...new Set(participants.map(Number))].filter(id => id !== Number(creatorId))
+                : [];
+            if (requestedParticipantIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+                return res.status(400).json({ error: 'Um ou mais participantes são inválidos.' });
+            }
+
+            const eligibleParticipantIds = await getEligibleGroupParticipantIds(creatorId, requestedParticipantIds);
+            if (eligibleParticipantIds.length !== requestedParticipantIds.length) {
+                return res.status(403).json({
+                    error: 'Só é possível adicionar pessoas com quem você já conversou, segue ou que seguem você.'
+                });
+            }
 
             const defaultIcon = icon || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=random';
 
@@ -156,15 +183,27 @@ const groupController = {
                 [groupId, creatorId, creatorId]
             );
 
-            // Add initial participants if provided
-            if (participants && Array.isArray(participants)) {
-                for (const userId of participants) {
-                    if (userId !== creatorId) {
-                        await db.query(
-                            'INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
-                            [groupId, userId, 'member']
-                        );
-                    }
+            // Add only participants validated against existing conversations/follow relationships.
+            for (const userId of eligibleParticipantIds) {
+                await db.query(
+                    'INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
+                    [groupId, userId, 'member']
+                );
+            }
+
+            if (eligibleParticipantIds.length > 0) {
+                const notificationController = require('./notificationController');
+                for (const userId of eligibleParticipantIds) {
+                    await notificationController.createNotification(
+                        userId,
+                        'group_invite',
+                        creatorId,
+                        `adicionou você ao grupo "${name.trim()}".`,
+                        'group',
+                        Number(groupId),
+                        `group_${groupId}_invite`,
+                        { action: 'invite', group_id: Number(groupId), group_name: name.trim() }
+                    );
                 }
             }
 
@@ -340,11 +379,22 @@ const groupController = {
                 return res.status(400).json({ error: 'Lista de usuários é obrigatória.' });
             }
 
+            const normalizedUserIds = [...new Set(userIds.map(Number))].filter(userId => userId !== Number(requesterId));
+            if (normalizedUserIds.some(userId => !Number.isSafeInteger(userId) || userId <= 0)) {
+                return res.status(400).json({ error: 'Um ou mais participantes são inválidos.' });
+            }
+            const eligibleUserIds = await getEligibleGroupParticipantIds(requesterId, normalizedUserIds);
+            if (eligibleUserIds.length !== normalizedUserIds.length) {
+                return res.status(403).json({
+                    error: 'Só é possível adicionar pessoas com quem você já conversou, segue ou que seguem você.'
+                });
+            }
+
             const added = [];
             const groupNameResult = await db.query('SELECT name FROM groups_table WHERE id = ?', [id]);
             const groupName = groupNameResult[0]?.name || 'Grupo';
 
-            for (const userId of userIds) {
+            for (const userId of normalizedUserIds) {
                 const [existing] = await db.query(
                     'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
                     [id, userId]
