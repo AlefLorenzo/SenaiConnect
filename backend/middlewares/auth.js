@@ -1,5 +1,4 @@
-const db = require('../db');
-const { supabaseAuthRequest } = require('../services/supabaseAuth');
+const { getVerifiedIdentity } = require('../services/verifiedIdentity');
 
 async function authenticateToken(req, res, next) {
     try {
@@ -10,40 +9,9 @@ async function authenticateToken(req, res, next) {
             return res.status(401).json({ error: 'Token de acesso não fornecido.' });
         }
 
-        const authUser = await supabaseAuthRequest('user', {
-            method: 'GET',
-            accessToken: token
-        });
-
-        if (!authUser || !authUser.id) {
-            return res.status(401).json({ error: 'Sessão inválida. Entre novamente.' });
-        }
-
-        const [profiles] = await db.query(
-            'SELECT id, name, email, role, admin_role, unit_id, is_blocked, onboarding_completed FROM users WHERE auth_user_id = ?',
-            [authUser.id]
-        );
-
-        if (!profiles.length) {
-            return res.status(403).json({ error: 'Sua conta Auth ainda não está vinculada a um perfil SENAI Connect.' });
-        }
-
-        const profile = profiles[0];
-        if (profile.is_blocked) {
-            return res.status(403).json({ error: 'Esta conta está bloqueada.' });
-        }
-
-        req.auth = authUser;
-        req.user = {
-            id: profile.id,
-            authUserId: authUser.id,
-            name: profile.name,
-            email: profile.email,
-            role: profile.role,
-            admin_role: profile.admin_role,
-            unit_id: profile.unit_id,
-            onboarding_completed: profile.onboarding_completed
-        };
+        const identity = await getVerifiedIdentity(token);
+        req.auth = identity.authUser;
+        req.user = identity.user;
 
         return next();
     } catch (error) {
