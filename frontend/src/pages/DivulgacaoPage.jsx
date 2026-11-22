@@ -77,7 +77,7 @@ const DivulgacaoPage = () => {
                 feedType: filters.feedType
             };
             if (filters.search) params.search = filters.search;
-            if (filters.postType) params.category = filters.postType;
+            if (filters.postType) params.postType = filters.postType;
             if (filters.category) params.category = filters.category;
 
             const data = await companiesService.getDiscoveryFeed(params);
