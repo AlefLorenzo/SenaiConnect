@@ -168,7 +168,7 @@ const adminNoticesController = {
             const newNotice = notice[0];
 
             // Broadcast em tempo real
-            socketHelper.broadcast('new_notice', newNotice);
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices', id: Number(newNotice.id) });
 
             // Log de auditoria
             await logAdminAction(admin.id, 'NOTICE_CREATED', 'notice', newNotice.id, `Criou o aviso "${newNotice.title}"`, { priority, recipients: recipientsJson }, req);
@@ -276,7 +276,7 @@ const adminNoticesController = {
             const newNotice = updated[0];
 
             // Broadcast de atualização
-            socketHelper.broadcast('notice_updated', newNotice);
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices', id: Number(id) });
 
             // Log de auditoria
             const changes = [];
@@ -311,7 +311,7 @@ const adminNoticesController = {
 
             await db.query('DELETE FROM notices WHERE id = ?', [id]);
 
-            socketHelper.broadcast('notice_deleted', { id: parseInt(id) });
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices', id: Number(id) });
 
             await logAdminAction(admin.id, 'NOTICE_DELETED', 'notice', parseInt(id), `Apagou o aviso "${existing[0].title}"`, null, req);
 
@@ -350,7 +350,7 @@ const adminNoticesController = {
                 WHERE n.id = ?
             `, [id]);
 
-            socketHelper.broadcast('notice_updated', updated[0]);
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices', id: Number(id) });
 
             await logAdminAction(admin.id, publish ? 'NOTICE_PUBLISHED' : 'NOTICE_UNPUBLISHED', 'notice', parseInt(id), `${publish ? 'Publicou' : 'Despublicou'} o aviso "${updated[0].title}"`, null, req);
 
@@ -376,6 +376,8 @@ const adminNoticesController = {
             await db.query('UPDATE notices SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [pin ? 1 : 0, id]);
 
             const [updated] = await db.query('SELECT * FROM notices WHERE id = ?', [id]);
+
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices', id: Number(id) });
 
             await logAdminAction(admin.id, pin ? 'NOTICE_PINNED' : 'NOTICE_UNPINNED', 'notice', parseInt(id), `${pin ? 'Fixou' : 'Desfixou'} o aviso "${updated[0].title}"`, null, req);
 
