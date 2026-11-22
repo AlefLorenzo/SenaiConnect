@@ -14,6 +14,7 @@ jest.mock('../controllers/notificationController', () => ({
 const socketHelper = require('../socketHelper');
 const adminCrudController = require('../controllers/adminCrudController');
 const adminNoticesController = require('../controllers/adminNoticesController');
+const notificationController = require('../controllers/notificationController');
 const publicRoutes = require('../routes/publicRoutes');
 
 const createResponse = () => ({
@@ -33,7 +34,8 @@ describe('admin-created content delivery', () => {
   test('event creation emits only a safe refresh signal, not the event record', async () => {
     mockDb.query
       .mockResolvedValueOnce([{ insertId: 51 }])
-      .mockResolvedValueOnce([[{ id: 51, title: 'Semana de Tecnologia', status: 'ativo' }]]);
+      .mockResolvedValueOnce([[{ id: 51, title: 'Semana de Tecnologia', status: 'ativo', unit: '' }]])
+      .mockResolvedValueOnce([[]]);
 
     const req = {
       admin: { id: 9 },
@@ -46,12 +48,17 @@ describe('admin-created content delivery', () => {
     expect(res.status).toHaveBeenCalledWith(201);
     expect(socketHelper.broadcast).toHaveBeenCalledWith('admin_content_changed', { resource: 'events' });
     expect(socketHelper.broadcast.mock.calls[0][1]).not.toHaveProperty('title');
+    expect(notificationController.createNotification).toHaveBeenCalledWith(
+      expect.anything(), 'admin_publication', 9, 'Novo evento publicado: Semana de Tecnologia',
+      'event', 51, null, expect.objectContaining({ resource: 'events' })
+    );
   });
 
   test('course creation emits a safe refresh signal for the student course catalogue', async () => {
     mockDb.query
       .mockResolvedValueOnce([{ insertId: 62 }])
-      .mockResolvedValueOnce([[{ id: 62, title: 'Desenvolvimento Web', status: 'ativo' }]]);
+      .mockResolvedValueOnce([[{ id: 62, title: 'Desenvolvimento Web', status: 'ativo', unit: '' }]])
+      .mockResolvedValueOnce([[]]);
 
     const req = {
       admin: { id: 9 },
@@ -64,6 +71,10 @@ describe('admin-created content delivery', () => {
     expect(res.status).toHaveBeenCalledWith(201);
     expect(socketHelper.broadcast).toHaveBeenCalledWith('admin_content_changed', { resource: 'courses' });
     expect(socketHelper.broadcast.mock.calls[0][1]).not.toHaveProperty('title');
+    expect(notificationController.createNotification).toHaveBeenCalledWith(
+      expect.anything(), 'admin_publication', 9, 'Novo curso publicado: Desenvolvimento Web',
+      'course', 62, null, expect.objectContaining({ resource: 'courses' })
+    );
   });
 
   test('notice creation emits a safe refresh signal without disclosing its audience or text', async () => {
