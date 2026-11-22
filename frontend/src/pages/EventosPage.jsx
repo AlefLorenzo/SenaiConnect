@@ -182,7 +182,7 @@ export default function EventosPage() {
                     {vacancies > 0 && <div className="evento-vagas"><span>{Math.max(vacancies - enrolled, 0)} de {vacancies} vagas disponíveis</span></div>}
                   </div>
                 </div>
-                <button type="button" className="evento-btn inscrever" onClick={() => setSelectedEvent(event)}>
+                <button type="button" className="evento-btn inscrever" onClick={() => { setSelectedEvent(event); setRegistrationForm({ registration_name: '', participation_type: 'individual', team_name: '', shift: '', course: '', notes: '' }); setRegistrationError(''); setRegistrationSuccess(''); }}>
                   Ver detalhes
                 </button>
               </article>
