@@ -730,6 +730,53 @@ describe('Messages Page', () => {
   });
 
   describe('Group Conversations', () => {
+    test('shows You for own group messages and resolves Unknown to the member name', async () => {
+      const groupsWithLastMessages = [
+        {
+          ...mockGroups[0],
+          id: 10,
+          name: 'Desenvolvimento de Sistemas',
+          participants: [
+            { id: 1, name: 'Current User' },
+            { id: 2, name: 'Maria Silva' },
+          ],
+          last_message: {
+            senderId: 1,
+            senderName: 'Unknown',
+            content: 'opa',
+            createdAt: '2026-11-22T18:26:00.000Z',
+          },
+        },
+        {
+          ...mockGroups[0],
+          id: 11,
+          name: 'Projeto SENAI',
+          participants: [
+            { id: 1, name: 'Current User' },
+            { id: 2, name: 'Maria Silva' },
+          ],
+          last_message: {
+            senderId: 2,
+            senderName: 'Unknown',
+            content: 'Bom dia',
+            createdAt: '2026-11-22T18:20:00.000Z',
+          },
+        },
+      ];
+
+      renderMessages({ groups: groupsWithLastMessages });
+      fireEvent.click(screen.getByRole('tab', { name: /grupos/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('You:')).toBeInTheDocument();
+        expect(screen.getByText('Maria Silva:')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('opa')).toBeInTheDocument();
+      expect(screen.getByText('Bom dia')).toBeInTheDocument();
+      expect(screen.queryByText('Unknown:')).not.toBeInTheDocument();
+    });
+
     test('displays group info correctly', async () => {
       renderMessages();
 
