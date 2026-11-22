@@ -974,3 +974,21 @@ body,
 [data-theme="dark"] .story-viewer-business {
   color: #f1f5f9;
 }
+
+
+/* Settings page feedback uses inline colors in light mode; override them safely in dark mode. */
+[data-theme="dark"] .settings-feedback-message {
+  background: #1b1f27 !important;
+  border-left-color: #465267 !important;
+  color: #eaf0f8 !important;
+}
+[data-theme="dark"] .settings-feedback-message--success {
+  background: #143323 !important;
+  border-left-color: #3b9b65 !important;
+  color: #b8f1cd !important;
+}
+[data-theme="dark"] .settings-feedback-message--error {
+  background: #3b2024 !important;
+  border-left-color: #b85a64 !important;
+  color: #ffc4c9 !important;
+}
