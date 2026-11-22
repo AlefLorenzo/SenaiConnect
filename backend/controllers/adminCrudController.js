@@ -60,7 +60,9 @@ const listEvents = async (req, res) => {
         }
 
         const query = `
-            SELECT e.*, u.name as author_name FROM events e
+            SELECT e.*, u.name as author_name,
+              (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id) AS enrolled_count
+            FROM events e
             JOIN users u ON u.id = e.author_id
             ${whereClause}
             ORDER BY e.created_at DESC
