@@ -505,12 +505,26 @@ const discoveryFeedController = {
             if (existing.length) return res.json({ tracked: false });
 
             const [creativeRows] = await db.query(`
-                SELECT cc.campaign_id, bc.business_id, cc.ad_space_id
+                SELECT cc.campaign_id, bc.business_id, cc.ad_space_id, bc.target_audience
                 FROM campaign_creatives cc
                 JOIN business_campaigns bc ON bc.id = cc.campaign_id
-                WHERE cc.id = ? AND bc.status IN ('approved', 'active')
-            `, [creativeId]);
+                JOIN businesses b ON b.id = bc.business_id
+                JOIN ad_spaces a ON a.id = cc.ad_space_id
+                WHERE cc.id = ? AND cc.status = 'approved'
+                  AND bc.status IN ('approved', 'active')
+                  AND bc.start_date <= NOW() AND bc.end_date >= NOW()
+                  AND b.status = 'approved' AND a.is_active = TRUE
+                  AND a.location IN (?)
+                LIMIT 1
+            `, [creativeId, ALLOWED_AD_LOCATIONS]);
             if (!creativeRows.length) return res.status(404).json({ error: 'Anúncio indisponível.' });
+            const [viewerRows] = await db.query(
+                'SELECT course, unit, role FROM users WHERE id = ? LIMIT 1',
+                [userId]
+            );
+            if (!matchesAudience(creativeRows[0].target_audience, viewerRows[0] || {})) {
+                return res.status(404).json({ error: 'Anúncio indisponível.' });
+            }
 
             await db.query(`
                 INSERT INTO ad_clicks (impression_id, creative_id, campaign_id, business_id, ad_space_id, user_id)
