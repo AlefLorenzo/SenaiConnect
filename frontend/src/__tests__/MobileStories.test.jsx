@@ -73,6 +73,64 @@ describe('MobileStories', () => {
     expect(addButton).toBeInTheDocument();
   });
 
+  test('puts the current user story first and labels it You', () => {
+    renderMobileStories({
+      stories: [
+        {
+          id: 'maria',
+          user_id: 2,
+          user_name: 'Maria Silva',
+          user_avatar: 'maria.jpg',
+          hasUnviewed: true,
+          storyCount: 1,
+          stories: [{ id: 'maria-1', viewed: false }],
+        },
+        {
+          id: 'mine',
+          user_id: '1',
+          user_name: 'Current User',
+          user_avatar: 'current-avatar.jpg',
+          hasUnviewed: true,
+          storyCount: 2,
+          stories: [{ id: 'mine-1', viewed: false }, { id: 'mine-2', viewed: true }],
+        },
+      ],
+    });
+
+    const items = screen.getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('You');
+    expect(items[1]).toHaveTextContent('Maria Silva');
+    expect(screen.queryByText('Current User')).not.toBeInTheDocument();
+  });
+
+  test('opens own stories when tapping You and keeps a separate add action', () => {
+    const onStoryClick = jest.fn();
+    const onAddStory = jest.fn();
+    renderMobileStories({
+      onStoryClick,
+      onAddStory,
+      stories: [{
+        id: 'mine',
+        user_id: 1,
+        user_name: 'Current User',
+        user_avatar: 'current-avatar.jpg',
+        hasUnviewed: true,
+        storyCount: 1,
+        stories: [{ id: 'mine-1', viewed: false }],
+      }],
+    });
+
+    fireEvent.click(screen.getByText('You'));
+    expect(onStoryClick).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 1,
+      user_name: 'You',
+      isOwn: true,
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /adicionar outra história/i }));
+    expect(onAddStory).toHaveBeenCalled();
+  });
+
   test('renders story rings for each user', () => {
     renderMobileStories();
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
