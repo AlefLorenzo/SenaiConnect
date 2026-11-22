@@ -102,6 +102,7 @@ export const ENDPOINTS = {
   COMPANIES: {
     BASE: '/api/business',
     FEED: '/api/business/feed',
+    DISCOVERY_FEED: '/api/business/discovery-feed',
     CREATE: '/api/business/posts',
     CATEGORIES: '/api/business/categories',
     VERIFY: (id) => `/api/business/${id}/verify`,
