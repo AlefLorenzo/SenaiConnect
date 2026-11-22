@@ -184,13 +184,13 @@ const MessageBubble = ({
   const getSenderInfo = () => {
     if (!isGroup) return null;
 
-    const isCurrentUserAdmin = adminIds?.some(id => normalizeId(id) === normalizedSenderId) || false;
+    const isCurrentUserAdmin = adminIds?.some(id => normalizeUserId(id) === normalizedSenderId) || false;
     if (isSent) {
       return { name: 'Você', avatar: null, isAdmin: isCurrentUserAdmin };
     }
 
     const participant = participants?.find(p =>
-      normalizeId(p.id ?? p.user_id ?? p.userId) === normalizedSenderId
+      normalizeUserId(p.id ?? p.user_id ?? p.userId) === normalizedSenderId
     );
     const messageSenderName = message.senderName ?? message.sender_name;
     const name = (messageSenderName || participant?.name || '').trim();
@@ -216,7 +216,7 @@ const MessageBubble = ({
     const prevSenderId = prevMessage?.sender_id ?? prevMessage?.senderId;
     const prevCreatedAt = prevMessage?.created_at ?? prevMessage?.createdAt;
 
-    if (normalizeId(prevSenderId) !== normalizedSenderId) return true;
+    if (normalizeUserId(prevSenderId) !== normalizedSenderId) return true;
 
     if (prevCreatedAt && createdAt) {
       const timeDiff = Math.abs(new Date(createdAt) - new Date(prevCreatedAt));
@@ -236,7 +236,7 @@ const MessageBubble = ({
     const prevCreatedAt = prevMessage?.created_at ?? prevMessage?.createdAt;
 
     // Different sender
-    if (normalizeId(prevSenderId) !== normalizedSenderId) return true;
+    if (normalizeUserId(prevSenderId) !== normalizedSenderId) return true;
 
     // Message history may be returned oldest-first or newest-first.
     if (prevCreatedAt && createdAt) {
@@ -257,7 +257,7 @@ const MessageBubble = ({
     const nextCreatedAt = nextMessage?.created_at ?? nextMessage?.createdAt;
 
     // Different sender
-    if (normalizeId(nextSenderId) !== normalizedSenderId) return true;
+    if (normalizeUserId(nextSenderId) !== normalizedSenderId) return true;
 
     // Message history may be returned oldest-first or newest-first.
     if (nextCreatedAt && createdAt) {
