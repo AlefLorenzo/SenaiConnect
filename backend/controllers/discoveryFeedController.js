@@ -66,8 +66,8 @@ function matchesNoticeAudience(rawRecipients, user) {
     const isTeacher = ['professor', 'professora', 'teacher', 'docente'].includes(role);
     const isAdmin = Boolean(user.admin_role) || ['admin', 'administrator', 'administrador', 'super_admin'].includes(role);
     if (type === 'all' || type === 'todos') return isStudent && !isAdmin;
-    if (type === 'courses') return isStudent && matchesValues(user.course);
-    if (type === 'units') return isStudent && matchesValues(user.unit);
+    if (type === 'courses') return matchesValues(user.course);
+    if (type === 'units') return matchesValues(user.unit);
     if (type === 'teachers') return isTeacher;
     if (type === 'admins') return isAdmin;
     if (type === 'roles') return matchesValues(user.role);
