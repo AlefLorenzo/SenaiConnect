@@ -1,5 +1,8 @@
 import React from 'react';
 import { activityService } from '../../services/activityService';
+import { Bell, UserRound, Heart, MessageCircle, Megaphone, BookOpen, Package } from 'lucide-react';
+
+const filterIcons = { all: Bell, followers: UserRound, likes: Heart, comments: MessageCircle, mentions: Megaphone, stories: BookOpen, others: Package };
 import './FilterTabs.css';
 
 /**
@@ -22,7 +25,7 @@ const FilterTabs = ({ activeFilter, onFilterChange, unreadCount = 0 }) => {
             className={`filter-tabs__tab ${activeFilter === filter.value ? 'filter-tabs__tab--active' : ''}`}
             onClick={() => onFilterChange(filter.value)}
           >
-            <span className="filter-tabs__icon" aria-hidden="true">{filter.icon}</span>
+            <span className="filter-tabs__icon" aria-hidden="true">{React.createElement(filterIcons[filter.value] || Bell, { size: 19, strokeWidth: 2.2 })}</span>
             <span className="filter-tabs__label">{filter.label}</span>
             {(filter.value === 'all' && unreadCount > 0) && (
               <span className="filter-tabs__badge" aria-label={`${unreadCount} não lidas`}>
