@@ -282,7 +282,7 @@ const Profile = () => {
           <div className="profile-details">
             <div className="profile-name-role">
               <h1>{profileUser.name}</h1>
-              {profileUser.role === 'PROFESSOR' && <span className="role-badge large">PROFESSOR</span>}
+              {String(profileUser.role || '').toLowerCase() === 'professor' && <span className="role-badge role-badge-professor large"><GraduationCap size={13} aria-hidden="true" /> PROFESSOR SENAI</span>}
             </div>
             <p className="profile-handle">@{profileUser.name.toLowerCase().replaceAll(' ', '.')}</p>
             <p className="profile-bio">{profileUser.bio || 'Nenhuma biografia fornecida ainda.'}</p>
