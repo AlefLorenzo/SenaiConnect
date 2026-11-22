@@ -192,6 +192,7 @@ const notificationController = {
                 'group_post': 'group',
                 'event_reminder': 'event',
                 'notice': 'notice',
+                'admin_publication': 'notification',
                 'message': 'message',
             };
             const legacyType = legacyTypeMap[activityType] || 'notification';
@@ -322,6 +323,7 @@ function getActivityVerb(activityType) {
         'group_post': 'publicaram no grupo',
         'event_reminder': 'lembrete de evento',
         'notice': 'novo aviso institucional',
+        'admin_publication': 'publicaram um novo conteúdo institucional',
         'message': 'nova mensagem',
     };
     return verbs[activityType] || 'interagiram';
