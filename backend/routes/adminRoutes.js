@@ -45,6 +45,7 @@ router.get('/dashboard/activity', adminDashboardController.getActivity);
 // AVISOS (NOTICES)
 // ============================================
 router.get('/notices', adminNoticesController.listNotices);
+router.get('/notices/recipient-options', adminNoticesController.getRecipientOptions);
 router.get('/notices/stats', adminNoticesController.getStats);
 router.get('/notices/:id', adminNoticesController.getNotice);
 router.post('/notices', adminNoticesController.createNotice);
