@@ -304,7 +304,7 @@ describe('messageController', () => {
       ];
 
       const mockGroups = [
-        { conversation_id: 1, name: 'Group 1', description: 'Desc', avatar: null, role: 'admin', created_at: '2024-01-01', last_message: 'Group msg', last_interaction: '2024-01-15T12:00:00Z', unread_count: 2, is_muted: 0, is_important: 1 },
+        { conversation_id: 1, name: 'Group 1', description: 'Desc', avatar: null, role: 'admin', created_at: '2024-01-01', last_message: 'Group msg', last_message_sender_id: 1, last_message_sender_name: 'You', last_interaction: '2024-01-15T12:00:00Z', unread_count: 2, is_muted: 0, is_important: 1 },
       ];
 
       let callCount = 0;
@@ -345,11 +345,19 @@ describe('messageController', () => {
               }),
             }),
             expect.objectContaining({ conversation_id: '1_3' }),
-            expect.objectContaining({ conversation_id: 1, name: 'Group 1' }),
+            expect.objectContaining({
+              conversation_id: 1,
+              name: 'Group 1',
+              last_message: expect.objectContaining({
+                content: 'Group msg',
+                senderName: 'You',
+              }),
+            }),
           ]),
         })
       );
       expect(mockDb.query).toHaveBeenNthCalledWith(1, expect.any(String), Array(16).fill(1));
+      expect(mockDb.query).toHaveBeenNthCalledWith(2, expect.stringContaining('last_message_sender_name'), Array(6).fill(1));
     });
   });
 
