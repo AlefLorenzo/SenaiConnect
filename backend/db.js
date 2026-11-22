@@ -43,9 +43,11 @@ function getSqlClient() {
 
   sqlClient = postgres(connectionString, {
     ssl: process.env.DB_SSL === 'disable' ? false : 'require',
+    // Keep idle connections warm between short user interactions, while
+    // failing stalled network handshakes promptly instead of blocking requests.
     max: Number(process.env.DB_POOL_MAX || 10),
-    idle_timeout: 20,
-    connect_timeout: 15,
+    idle_timeout: 60,
+    connect_timeout: 10,
     prepare: false,
     onnotice: () => {}
   });
