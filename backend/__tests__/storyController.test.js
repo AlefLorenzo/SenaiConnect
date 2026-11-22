@@ -169,9 +169,9 @@ describe('storyController.reply', () => {
     const messageInsert = mockConnection.execute.mock.calls.find(([sql]) =>
       String(sql).includes('INSERT INTO messages')
     );
-    expect(messageInsert[0]).toContain('(sender_id, receiver_id, content, status, message_type)');
+    expect(messageInsert[0]).toContain('(sender_id, receiver_id, content, status, message_type, client_message_id)');
     expect(messageInsert[0]).toContain("'story_reply'");
-    expect(messageInsert[1]).toEqual([7, 99, 'Que lugar lindo!']);
+    expect(messageInsert[1]).toEqual([7, 99, 'Que lugar lindo!', 'story_reply_101']);
 
     expect(mockConnection.execute).toHaveBeenCalledWith(
       'UPDATE story_replies SET message_id = ? WHERE id = ?',
