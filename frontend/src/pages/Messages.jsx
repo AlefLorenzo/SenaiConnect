@@ -1659,6 +1659,7 @@ const Messages = () => {
             group={selectedContact}
             currentUserId={user?.id}
             onClose={() => setShowGroupInfo(false)}
+            onSearch={() => setShowMessageSearch(true)}
             onUpdated={async () => {
               const refreshed = await messagesService.getConversation(selectedContact.id ?? selectedContact.conversation_id, true);
               setSelectedContact(previous => previous ? { ...previous, ...refreshed } : previous);
@@ -2020,7 +2021,8 @@ const ConversationHeader = ({
     : false;
   const onlineCount = contact.participants?.filter(p => p.name !== 'Você' && isOnline[p.id]).length || 0;
   const totalParticipants = contact.participants?.length || Number(contact.memberCount ?? contact.member_count) || 0;
-  const admins = contact.participants?.filter(p => p.isAdmin && p.name !== 'Você') || [];
+  const contactAdminIds = (contact.adminIds || []).map(Number);
+  const admins = contact.participants?.filter(p => p.name !== 'Você' && (p.isAdmin || contactAdminIds.includes(Number(p.id)) || String(p.group_role || p.role).toLowerCase() === 'admin')) || [];
 
   return (
     <header className="chat-header" role="banner">
