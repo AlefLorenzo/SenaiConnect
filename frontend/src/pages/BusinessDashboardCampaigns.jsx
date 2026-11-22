@@ -157,7 +157,7 @@ const BusinessDashboardCampaigns = () => {
                     <h1>Minhas Campanhas</h1>
                     <p>Gerencie suas campanhas publicitárias, orçamentos e desempenho</p>
                 </div>
-                <Link to="/business/dashboard/campaigns/new" className="btn-primary">
+                <Link to="/business/campaigns/new" className="btn-primary">
                     <Plus size={18} /> Nova Campanha
                 </Link>
             </div>
