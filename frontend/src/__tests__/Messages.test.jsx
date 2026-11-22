@@ -470,6 +470,25 @@ describe('Messages Page', () => {
       }
     }, 15000);
 
+    test('marks direct messages as read when the conversation is opened', async () => {
+      jest.useRealTimers();
+      try {
+        renderMessages();
+
+        await waitFor(() => {
+          expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+        }, { timeout: 10000 });
+
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.markAsRead).toHaveBeenCalledWith('1_2');
+        }, { timeout: 10000 });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
+
     test('highlights selected conversation', async () => {
       renderMessages();
 
