@@ -620,7 +620,7 @@ describe('Messages Page', () => {
         const chatBody = document.querySelector('.chat-body');
         expect(chatBody).toBeInTheDocument();
         const historyObserverCall = IntersectionObserver.mock.calls
-          .filter(([, options]) => options?.root === chatBody)
+          .filter(([, options]) => options?.root === chatBody && options?.rootMargin === '100px')
           .at(-1);
         expect(historyObserverCall).toBeDefined();
 
