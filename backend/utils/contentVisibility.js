@@ -25,7 +25,11 @@ function buildNoticeVisibilityClause(user = {}, alias = 'n') {
 
   if (user.course) {
     conditions.push(
-      `(${recipients}->>'type' = 'courses' AND ${values} @> jsonb_build_array(?::text))`
+      `(${recipients}->>'type' = 'courses' AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements_text(${values}) AS recipient_course(value)
+        WHERE LOWER(TRIM(recipient_course.value)) = LOWER(TRIM(?))
+      ))`
     );
     params.push(String(user.course));
   }
