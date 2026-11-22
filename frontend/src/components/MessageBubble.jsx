@@ -235,16 +235,16 @@ const MessageBubble = ({
     const prevCreatedAt = prevMessage?.created_at ?? prevMessage?.createdAt;
 
     // Different sender
-    if (prevSenderId !== senderId) return true;
+    if (normalizeId(prevSenderId) !== normalizedSenderId) return true;
 
-    // Same sender but time gap > 5 minutes
+    // Message history may be returned oldest-first or newest-first.
     if (prevCreatedAt && createdAt) {
-      const timeDiff = new Date(createdAt) - new Date(prevCreatedAt);
+      const timeDiff = Math.abs(new Date(createdAt) - new Date(prevCreatedAt));
       if (timeDiff > 5 * 60 * 1000) return true;
     }
 
     return false;
-  }, [index, messages, senderId, createdAt, isGroup, isSent]);
+  }, [index, messages, normalizedSenderId, createdAt, isGroup, isSent]);
 
   // Check if next message is from same sender (for grouping visual style)
   const isLastInSequence = useMemo(() => {
@@ -256,16 +256,16 @@ const MessageBubble = ({
     const nextCreatedAt = nextMessage?.created_at ?? nextMessage?.createdAt;
 
     // Different sender
-    if (nextSenderId !== senderId) return true;
+    if (normalizeId(nextSenderId) !== normalizedSenderId) return true;
 
-    // Same sender but time gap > 5 minutes
+    // Message history may be returned oldest-first or newest-first.
     if (nextCreatedAt && createdAt) {
-      const timeDiff = new Date(nextCreatedAt) - new Date(createdAt);
+      const timeDiff = Math.abs(new Date(nextCreatedAt) - new Date(createdAt));
       if (timeDiff > 5 * 60 * 1000) return true;
     }
 
     return false;
-  }, [index, messages, senderId, createdAt, isGroup, isSent]);
+  }, [index, messages, normalizedSenderId, createdAt, isGroup, isSent]);
 
   // Check if should show date separator
   const showDate = useMemo(() => {
