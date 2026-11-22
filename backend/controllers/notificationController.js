@@ -24,7 +24,7 @@ const notificationController = {
                 'comments': "n.activity_type IN ('comment', 'post_comment', 'comment_reply')",
                 'mentions': "n.activity_type IN ('mention', 'story_mention', 'comment_mention')",
                 'stories': "n.activity_type IN ('story_reaction', 'story_reply', 'story_view', 'story_mention')",
-                'others': "n.activity_type IN ('group_invite', 'group_post', 'event_reminder', 'notice', 'message')",
+                'others': "n.activity_type IN ('group_invite', 'group_post', 'event_reminder', 'notice', 'message', 'admin_publication')",
             };
 
             if (filter !== 'all' && filterMap[filter]) {
@@ -129,7 +129,7 @@ const notificationController = {
                 'comments': "activity_type IN ('comment', 'post_comment', 'comment_reply')",
                 'mentions': "activity_type IN ('mention', 'story_mention', 'comment_mention')",
                 'stories': "activity_type IN ('story_reaction', 'story_reply', 'story_view', 'story_mention')",
-                'others': "activity_type IN ('group_invite', 'group_post', 'event_reminder', 'notice', 'message')",
+                'others': "activity_type IN ('group_invite', 'group_post', 'event_reminder', 'notice', 'message', 'admin_publication')",
             };
 
             if (filter !== 'all' && filterMap[filter]) {
