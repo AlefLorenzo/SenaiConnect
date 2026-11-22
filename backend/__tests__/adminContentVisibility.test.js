@@ -59,7 +59,7 @@ describe('admin-created content delivery', () => {
     mockDb.query
       .mockResolvedValueOnce([{ insertId: 62 }])
       .mockResolvedValueOnce([[{ id: 62, title: 'Desenvolvimento Web', status: 'ativo', unit: '' }]])
-      .mockResolvedValueOnce([[]]);
+      .mockResolvedValueOnce([[{ id: 12 }]]);
 
     const req = {
       admin: { id: 9 },
