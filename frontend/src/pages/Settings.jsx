@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Bell, Shield, Eye, Moon, Sun, Save, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../services/api';
+import { applyTheme, getStoredTheme, isExplicitTheme, persistTheme } from '../utils/theme';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
-    theme: 'system',
+    theme: getStoredTheme() || 'light',
     language: 'pt-BR',
     notifications: {
       push: true,
@@ -35,23 +36,14 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Apply persisted appearance/accessibility preferences across the application.
+  // Theme changes are explicit user choices. Never follow the operating
+  // system's color scheme automatically after the user has selected a theme.
   useEffect(() => {
+    applyTheme(settings.theme === 'dark' ? 'dark' : 'light');
     const root = document.documentElement;
-    const applyTheme = () => {
-      const theme = settings.theme === 'system'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : settings.theme;
-      root.setAttribute('data-theme', theme || 'light');
-      root.classList.toggle('accessibility-reduced-motion', Boolean(settings.accessibility?.reducedMotion));
-      root.classList.toggle('accessibility-high-contrast', Boolean(settings.accessibility?.highContrast));
-      root.dataset.fontSize = settings.accessibility?.fontSize || 'medium';
-    };
-    applyTheme();
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    if (settings.theme !== 'system') return undefined;
-    media.addEventListener?.('change', applyTheme);
-    return () => media.removeEventListener?.('change', applyTheme);
+    root.classList.toggle('accessibility-reduced-motion', Boolean(settings.accessibility?.reducedMotion));
+    root.classList.toggle('accessibility-high-contrast', Boolean(settings.accessibility?.highContrast));
+    root.dataset.fontSize = settings.accessibility?.fontSize || 'medium';
   }, [settings.theme, settings.accessibility?.reducedMotion, settings.accessibility?.highContrast, settings.accessibility?.fontSize]);
 
   const loadSettings = async () => {
@@ -65,9 +57,15 @@ const Settings = () => {
       if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) {
         throw new Error('Resposta inválida do servidor ao carregar configurações.');
       }
+      const localTheme = getStoredTheme();
+      const serverTheme = isExplicitTheme(loaded.theme) ? loaded.theme : null;
+      const resolvedTheme = localTheme || serverTheme || 'light';
+      if (!localTheme && serverTheme) persistTheme(serverTheme);
+
       setSettings((current) => ({
         ...current,
         ...loaded,
+        theme: resolvedTheme,
         notifications: { ...current.notifications, ...(loaded.notifications || {}) },
         privacy: { ...current.privacy, ...(loaded.privacy || {}) },
         accessibility: { ...current.accessibility, ...(loaded.accessibility || {}) }
@@ -93,6 +91,7 @@ const Settings = () => {
       setSaving(true);
       setMessage({ type: '', text: '' });
 
+      persistTheme(settings.theme === 'dark' ? 'dark' : 'light');
       const response = await api.put('/api/settings', settings);
       const saved = response?.settings && typeof response.settings === 'object' ? response.settings : settings;
       setSettings((current) => ({
@@ -113,6 +112,7 @@ const Settings = () => {
   };
 
   const updateSetting = (path, value) => {
+    if (path === 'theme') persistTheme(value);
     const keys = path.split('.');
     setSettings(prev => {
       const newSettings = JSON.parse(JSON.stringify(prev));
@@ -203,21 +203,6 @@ const Settings = () => {
             }}
           >
             <Moon size={18} /> Dark
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => updateSetting('theme', 'system')}
-            style={{
-              flex: 1,
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '8px',
-              border: settings.theme === 'system' ? '2px solid var(--senai-blue-primary)' : '1px solid var(--border-color)',
-              padding: '12px',
-              background: settings.theme === 'system' ? 'var(--senai-blue-light)' : 'transparent'
-            }}
-          >
-            <SettingsIcon size={18} /> Sistema
           </button>
         </div>
       </div>
