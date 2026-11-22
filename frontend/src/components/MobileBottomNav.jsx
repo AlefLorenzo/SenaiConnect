@@ -1,5 +1,5 @@
 import { Home, Search, Plus, Heart, User, MessageCircle, LayoutGrid, X } from 'lucide-react';
-import { useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { useContext, useState, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -14,8 +14,6 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
   const [touchStartX, setTouchStartX] = useState(0);
   const [touchStartY, setTouchStartY] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const navItemsRef = useRef(null);
-  const previousActiveElement = useRef(null);
 
   const navItems = [
     { path: '/feed', icon: LayoutGrid, label: 'Feed', testId: 'nav-feed', index: 0 },
@@ -73,39 +71,12 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
     }
   }, [touchStartX, activeIndex, swipeableItems, navigate]);
 
-  // Handle keyboard for sheet
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape' && isSheetOpen) {
-      setIsSheetOpen(false);
-    }
-  }, [isSheetOpen]);
-
-  // Focus management for sheet
-  useEffect(() => {
-    if (isSheetOpen) {
-      previousActiveElement.current = document.activeElement;
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      if (previousActiveElement.current) {
-        previousActiveElement.current.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isSheetOpen, handleKeyDown]);
-
   return (
     <>
       <nav
         className="mobile-bottom-nav"
         role="navigation"
         aria-label="Navegação principal"
-        ref={navItemsRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
