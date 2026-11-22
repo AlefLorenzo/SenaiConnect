@@ -32,4 +32,31 @@ describe('business routes', () => {
     expect(routes.some((route) => route.path === '/billing/:id/download' && route.methods.get)).toBe(true);
   });
 
+
+  test('registers the discovery feed and campaign tracking endpoints', () => {
+    const routes = businessRouter.stack
+      .filter((layer) => layer.route)
+      .map((layer) => ({
+        path: layer.route.path,
+        methods: layer.route.methods
+      }));
+
+    expect(routes.some((route) => route.path === '/discovery-feed' && route.methods.get)).toBe(true);
+    expect(routes.some((route) => route.path === '/ad-creatives/:id/impression' && route.methods.post)).toBe(true);
+    expect(routes.some((route) => route.path === '/ad-creatives/:id/click' && route.methods.post)).toBe(true);
+  });
+
+  test('registers protected campaign moderation endpoints', () => {
+    const routes = businessRouter.stack
+      .filter((layer) => layer.route)
+      .map((layer) => ({
+        path: layer.route.path,
+        methods: layer.route.methods
+      }));
+
+    expect(routes.some((route) => route.path === '/admin/campaigns' && route.methods.get)).toBe(true);
+    expect(routes.some((route) => route.path === '/admin/campaigns/:id/approve' && route.methods.post)).toBe(true);
+    expect(routes.some((route) => route.path === '/admin/campaigns/:id/reject' && route.methods.post)).toBe(true);
+  });
+
 });
