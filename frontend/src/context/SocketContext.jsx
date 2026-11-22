@@ -392,6 +392,14 @@ export const SocketProvider = ({ children }) => {
       emitToHandlers('new_notification', notification);
     });
 
+    // Admin content notifications carry only a resource identifier. Each page
+    // re-fetches through its authenticated API, which applies recipient/unit rules.
+    socket.on('admin_content_changed', (change) => {
+      const resource = change?.resource;
+      if (!['events', 'courses', 'notices'].includes(resource)) return;
+      emitToHandlers('admin_content_changed', { resource });
+    });
+
     socket.on('new_story', (story) => {
       emitToHandlers('new_story', story);
     });
