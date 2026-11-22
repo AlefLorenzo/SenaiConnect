@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const groupController = require('../controllers/groupController');
+const messageController = require('../controllers/messageController');
 const { authenticateToken } = require('../middlewares/auth');
 
 // User's groups (my groups)
@@ -22,6 +23,10 @@ router.delete('/:id/members/:userId', authenticateToken, groupController.removeM
 // Group settings
 router.post('/:id/mute', authenticateToken, groupController.toggleMute);
 router.post('/:id/important', authenticateToken, groupController.toggleImportant);
+// Conversation group administration used by the WhatsApp-style group info screen.
+router.post('/:id/admins', authenticateToken, messageController.changeGroupAdmin);
+router.put('/:id', authenticateToken, messageController.updateGroup);
+router.delete('/:id', authenticateToken, messageController.deleteGroup);
 
 // Group posts
 router.get('/:id/posts', authenticateToken, groupController.getPosts);
