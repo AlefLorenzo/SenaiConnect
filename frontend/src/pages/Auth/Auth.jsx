@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import './Auth.css';
 
@@ -71,51 +71,89 @@ const Auth = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card card">
-        <div className="auth-header">
-          <h1 className="logo-text" style={{ color: 'var(--senai-blue-dark)', fontStyle: 'italic', margin: 0 }}>SENAI</h1>
-          <span className="logo-sub" style={{ color: 'var(--senai-blue-dark)', letterSpacing: '2px' }}>CONNECT</span>
-          <h2>{isLogin ? 'Entrar' : 'Cadastrar'}</h2>
+    <main className="auth-container">
+      <div className="auth-ambient auth-ambient-one" aria-hidden="true" />
+      <div className="auth-ambient auth-ambient-two" aria-hidden="true" />
+
+      <section className="auth-brand-panel" aria-label="SENAI Connect">
+        <div className="auth-brand-lockup">
+          <span className="auth-brand-mark">S</span>
+          <span className="auth-brand-name">SENAI <strong>CONNECT</strong></span>
         </div>
 
-        {error && <div className="auth-error" role="alert">{error}</div>}
-        {notice && <div className="auth-success" role="status">{notice}</div>}
+        <div className="auth-brand-copy">
+          <span className="auth-eyebrow">CONECTANDO O FUTURO</span>
+          <h1>Conhecimento que aproxima. <em>Oportunidades que transformam.</em></h1>
+          <p>Entre na comunidade SENAI e acompanhe pessoas, projetos, cursos, eventos e oportunidades em um só lugar.</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {!isLogin && (
-            <div className="form-group">
-              <label htmlFor="auth-name">Nome Completo</label>
-              <input id="auth-name" type="text" name="name" value={formData.name} onChange={handleChange} required autoComplete="name" />
+        <div className="auth-brand-highlights">
+          <div className="auth-highlight"><span className="auth-highlight-dot" /><span>Comunidade de aprendizagem</span></div>
+          <div className="auth-highlight"><span className="auth-highlight-dot" /><span>Conteúdos e oportunidades</span></div>
+        </div>
+        <span className="auth-brand-footer">SENAI CONNECT <span>·</span> APRENDER, COMPARTILHAR, EVOLUIR</span>
+      </section>
+
+      <section className="auth-form-panel">
+        <div className="auth-card">
+          <header className="auth-header">
+            <div className="auth-mobile-brand">
+              <span className="auth-brand-mark">S</span>
+              <span className="auth-brand-name">SENAI <strong>CONNECT</strong></span>
             </div>
-          )}
+            <span className="auth-form-kicker">{isLogin ? 'BEM-VINDO DE VOLTA' : 'FAÇA PARTE DA COMUNIDADE'}</span>
+            <h2>{isLogin ? 'Acesse sua conta' : 'Crie sua conta'}</h2>
+            <p>{isLogin ? 'Entre com seu e-mail institucional para continuar.' : 'Preencha seus dados para começar sua jornada.'}</p>
+          </header>
 
-          <div className="form-group">
-            <label htmlFor="auth-email">E-mail institucional</label>
-            <input id="auth-email" type="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="email" />
+          {error && <div className="auth-error" role="alert">{error}</div>}
+          {notice && <div className="auth-success" role="status">{notice}</div>}
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            {!isLogin && (
+              <div className="form-group">
+                <label htmlFor="auth-name">Nome completo</label>
+                <input id="auth-name" type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Como podemos chamar você?" required autoComplete="name" />
+              </div>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="auth-email">E-mail institucional</label>
+              <input id="auth-email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="seu.email@senai.com.br" required autoComplete="email" />
+            </div>
+
+            <div className="form-group">
+              <div className="auth-label-row">
+                <label htmlFor="auth-password">Senha</label>
+                {isLogin && <Link to="/forgot-password" className="auth-forgot-link">Esqueceu a senha?</Link>}
+              </div>
+              <input id="auth-password" type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Digite sua senha" required minLength={6} autoComplete={isLogin ? 'current-password' : 'new-password'} />
+            </div>
+
+            <button type="submit" className="auth-submit" disabled={loading} aria-busy={loading}>
+              <span>{loading ? 'Aguarde...' : (isLogin ? 'Entrar na plataforma' : 'Criar minha conta')}</span>
+              {!loading && <span className="auth-submit-arrow" aria-hidden="true">→</span>}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            <span>{isLogin ? 'Ainda não tem uma conta?' : 'Já faz parte da comunidade?'}</span>
+            <button type="button" className="auth-switch-btn" onClick={() => {
+              setIsLogin(!isLogin);
+              setError('');
+              setNotice('');
+            }}>
+              {isLogin ? 'Cadastre-se' : 'Fazer login'}
+            </button>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="auth-password">Senha</label>
-            <input id="auth-password" type="password" name="password" value={formData.password} onChange={handleChange} required minLength={6} autoComplete={isLogin ? 'current-password' : 'new-password'} />
+          <div className="auth-security-note">
+            <span className="auth-security-icon" aria-hidden="true">✓</span>
+            <span>Ambiente protegido para sua comunidade acadêmica.</span>
           </div>
-
-          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '16px' }} disabled={loading}>
-            {loading ? 'Aguarde...' : (isLogin ? 'Entrar' : 'Criar Conta')}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <button type="button" className="auth-switch-btn" onClick={() => {
-            setIsLogin(!isLogin);
-            setError('');
-            setNotice('');
-          }}>
-            {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já possui conta? Entrar'}
-          </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 
