@@ -389,6 +389,40 @@ export const SocketProvider = ({ children }) => {
         if (!notification.read) setUnreadCount(prev => prev + 1);
       }
 
+      if (!isDuplicate && !notification?.read && document.visibilityState !== 'visible'
+          && 'Notification' in window && Notification.permission === 'granted') {
+        const metadata = typeof notification.metadata === 'string'
+          ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+          : (notification.metadata || {});
+        const activity = String(notification.activity_type || notification.type || 'notification');
+        const titleByType = {
+          message: 'Nova mensagem', post_like: 'Nova curtida', like: 'Nova curtida',
+          follow: 'Novo seguidor', post_comment: 'Novo comentário', comment: 'Novo comentário',
+          comment_reply: 'Nova resposta', mention: 'Você foi mencionado',
+          event_reminder: 'Lembrete de evento', notice: 'Novo aviso'
+        };
+        const title = titleByType[activity] || 'SENAI Connect';
+        const sender = notification.source_user_name ? `${notification.source_user_name}: ` : '';
+        const body = `${sender}${String(notification.content || 'Você tem uma nova atividade.').slice(0, 140)}`;
+        const destination = activity === 'message'
+          ? (metadata.conversation_id ? `/messages?conversationId=${encodeURIComponent(metadata.conversation_id)}` : '/messages')
+          : activity === 'event_reminder' ? '/events'
+          : activity === 'notice' ? '/notices'
+          : metadata.post_id || notification.post_id ? '/'
+          : notification.source_user_id ? `/profile/${notification.source_user_id}` : '/notifications';
+        (async () => {
+          try {
+            const registration = await navigator.serviceWorker?.getRegistration('/');
+            if (registration) await registration.showNotification(title, {
+              body, icon: '/favicon.svg', badge: '/favicon.svg',
+              tag: `senai-notification-${notification.id || Date.now()}`,
+              data: { url: destination }, renotify: false
+            });
+            else new Notification(title, { body, icon: '/favicon.svg' });
+          } catch (error) { console.error('Falha ao exibir notificação do navegador:', error); }
+        })();
+      }
+
       emitToHandlers('new_notification', notification);
     });
 
