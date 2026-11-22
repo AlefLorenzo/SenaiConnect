@@ -44,6 +44,28 @@ describe('User settings persistence', () => {
     expect(socketHelper.broadcast).toHaveBeenCalledWith('settings_updated', expect.objectContaining({ userId: 7 }));
   });
 
+
+  test('reads PostgreSQL lowercase privacy column names correctly', async () => {
+    const req = { user: { id: 7 } };
+    const res = createResponse();
+    mockDb.query.mockResolvedValueOnce([[{
+      settings: JSON.stringify({ theme: 'dark', privacy: { showLastSeen: 'contacts', readReceipts: false } }),
+      privacy_showprofile: 'private',
+      privacy_showemail: true,
+      notification_prefs: JSON.stringify({}),
+      accessibility_prefs: JSON.stringify({})
+    }]]);
+
+    await settingsController.getSettings(req, res);
+
+    const returned = res.json.mock.calls[0][0];
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(returned.privacy.profileVisibility).toBe('private');
+    expect(returned.privacy.showEmail).toBe(true);
+    expect(returned.privacy.showLastSeen).toBe('contacts');
+    expect(returned.privacy.readReceipts).toBe(false);
+  });
+
   test('rejects unsupported theme without writing to the database', async () => {
     const req = { user: { id: 7 }, body: { theme: 'neon' } };
     const res = createResponse();
