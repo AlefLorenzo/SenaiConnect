@@ -93,7 +93,7 @@ const discoveryFeedController = {
             const sort = ['popular', 'oldest'].includes(req.query.sort) ? req.query.sort : 'recent';
 
             const [userRows] = await db.query(
-                'SELECT course, unit, role, admin_role FROM users WHERE id = ? LIMIT 1',
+                'SELECT u.course, COALESCE(NULLIF(u.unit, \'\'), unit.name) AS unit, u.role, u.admin_role FROM users u LEFT JOIN units unit ON unit.id = u.unit_id WHERE u.id = ? LIMIT 1',
                 [userId]
             );
             const viewer = userRows[0] || {};
@@ -149,7 +149,7 @@ const discoveryFeedController = {
             }
 
             let notices = [];
-            if (institutionsEnabled) {
+            if (['all', 'institution', 'institutions'].includes(feedType)) {
                 const [noticeRows] = await db.query(
                     `SELECT n.id, n.title, n.content, n.priority, n.recipients, n.published_at,
                         n.expires_at, n.image_url, n.attachment_url, n.attachment_name,
@@ -210,7 +210,9 @@ const discoveryFeedController = {
                         ORDER BY e.created_at DESC
                         LIMIT ?
                     `, [...eventParams, take]);
-                    events = rows.map(event => ({
+                    events = rows
+                        .filter(event => !event.unit || !viewer.unit || String(event.unit).trim().toLowerCase() === String(viewer.unit).trim().toLowerCase())
+                        .map(event => ({
                         ...event,
                         id: `event-${event.id}`,
                         entity_id: event.id,
@@ -250,7 +252,9 @@ const discoveryFeedController = {
                         ORDER BY c.created_at DESC
                         LIMIT ?
                     `, [...courseParams, take]);
-                    courses = rows.map(course => ({
+                    courses = rows
+                        .filter(course => !course.unit || !viewer.unit || String(course.unit).trim().toLowerCase() === String(viewer.unit).trim().toLowerCase())
+                        .map(course => ({
                         ...course,
                         id: `course-${course.id}`,
                         entity_id: course.id,
@@ -325,6 +329,9 @@ const discoveryFeedController = {
 
             const organicItems = [...businessPosts, ...notices, ...events, ...courses];
             const sortItems = (items) => items.sort((a, b) => {
+                if (a.institution_type === 'notice' && b.institution_type === 'notice' && Boolean(a.is_pinned) !== Boolean(b.is_pinned)) {
+                    return a.is_pinned ? -1 : 1;
+                }
                 if (sort === 'popular') {
                     const scoreA = Number(a.likes_count || 0) + Number(a.comments_count || 0) * 2 + Number(a.shares_count || 0);
                     const scoreB = Number(b.likes_count || 0) + Number(b.comments_count || 0) * 2 + Number(b.shares_count || 0);
