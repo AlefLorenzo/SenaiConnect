@@ -27,6 +27,7 @@ describe('socketHelper', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockDb.query.mockReset();
+    socketHelper.clearMembershipCache();
     mockIo.to.mockClear();
     mockIo.emit.mockClear();
     // Clear internal maps if accessible
@@ -150,6 +151,21 @@ describe('socketHelper', () => {
 
     test('rejects malformed conversation identifiers', async () => {
       await expect(socketHelper.isConversationMember(12, '12_x')).resolves.toBe(false);
+      expect(mockDb.query).not.toHaveBeenCalled();
+    });
+
+    test('reuses a recently verified membership instead of querying on every socket event', async () => {
+      mockDb.query.mockResolvedValueOnce([[{ id: 24 }]]);
+
+      await expect(socketHelper.isConversationMember(12, '12_24')).resolves.toBe(true);
+      await expect(socketHelper.isConversationMember(12, '12_24')).resolves.toBe(true);
+
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not treat malformed group identifiers as valid memberships', async () => {
+      await expect(socketHelper.isConversationMember(12, '1e2')).resolves.toBe(false);
+      await expect(socketHelper.isConversationMember(12, '01')).resolves.toBe(false);
       expect(mockDb.query).not.toHaveBeenCalled();
     });
   });
