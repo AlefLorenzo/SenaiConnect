@@ -472,10 +472,10 @@ const messageController = {
                 const [groupMessages] = await db.query(`
                     SELECT
                         gm.*,
-                        u.name as sender_name,
+                        COALESCE(NULLIF(TRIM(u.name), ''), 'Participant') as sender_name,
                         u.avatar as sender_avatar
                     FROM group_messages gm
-                    JOIN users u ON u.id = gm.sender_id
+                    LEFT JOIN users u ON u.id = gm.sender_id
                     WHERE gm.group_id = ?
                     ORDER BY gm.created_at DESC, gm.id DESC
                     LIMIT ? OFFSET ?
@@ -487,7 +487,7 @@ const messageController = {
                     id: m.id,
                     conversationId: m.group_id,
                     senderId: m.sender_id,
-                    senderName: m.sender_name,
+                    senderName: Number(m.sender_id) === Number(loggedUserId) ? 'You' : (m.sender_name || 'Participant'),
                     senderAvatar: m.sender_avatar,
                     content: m.content,
                     type: m.message_type || 'text',
