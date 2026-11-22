@@ -304,24 +304,47 @@ const Notifications = () => {
 
     return (
         <div className="notifications-page">
-            <div className="notifications-page-header">
-                <div><h1>Central de avisos</h1><p className="notifications-page-subtitle">Comunicados institucionais, oportunidades de empresas e atividades da comunidade.</p></div>
-                <div className="header-actions">
-                    {unreadCount > 0 && (
-                        <button className="mark-all-read-btn" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
-                            Marcar todas como lidas
+            <div className="notifications-sticky-header">
+                <div className="notifications-page-header">
+                    <div className="notifications-heading-copy">
+                        <h1>Central de atividades</h1>
+                        <p className="notifications-page-subtitle">Acompanhe comunicados, oportunidades e interações da comunidade.</p>
+                    </div>
+                    <div className="header-actions">
+                        {unreadCount > 0 && (
+                            <button className="mark-all-read-btn" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
+                                Marcar todas como lidas
+                            </button>
+                        )}
+                        <button
+                            className="preferences-toggle-btn"
+                            onClick={() => setShowPreferences(!showPreferences)}
+                            aria-expanded={showPreferences}
+                            aria-controls="notification-preferences"
+                        >
+                            <Settings size={20} />
+                            <span>Preferências</span>
+                            {showPreferences ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
-                    )}
-                    <button
-                        className="preferences-toggle-btn"
-                        onClick={() => setShowPreferences(!showPreferences)}
-                        aria-expanded={showPreferences}
-                        aria-controls="notification-preferences"
-                    >
-                        <Settings size={20} />
-                        <span>Preferências</span>
-                        {showPreferences ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
+                    </div>
+                </div>
+                <div className="notification-category-filters" role="group" aria-label="Filtrar atividades">
+                    {[
+                        ['all', 'Tudo'],
+                        ['institutional', 'Institucional'],
+                        ['business', 'Empresas'],
+                        ['community', 'Comunidade']
+                    ].map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            className={`notification-category-filter ${categoryFilter === value ? 'active' : ''}`}
+                            aria-pressed={categoryFilter === value}
+                            onClick={() => setCategoryFilter(value)}
+                        >
+                            {label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -339,26 +362,6 @@ const Notifications = () => {
                 {browserPermission === 'default' && <button type="button" onClick={enableBrowserNotifications} disabled={requestingPermission}><BellRing size={17} /> {requestingPermission ? 'Ativando…' : 'Ativar notificações'}</button>}
                 {browserPermission === 'granted' && <span className="browser-notification-status">Ativadas</span>}
             </section>
-
-            {/* Category filters */}
-            <div className="notification-category-filters" role="group" aria-label="Filtrar avisos">
-                {[
-                    ['all', 'Tudo'],
-                    ['institutional', 'Institucional'],
-                    ['business', 'Empresas'],
-                    ['community', 'Comunidade']
-                ].map(([value, label]) => (
-                    <button
-                        key={value}
-                        type="button"
-                        className={`notification-category-filter ${categoryFilter === value ? 'active' : ''}`}
-                        aria-pressed={categoryFilter === value}
-                        onClick={() => setCategoryFilter(value)}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
 
             {/* Preferences Panel */}
             {showPreferences && (
