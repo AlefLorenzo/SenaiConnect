@@ -992,3 +992,40 @@ body,
   border-left-color: #b85a64 !important;
   color: #ffc4c9 !important;
 }
+
+/* Theme token compatibility layer.
+   Older feature styles use these aliases; define them centrally so they
+   resolve in both color schemes instead of silently becoming transparent. */
+:root {
+  --color-bg-main: var(--bg-main);
+  --color-bg-main-dark: #111318;
+  --color-bg-chat: #f0f2f5;
+  --color-bg-chat-dark: #151922;
+  --color-bg-input: #f0f2f5;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #f5d98a;
+  --color-warning-text: #7a5200;
+}
+
+[data-theme="dark"] {
+  --color-bg-main: var(--bg-main);
+  --color-bg-main-dark: #111318;
+  --color-bg-chat: #181d26;
+  --color-bg-chat-dark: #151922;
+  --color-bg-input: #151922;
+  --color-warning-bg: #3a2d12;
+  --color-warning-border: #765d22;
+  --color-warning-text: #ffe2a3;
+}
+
+/* Keep common hover surfaces within the active theme. */
+[data-theme="dark"] .create-post-input:hover,
+[data-theme="dark"] .btn-secondary:hover,
+[data-theme="dark"] .member-actions-dropdown .dropdown-item.danger:hover {
+  background-color: var(--bg-tertiary-hover);
+}
+
+[data-theme="dark"] .messages-tabs .tab-btn.active {
+  color: #8ab8ff;
+  border-bottom-color: #8ab8ff;
+}
