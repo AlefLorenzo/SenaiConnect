@@ -11,6 +11,7 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
 import Avatar from '../components/Avatar';
 import MessageBubble from '../components/MessageBubble';
+import GroupInfoModal from '../components/GroupInfoModal';
 import messagesService from '../services/messagesService';
 import './Messages.css';
 
@@ -257,6 +258,7 @@ const Messages = () => {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupCreatorError, setGroupCreatorError] = useState('');
   const [selectedContact, setSelectedContact] = useState(null);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [history, setHistory] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -1648,7 +1650,32 @@ const Messages = () => {
           onCloseConversation={closeConversation}
           onSearchToggle={setShowMessageSearch}
           showMessageSearch={showMessageSearch}
+          onGroupInfo={() => setShowGroupInfo(true)}
         />
+
+        {isGroup && showGroupInfo && (
+          <GroupInfoModal
+            groupId={selectedContact.id ?? selectedContact.conversation_id}
+            group={selectedContact}
+            currentUserId={user?.id}
+            onClose={() => setShowGroupInfo(false)}
+            onUpdated={async () => {
+              const refreshed = await messagesService.getConversation(selectedContact.id ?? selectedContact.conversation_id, true);
+              setSelectedContact(previous => previous ? { ...previous, ...refreshed } : previous);
+              await Promise.all([fetchGroups(), fetchConversations()]);
+            }}
+            onLeave={async () => {
+              setShowGroupInfo(false);
+              closeConversation();
+              await Promise.all([fetchGroups(), fetchConversations()]);
+            }}
+            onDelete={async () => {
+              setShowGroupInfo(false);
+              closeConversation();
+              await Promise.all([fetchGroups(), fetchConversations()]);
+            }}
+          />
+        )}
 
         {showMessageSearch && (
           <MessageSearchBar
@@ -1984,7 +2011,7 @@ const ConversationHeader = ({
   contact, isGroup, isOnline, user,
   isMobile,
   onCloseConversation,
-  onSearchToggle, showMessageSearch
+  onSearchToggle, showMessageSearch, onGroupInfo
 }) => {
   // Find other participant by name not being "Você" (handles case where both have same ID)
   const otherParticipant = contact.participants?.find(p => p.name !== 'Você');
