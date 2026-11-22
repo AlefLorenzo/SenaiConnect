@@ -1341,6 +1341,67 @@
   }
 }
 
+/* Compact controls on narrow phones without shrinking the dialog off-center. */
+@media (max-width: 480px) {
+  .create-story-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .create-story-header h2 {
+    flex: 1 1 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+
+  .header-tool-btn,
+  .create-story-close {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px;
+  }
+
+  .create-story-tabs button {
+    gap: 4px;
+    padding: 10px 4px;
+    font-size: 12px;
+  }
+
+  .create-story-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .text-story-preview {
+    min-height: 220px;
+    padding: 16px;
+  }
+
+  .camera-placeholder,
+  .create-story-gallery {
+    min-height: 220px;
+  }
+
+  .create-story-footer {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .create-story-cancel,
+  .create-story-share {
+    padding-inline: 16px;
+    font-size: 14px;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .create-story-overlay,
