@@ -23,7 +23,7 @@ function parseJson(value, fallback = {}) {
 function safeDestination(value) {
     const destination = String(value || '').trim();
     if (!destination || /^(javascript|data|file|vbscript):/i.test(destination)) return null;
-    if (destination.startsWith('/') && !destination.startsWith('//') && !destination.includes('\\')) {
+    if (destination.startsWith('/') && !destination.startsWith('//') && !destination.includes(String.fromCharCode(92))) {
         return destination;
     }
     try {
