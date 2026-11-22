@@ -18,8 +18,13 @@ const listEvents = async (req, res) => {
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
         if (status) {
-            whereClause += ' AND e.status = ?';
-            params.push(status);
+            const statusValues = {
+                ativo: ['ativo', 'active'],
+                rascunho: ['rascunho', 'draft'],
+                arquivado: ['arquivado', 'archived']
+            }[String(status).toLowerCase()] || [status];
+            whereClause += ` AND LOWER(e.status) IN (${statusValues.map(() => '?').join(',')})`;
+            params.push(...statusValues);
         }
 
         const query = `
@@ -194,8 +199,13 @@ const listCourses = async (req, res) => {
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
         if (status) {
-            whereClause += ' AND c.status = ?';
-            params.push(status);
+            const statusValues = {
+                ativo: ['ativo', 'active'],
+                rascunho: ['rascunho', 'draft'],
+                arquivado: ['arquivado', 'archived']
+            }[String(status).toLowerCase()] || [status];
+            whereClause += ` AND LOWER(c.status) IN (${statusValues.map(() => '?').join(',')})`;
+            params.push(...statusValues);
         }
 
         const query = `
