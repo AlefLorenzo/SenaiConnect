@@ -160,7 +160,7 @@ const AdminNoticesList = () => {
                     <h1>Avisos</h1>
                     <p>Gerencie todos os comunicados publicados na plataforma</p>
                 </div>
-                <RouterLink to="/admin/notices/new">
+                <RouterLink to="/admin/notices/create">
                     <Button variant="primary">
                         <Plus size={18} /> Novo Aviso
                     </Button>
@@ -258,7 +258,7 @@ const AdminNoticesList = () => {
                                     <td>
                                         <div className="actions">
                                             <RouterLink
-                                                to={`/admin/notices/${notice.id}/edit`}
+                                                to={`/admin/notices/edit/${notice.id}`}
                                                 className="btn btn--ghost btn--sm"
                                                 title="Editar"
                                             >
