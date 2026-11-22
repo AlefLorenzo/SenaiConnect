@@ -13,6 +13,7 @@ const getNotificationIcon = (type) => {
         case 'friend_request': return <UserPlus size={20} fill="#F59E0B" />;
         case 'friend_accepted': return <CheckCircle size={20} fill="#10B981" />;
         case 'mention': return <AtSign size={20} fill="#8B5CF6" />;
+        case 'admin_publication': return <BellRing size={20} />;
         default: return <Bell size={20} fill="#6B7280" />;
     }
 };
@@ -25,6 +26,7 @@ const getNotificationTypeLabel = (type) => {
         friend_request: 'enviou uma solicitação de amizade',
         friend_accepted: 'aceitou sua solicitação de amizade',
         mention: 'te mencionou',
+        admin_publication: 'publicou um novo conteúdo institucional',
     };
     return labels[type] || 'enviou uma notificação';
 };
@@ -211,10 +213,22 @@ const Notifications = () => {
             }
             const conversationId = metadata.conversation_id;
             navigate(conversationId ? `/messages?conversationId=${encodeURIComponent(conversationId)}` : '/messages');
-        } else if (notification.post_id) {
-            navigate('/');
-        } else if (notification.source_user_id) {
-            navigate(`/profile/${notification.source_user_id}`);
+        } else {
+            const metadata = typeof notification.metadata === 'string'
+                ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+                : (notification.metadata || {});
+            const resource = metadata.resource || notification.reference_type;
+            const destination = resource === 'events' || resource === 'event' ? '/eventos'
+                : resource === 'courses' || resource === 'course' ? '/cursos'
+                : resource === 'notices' || resource === 'notice' ? '/avisos'
+                : null;
+            if (destination) {
+                navigate(destination);
+            } else if (notification.post_id) {
+                navigate('/');
+            } else if (notification.source_user_id) {
+                navigate(`/profile/${notification.source_user_id}`);
+            }
         }
     };
 
