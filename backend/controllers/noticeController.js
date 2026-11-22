@@ -3,16 +3,48 @@ const db = require('../db');
 const noticeController = {
     getNotices: async (req, res) => {
         try {
-            const query = `
-                SELECT n.*, u.name as author_name, u.avatar as author_avatar
+            const { buildNoticeVisibilityClause } = require('../utils/contentVisibility');
+            const visibility = buildNoticeVisibilityClause(req.user, 'n');
+            const [notices] = await db.query(`
+                SELECT n.*, u.name as author_name, u.avatar as author_avatar, nr.read_at
                 FROM notices n
                 JOIN users u ON n.author_id = u.id
-                ORDER BY n.created_at DESC
-            `;
-            const [notices] = await db.query(query);
+                LEFT JOIN notice_reads nr ON nr.notice_id = n.id AND nr.user_id = ?
+                WHERE n.status = 'published'
+                  AND (n.published_at IS NULL OR n.published_at <= NOW())
+                  AND (n.expires_at IS NULL OR n.expires_at > NOW())
+                  AND ${visibility.sql}
+                ORDER BY n.is_pinned DESC, n.published_at DESC NULLS LAST, n.created_at DESC
+            `, [req.user.id, ...visibility.params]);
             res.status(200).json(notices);
         } catch (error) {
+            console.error('Erro ao buscar avisos visíveis:', error);
             res.status(500).json({ error: 'Erro ao buscar avisos' });
+        }
+    },
+
+    getNoticeFiles: async (req, res) => {
+        try {
+            const { buildNoticeVisibilityClause } = require('../utils/contentVisibility');
+            const visibility = buildNoticeVisibilityClause(req.user, 'n');
+            const [files] = await db.query(`
+                SELECT n.id as notice_id, n.title, n.attachment_url, n.attachment_name,
+                       n.created_at, n.published_at, n.priority,
+                       u.name as author_name
+                FROM notices n
+                LEFT JOIN users u ON u.id = n.author_id
+                WHERE n.status = 'published'
+                  AND (n.published_at IS NULL OR n.published_at <= NOW())
+                  AND (n.expires_at IS NULL OR n.expires_at > NOW())
+                  AND n.attachment_url IS NOT NULL
+                  AND TRIM(n.attachment_url) <> ''
+                  AND ${visibility.sql}
+                ORDER BY n.is_pinned DESC, n.published_at DESC NULLS LAST, n.created_at DESC
+            `, visibility.params);
+            res.status(200).json(files);
+        } catch (error) {
+            console.error('Erro ao buscar arquivos administrativos:', error);
+            res.status(500).json({ error: 'Erro ao buscar arquivos' });
         }
     },
 
@@ -55,15 +87,19 @@ const noticeController = {
 
     getEvents: async (req, res) => {
         try {
-            const query = `
+            const { buildUnitVisibilityClause } = require('../utils/contentVisibility');
+            const visibility = buildUnitVisibilityClause(req.user, 'e');
+            const [events] = await db.query(`
                 SELECT e.*, u.name as author_name
                 FROM events e
-                JOIN users u ON e.author_id = u.id
+                LEFT JOIN users u ON u.id = e.author_id
+                WHERE LOWER(TRIM(COALESCE(e.status, ''))) IN ('ativo', 'active')
+                  AND ${visibility.sql}
                 ORDER BY e.event_date ASC
-            `;
-            const [events] = await db.query(query);
+            `, visibility.params);
             res.status(200).json(events);
         } catch (error) {
+            console.error('Erro ao buscar eventos:', error);
             res.status(500).json({ error: 'Erro ao buscar eventos' });
         }
     },
