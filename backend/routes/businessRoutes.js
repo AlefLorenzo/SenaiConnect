@@ -7,6 +7,7 @@ const businessStoryController = require('../controllers/businessStoryController'
 const businessCampaignController = require('../controllers/businessCampaignController');
 const adSpaceController = require('../controllers/adSpaceController');
 const businessNotificationController = require('../controllers/businessNotificationController');
+const discoveryFeedController = require('../controllers/discoveryFeedController');
 const { requireAdmin, requireRole, JWT_ADMIN_SECRET } = require('../middlewares/adminAuth');
 const { authenticateToken } = require('../middlewares/auth');
 const rateLimiter = require('../utils/rateLimiter');
@@ -289,6 +290,11 @@ async function downloadBusinessInvoice(req, res) {
 // ============================================
 // ROTAS PÚBLICAS (Feed, Busca, Perfis)
 // ============================================
+
+// Feed de descoberta: publicações empresariais, conteúdo institucional e anúncios aprovados.
+router.get('/discovery-feed', authenticateToken, discoveryFeedController.list);
+router.post('/ad-creatives/:id/impression', authenticateToken, businessActionLimiter, discoveryFeedController.trackImpression);
+router.post('/ad-creatives/:id/click', authenticateToken, businessActionLimiter, discoveryFeedController.trackClick);
 
 // Feed de publicações empresariais
 router.get('/posts', authenticateToken, businessPostController.listPosts);
