@@ -228,6 +228,55 @@ describe('MessageBubble', () => {
     });
   });
 
+  describe('Story reply messages', () => {
+    test('shows the original story preview together with the private reply text', () => {
+      renderMessageBubble({
+        message: {
+          ...defaultProps.message,
+          sender_id: 1,
+          message_type: 'story_reply',
+          type: 'story_reply',
+          content: 'Que lugar lindo!',
+          storyReply: {
+            storyId: 42,
+            ownerId: 2,
+            ownerName: 'Maria Silva',
+            mediaUrl: 'https://example.com/story.jpg',
+            mediaType: 'image',
+            textContent: 'Passeio de hoje',
+          },
+        },
+      });
+
+      expect(screen.getByText('Story de Maria Silva')).toBeInTheDocument();
+      expect(screen.getByText('Passeio de hoje')).toBeInTheDocument();
+      expect(screen.getByText('Que lugar lindo!')).toBeInTheDocument();
+      expect(document.querySelector('.story-message-thumbnail')).toHaveAttribute('src', 'https://example.com/story.jpg');
+    });
+
+    test('labels a story preview as the current user\'s story when received by its owner', () => {
+      renderMessageBubble({
+        currentUserId: 2,
+        message: {
+          ...defaultProps.message,
+          sender_id: 1,
+          message_type: 'story_reply',
+          type: 'story_reply',
+          content: 'Adorei!',
+          storyReply: {
+            storyId: 42,
+            ownerId: 2,
+            ownerName: 'Maria Silva',
+            textContent: 'Meu story',
+          },
+        },
+      });
+
+      expect(screen.getByText('Seu story')).toBeInTheDocument();
+      expect(screen.getByText('Adorei!')).toBeInTheDocument();
+    });
+  });
+
   describe('Attachments', () => {
     test('renders image attachment', () => {
       renderMessageBubble({
