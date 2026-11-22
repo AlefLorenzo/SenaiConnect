@@ -95,20 +95,23 @@ describe('MessageBubble', () => {
       expect(bubble).toHaveClass('sent');
     });
 
-    test('does not show sender name for own messages in groups', () => {
+    test('shows "Você" for own group messages even when sender ID types differ', () => {
       const sentMessage = {
         ...defaultProps.message,
-        sender_id: 1,
-        sender_name: 'Você',
+        sender_id: '1',
+        sender_name: 'Nome da conta',
       };
 
       renderMessageBubble({
         message: sentMessage,
+        currentUserId: 1,
         isGroup: true,
       });
 
-      // Component does not show sender header for sent messages (isSent returns false for shouldShowSenderHeader)
-      expect(screen.queryByText('Você')).not.toBeInTheDocument();
+      const bubble = screen.getByText('Mensagem de teste').closest('.message-bubble');
+      expect(bubble).toHaveClass('sent');
+      expect(screen.getByText('Você')).toBeInTheDocument();
+      expect(screen.queryByText('Nome da conta')).not.toBeInTheDocument();
     });
 
     test('does not show sender name for own messages in individual chats', () => {
