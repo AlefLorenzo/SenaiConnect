@@ -55,7 +55,7 @@ const AdminLayout = () => {
 
     const navItems = [
         { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard', section: 'painel' },
-        { path: '/admin/notices', icon: Bell, label: 'Avisos', section: 'gestao' },
+        { path: '/admin/notices', icon: Bell, label: 'Central de avisos', section: 'gestao' },
         { path: '/admin/reports', icon: Flag, label: 'Denúncias', section: 'gestao' },
         { path: '/admin/users', icon: Users, label: 'Usuários', section: 'gestao' },
         { path: '/admin/courses', icon: BookOpen, label: 'Cursos', section: 'gestao' },
@@ -66,7 +66,7 @@ const AdminLayout = () => {
 
     const pageTitles = [
         ['/admin/dashboard', 'Dashboard'],
-        ['/admin/notices', 'Avisos'],
+        ['/admin/notices', 'Central de avisos'],
         ['/admin/reports', 'Denúncias'],
         ['/admin/users', 'Usuários'],
         ['/admin/courses', 'Cursos'],
