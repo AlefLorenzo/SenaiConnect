@@ -31,12 +31,14 @@ const MessageBubble = ({
   showDateSeparator = true
 }) => {
   const senderId = message.sender_id ?? message.senderId;
+  const normalizeId = (value) => value === null || value === undefined ? '' : String(value);
+  const normalizedSenderId = normalizeId(senderId);
   const createdAt = message.created_at ?? message.createdAt;
   const messageType = message.message_type ?? message.type ?? 'text';
   const mediaUrl = message.media_url ?? message.mediaUrl;
   const content = message.content;
   const status = message.status ?? message.messageStatus ?? 'sent';
-  const isSent = senderId === currentUserId;
+  const isSent = normalizedSenderId !== '' && normalizedSenderId === normalizeId(currentUserId);
   const isRead = status === 'lida' || status === 'read';
   const isDelivered = status === 'entregue' || status === 'delivered';
   const isSending = status === 'enviando' || status === 'sending';
@@ -176,52 +178,52 @@ const MessageBubble = ({
     };
   }, [isImageExpanded, isDragging]);
 
-  // Get sender info for group messages
+  // Resolve the author of a group message. Normalize IDs because the API,
+  // optimistic messages and the authenticated user can use different ID types.
   const getSenderInfo = () => {
     if (!isGroup) return null;
 
-    // Try to get sender name from message (backend should provide)
-    if (message.senderName) {
-      return {
-        name: message.senderName,
-        avatar: message.senderAvatar || null,
-        isAdmin: adminIds?.includes(senderId) || false
-      };
+    const isCurrentUserAdmin = adminIds?.some(id => normalizeId(id) === normalizedSenderId) || false;
+    if (isSent) {
+      return { name: 'Você', avatar: null, isAdmin: isCurrentUserAdmin };
     }
 
-    // Fallback: lookup in participants
-    const participant = participants?.find(p => p.id === senderId);
-    if (participant) {
-      return {
-        name: participant.name,
-        avatar: participant.avatar,
-        isAdmin: participant.isAdmin === true || participant.role === 'admin' || adminIds?.includes(senderId) || false
-      };
-    }
+    const participant = participants?.find(p =>
+      normalizeId(p.id ?? p.user_id ?? p.userId) === normalizedSenderId
+    );
+    const messageSenderName = message.senderName ?? message.sender_name;
+    const name = (messageSenderName || participant?.name || '').trim();
 
-    return { name: 'Desconhecido', avatar: null, isAdmin: false };
+    return {
+      name: name || 'Desconhecido',
+      avatar: message.senderAvatar ?? message.sender_avatar ?? participant?.avatar ?? null,
+      isAdmin: participant?.isAdmin === true ||
+        participant?.role === 'admin' ||
+        participant?.user_role === 'admin' ||
+        participant?.member?.role === 'admin' ||
+        isCurrentUserAdmin
+    };
   };
 
-  // Check if should show sender header (first message or different sender from previous)
+  // Show an author label at the start of every sender sequence, including our
+  // own messages ("Você"), just like the grouped message layout in WhatsApp.
   const shouldShowSenderHeader = useMemo(() => {
-    if (!isGroup || isSent) return false;
+    if (!isGroup) return false;
     if (index === 0) return true;
 
     const prevMessage = messages[index - 1];
     const prevSenderId = prevMessage?.sender_id ?? prevMessage?.senderId;
     const prevCreatedAt = prevMessage?.created_at ?? prevMessage?.createdAt;
 
-    // Different sender
-    if (prevSenderId !== senderId) return true;
+    if (normalizeId(prevSenderId) !== normalizedSenderId) return true;
 
-    // Same sender but time gap > 5 minutes - show header again
     if (prevCreatedAt && createdAt) {
-      const timeDiff = new Date(createdAt) - new Date(prevCreatedAt);
+      const timeDiff = Math.abs(new Date(createdAt) - new Date(prevCreatedAt));
       if (timeDiff > 5 * 60 * 1000) return true;
     }
 
     return false;
-  }, [index, messages, senderId, createdAt, isGroup, isSent]);
+  }, [index, messages, normalizedSenderId, createdAt, isGroup]);
 
   // Check if should show avatar (first in sequence or after time gap)
   const shouldShowAvatar = useMemo(() => {
@@ -457,16 +459,23 @@ const MessageBubble = ({
         </div>
       )}
 
-      {/* Group Sender Header (for received messages in groups) */}
-      {!isSent && isGroup && shouldShowSenderHeader && (
-        <div className={groupHeaderClasses} role="presentation" aria-hidden="true">
-          <Avatar
-            user={{ avatar: senderInfo.avatar, name: senderInfo.name }}
-            size={28}
-            className={avatarClasses}
-            aria-hidden="true"
-          />
-          <span className="group-sender-name" id={`sender-name-${message.id}`}>{senderInfo.name}</span>
+      {/* Group sender label: own messages are identified as "Você". */}
+      {isGroup && shouldShowSenderHeader && (
+        <div
+          className={`${groupHeaderClasses}${isSent ? ' own' : ''}`}
+          role="presentation"
+        >
+          {!isSent && (
+            <Avatar
+              user={{ avatar: senderInfo.avatar, name: senderInfo.name }}
+              size={28}
+              className={avatarClasses}
+              aria-hidden="true"
+            />
+          )}
+          <span className={`group-sender-name${isSent ? ' own' : ''}`} id={`sender-name-${message.id}`}>
+            {senderInfo.name}
+          </span>
           {senderInfo.isAdmin && (
             <span className="group-sender-admin-badge" aria-label="Administrador">
               <Shield size={10} />
@@ -485,7 +494,7 @@ const MessageBubble = ({
         data-message-id={message.id}
         role="article"
         aria-label={isSent ? 'Mensagem enviada' : 'Mensagem recebida'}
-        aria-labelledby={!isSent && isGroup && shouldShowSenderHeader ? `sender-name-${message.id}` : undefined}
+        aria-labelledby={isGroup && shouldShowSenderHeader ? `sender-name-${message.id}` : undefined}
       >
         {/* Message Content */}
         <div className="message-content">
