@@ -3,6 +3,7 @@ import { X, Image, Video, FileText, MessageSquare, HelpCircle, Lightbulb, Calend
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import './MobileCreateSheet.css';
+import { acquireModalScrollLock } from '../utils/modalScrollLock.js';
 
 const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNavigateHome }) => {
   const navigate = useNavigate();
@@ -171,41 +172,8 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
       return undefined;
     }
 
-    // Lock the document itself, not only body overflow. This also prevents
-    // touch-driven background scrolling on mobile browsers (especially iOS).
-    const scrollY = window.scrollY;
-    const body = document.body;
-    const html = document.documentElement;
-    const previousStyles = {
-      bodyPosition: body.style.position,
-      bodyTop: body.style.top,
-      bodyLeft: body.style.left,
-      bodyRight: body.style.right,
-      bodyWidth: body.style.width,
-      bodyOverflow: body.style.overflow,
-      htmlOverflow: html.style.overflow,
-      htmlOverscrollBehavior: html.style.overscrollBehavior,
-      mainOverflow: document.querySelector('.app-main')?.style.overflow ?? '',
-      mainOverflowY: document.querySelector('.app-main')?.style.overflowY ?? '',
-      mainOverscrollBehavior: document.querySelector('.app-main')?.style.overscrollBehavior ?? '',
-    };
-    const appMain = document.querySelector('.app-main');
-    const mainScrollTop = appMain?.scrollTop ?? 0;
-
+    const releaseScrollLock = acquireModalScrollLock();
     previousActiveElement.current = document.activeElement;
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.left = '0';
-    body.style.right = '0';
-    body.style.width = '100%';
-    body.style.overflow = 'hidden';
-    html.style.overflow = 'hidden';
-    html.style.overscrollBehavior = 'none';
-    if (appMain) {
-      appMain.style.overflow = 'hidden';
-      appMain.style.overflowY = 'hidden';
-      appMain.style.overscrollBehavior = 'none';
-    }
 
     const focusTimer = window.setTimeout(() => {
       if (sheetRef.current) {
@@ -222,24 +190,7 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
     return () => {
       window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
-
-      body.style.position = previousStyles.bodyPosition;
-      body.style.top = previousStyles.bodyTop;
-      body.style.left = previousStyles.bodyLeft;
-      body.style.right = previousStyles.bodyRight;
-      body.style.width = previousStyles.bodyWidth;
-      body.style.overflow = previousStyles.bodyOverflow;
-      html.style.overflow = previousStyles.htmlOverflow;
-      html.style.overscrollBehavior = previousStyles.htmlOverscrollBehavior;
-      if (appMain) {
-        appMain.style.overflow = previousStyles.mainOverflow;
-        appMain.style.overflowY = previousStyles.mainOverflowY;
-        appMain.style.overscrollBehavior = previousStyles.mainOverscrollBehavior;
-        appMain.scrollTop = mainScrollTop;
-      }
-
-      // Restore the exact position the home feed had before opening the sheet.
-      window.scrollTo(0, scrollY);
+      releaseScrollLock();
       previousActiveElement.current?.focus({ preventScroll: true });
     };
   }, [isOpen, handleKeyDown]);
