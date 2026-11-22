@@ -2399,3 +2399,27 @@
     transition: none;
   }
 }
+
+
+/* Group name/photo open the group information screen, like WhatsApp. */
+.chat-group-info-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+.chat-group-info-trigger:not(:disabled) { cursor: pointer; border-radius: 12px; }
+.chat-group-info-trigger:not(:disabled):hover { background: var(--color-hover); }
+.chat-group-info-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.chat-group-info-trigger:disabled { cursor: default; }
+.chat-group-info-trigger .chat-user-info { min-width: 0; }
+@media (max-width: 768px) {
+  .chat-group-info-trigger { gap: 10px; }
+}
