@@ -107,3 +107,28 @@
   .admin-content-form-actions button,
   .admin-content-cancel { width: 100%; box-sizing: border-box; }
 }
+
+
+.admin-content-image-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.admin-content-image-preview img {
+  display: block;
+  width: min(100%, 260px);
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #cbd5e1);
+}
+.admin-content-image-preview button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
