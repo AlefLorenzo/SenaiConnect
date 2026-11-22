@@ -370,30 +370,51 @@ const adminNoticesController = {
 async function sendNoticeNotifications(notice, recipientsJson) {
     try {
         let recipients = { type: 'all' };
-        try {
-            recipients = JSON.parse(recipientsJson);
-        } catch {
-            recipients = { type: recipientsJson || 'all' };
+        if (recipientsJson && typeof recipientsJson === 'object') {
+            recipients = recipientsJson;
+        } else if (typeof recipientsJson === 'string') {
+            try {
+                recipients = JSON.parse(recipientsJson);
+            } catch {
+                recipients = { type: recipientsJson || 'all' };
+            }
         }
 
-        let userIds = [];
+        const values = Array.isArray(recipients.values)
+            ? recipients.values.map(value => String(value).trim()).filter(Boolean)
+            : [];
+        let users = [];
 
         if (recipients.type === 'all' || !recipients.type) {
-            const [users] = await db.query('SELECT id FROM users WHERE role = "Aluno" AND is_blocked = 0 AND deleted_at IS NULL');
-            userIds = users.map(u => u.id);
-        } else if (recipients.type === 'courses' && recipients.values) {
-            const [users] = await db.query(
-                `SELECT id FROM users WHERE course IN (${recipients.values.map(() => '?').join(',')}) AND is_blocked = 0 AND deleted_at IS NULL`,
-                recipients.values
+            [users] = await db.query(`
+                SELECT id FROM users
+                WHERE LOWER(role) IN ('aluno', 'student', 'estudante')
+                  AND is_blocked = 0 AND deleted_at IS NULL
+            `);
+        } else if (recipients.type === 'courses' && values.length > 0) {
+            [users] = await db.query(
+                `SELECT id FROM users
+                 WHERE course IN (${values.map(() => '?').join(',')})
+                   AND is_blocked = 0 AND deleted_at IS NULL`,
+                values
             );
-            userIds = users.map(u => u.id);
+        } else if (recipients.type === 'units' && values.length > 0) {
+            [users] = await db.query(
+                `SELECT id FROM users
+                 WHERE unit IN (${values.map(() => '?').join(',')})
+                   AND is_blocked = 0 AND deleted_at IS NULL`,
+                values
+            );
         } else if (recipients.type === 'admins') {
-            const [users] = await db.query('SELECT id FROM users WHERE admin_role IS NOT NULL AND is_blocked = 0');
-            userIds = users.map(u => u.id);
+            [users] = await db.query('SELECT id FROM users WHERE admin_role IS NOT NULL AND is_blocked = 0 AND deleted_at IS NULL');
         } else if (recipients.type === 'teachers') {
-            const [users] = await db.query('SELECT id FROM users WHERE role = "Professor" AND is_blocked = 0 AND deleted_at IS NULL');
-            userIds = users.map(u => u.id);
+            [users] = await db.query(`
+                SELECT id FROM users
+                WHERE LOWER(role) IN ('professor', 'professora', 'teacher', 'docente')
+                  AND is_blocked = 0 AND deleted_at IS NULL
+            `);
         }
+        const userIds = users.map(user => user.id);
 
         // Enviar notificação em lotes
         for (const userId of userIds) {
