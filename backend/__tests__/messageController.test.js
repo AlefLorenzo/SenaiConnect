@@ -432,12 +432,13 @@ describe('messageController', () => {
           const mockGroupMessages = [
             { id: 1, group_id: 1, sender_id: 2, content: 'Group msg 1', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T10:30:00Z', sender_name: 'User 2', sender_avatar: null },
             { id: 2, group_id: 1, sender_id: 3, content: 'Group msg 2', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:00:00Z', sender_name: 'User 3', sender_avatar: null },
+            { id: 3, group_id: 1, sender_id: 1, content: 'My group message', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:01:00Z', sender_name: 'Test User', sender_avatar: null },
           ];
           return Promise.resolve([mockGroupMessages]);
         }
         // Query 3: Get total count
         if (sql.includes('COUNT(*) as total FROM group_messages')) {
-          return Promise.resolve([[{ total: 2 }]]);
+          return Promise.resolve([[{ total: 3 }]]);
         }
         return Promise.resolve([[]]);
       });
@@ -450,13 +451,14 @@ describe('messageController', () => {
           data: expect.arrayContaining([
             expect.objectContaining({ content: 'Group msg 1' }),
             expect.objectContaining({ content: 'Group msg 2' }),
+            expect.objectContaining({ content: 'My group message', senderName: 'You' }),
           ]),
           contact: expect.objectContaining({ name: 'Group 1' }),
           isGroup: true,
           pagination: expect.objectContaining({
             page: 1,
             limit: 50,
-            total: 2,
+            total: 3,
           }),
         })
       );
