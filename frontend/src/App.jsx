@@ -48,7 +48,9 @@ const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers'));
 const AdminReports = lazy(() => import('./pages/Admin/AdminReports'));
 const AdminReportDetail = lazy(() => import('./pages/Admin/AdminReportDetail'));
 const AdminCourses = lazy(() => import('./pages/Admin/AdminCourses'));
+const AdminCourseForm = lazy(() => import('./pages/Admin/AdminCourseForm'));
 const AdminEvents = lazy(() => import('./pages/Admin/AdminEvents'));
+const AdminEventForm = lazy(() => import('./pages/Admin/AdminEventForm'));
 const AdminNotices = lazy(() => import('./pages/Admin/AdminNotices'));
 const AdminNoticesList = lazy(() => import('./pages/Admin/AdminNoticesList'));
 const AdminNoticeForm = lazy(() => import('./pages/Admin/AdminNoticeForm'));
@@ -71,7 +73,11 @@ const AdminRoutes = () => (
     <Route path="reports/:id" element={<AdminReportDetail />} />
     <Route path="users" element={<AdminUsers />} />
     <Route path="courses" element={<AdminCourses />} />
+    <Route path="courses/new" element={<AdminCourseForm />} />
+    <Route path="courses/:id/edit" element={<AdminCourseForm />} />
     <Route path="events" element={<AdminEvents />} />
+    <Route path="events/new" element={<AdminEventForm />} />
+    <Route path="events/:id/edit" element={<AdminEventForm />} />
     <Route path="audit" element={<AdminAudit />} />
     <Route path="settings" element={<AdminSettings />} />
     <Route path="login" element={<AdminLogin />} />
@@ -159,15 +165,21 @@ function App() {
               {/* Admin routes (nested under AdminLayout) */}
               <Route path="/admin" element={<AdminLayout />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="notices" element={<AdminNotices />} />
+                <Route path="notices" element={<AdminNoticesList />} />
                 <Route path="notices/list" element={<AdminNoticesList />} />
+                <Route path="notices/new" element={<AdminNoticeForm />} />
                 <Route path="notices/create" element={<AdminNoticeForm />} />
+                <Route path="notices/:id/edit" element={<AdminNoticeForm />} />
                 <Route path="notices/edit/:id" element={<AdminNoticeForm />} />
                 <Route path="reports" element={<AdminReports />} />
                 <Route path="reports/:id" element={<AdminReportDetail />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="courses" element={<AdminCourses />} />
+                <Route path="courses/new" element={<AdminCourseForm />} />
+                <Route path="courses/:id/edit" element={<AdminCourseForm />} />
                 <Route path="events" element={<AdminEvents />} />
+                <Route path="events/new" element={<AdminEventForm />} />
+                <Route path="events/:id/edit" element={<AdminEventForm />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
