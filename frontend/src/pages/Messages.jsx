@@ -51,6 +51,46 @@ export const getOtherParticipant = (contact) => {
 
 export const getContactAvatar = (contact) => contact;
 
+const normalizePreviewUserId = (value) => (
+  value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+);
+
+const GENERIC_GROUP_SENDER_NAMES = new Set([
+  'unknown', 'desconhecido', 'participant', 'participante', 'you', 'você'
+]);
+
+// Resolve the group-list sender by ID first. This avoids showing stale labels
+// such as "Unknown" and correctly labels the current user's own messages.
+export const getGroupLastMessageSenderName = (contact, currentUserId) => {
+  const lastMessage = contact?.last_message;
+  if (!lastMessage) return '';
+
+  const senderId = lastMessage.senderId ?? lastMessage.sender_id;
+  const normalizedSenderId = normalizePreviewUserId(senderId);
+  const normalizedCurrentUserId = normalizePreviewUserId(currentUserId);
+
+  if (normalizedSenderId && normalizedCurrentUserId && normalizedSenderId === normalizedCurrentUserId) {
+    return 'You';
+  }
+
+  const participant = normalizedSenderId
+    ? (contact.participants || []).find(member => (
+        normalizePreviewUserId(member.id ?? member.user_id ?? member.userId) === normalizedSenderId
+      ))
+    : null;
+  const participantName = String(participant?.name || '').trim();
+  if (participantName && !GENERIC_GROUP_SENDER_NAMES.has(participantName.toLowerCase())) {
+    return participantName;
+  }
+
+  const messageSenderName = String(lastMessage.senderName ?? lastMessage.sender_name ?? '').trim();
+  if (messageSenderName && !GENERIC_GROUP_SENDER_NAMES.has(messageSenderName.toLowerCase())) {
+    return messageSenderName;
+  }
+
+  return 'Participant';
+};
+
 export const getContactUnread = (contact) => contact.unreadCount || contact.unread_count || 0;
 
 const sanitizeFileName = (name) => {
@@ -1913,6 +1953,9 @@ const MessagesSidebar = ({
           const unreadCount = getContactUnread(contact);
           const hasUnread = unreadCount > 0;
           const contactName = getContactName(contact);
+          const groupSenderName = contact.isGroup
+            ? getGroupLastMessageSenderName(contact, user?.id)
+            : '';
           const otherParticipant = getOtherParticipant(contact);
           const contactOnline = otherParticipant?.isOnline || false;
           const contactId = contact.conversation_id || contact.id;
@@ -1956,9 +1999,9 @@ const MessagesSidebar = ({
                   }}>
                     {contact.isGroup && contact.last_message ? (
                       <>
-                        {contact.last_message.senderName ? (
+                        {groupSenderName ? (
                           <>
-                            <strong>{contact.last_message.senderName}:</strong> {contact.last_message.content || contact.last_message.text || ''}
+                            <strong>{groupSenderName}:</strong> {contact.last_message.content || contact.last_message.text || ''}
                           </>
                         ) : (
                           contact.last_message.content || contact.last_message.text || 'Nenhuma mensagem ainda'
