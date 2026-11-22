@@ -32,7 +32,7 @@ const BusinessDashboardPosts = lazy(() => import('./pages/BusinessDashboardPosts
 const BusinessDashboardStories = lazy(() => import('./pages/BusinessDashboardStories'));
 const BusinessDashboardBilling = lazy(() => import('./pages/BusinessDashboardBilling'));
 const BusinessDashboardCampaigns = lazy(() => import('./pages/BusinessDashboardCampaigns'));
-const BusinessCampaignForm = lazy(() => import('./pages/BusinessCampaignForm'))
+const BusinessCampaignForm = lazy(() => import('./pages/BusinessCampaignForm'));
 const BusinessDashboardSettings = lazy(() => import('./pages/BusinessDashboardSettings'));
 const BusinessDirectoryPage = lazy(() => import('./pages/BusinessDirectoryPage'));
 const BusinessFeed = lazy(() => import('./pages/BusinessFeed'));
