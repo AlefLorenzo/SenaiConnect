@@ -56,11 +56,7 @@ const BusinessPostCard = ({ post, onUpdate }) => {
 
     const postTypeConfig = POST_TYPE_CONFIG[post.post_type] || POST_TYPE_CONFIG.general;
     const externalDestination = getSafeDestination(post.external_link);
-    const ExternalDestinationLink = externalDestination?.startsWith('/') ? Link : 'a';
-    const externalDestinationProps = externalDestination?.startsWith('/')
-        ? { to: externalDestination }
-        : { href: externalDestination || undefined, target: '_blank', rel: 'noopener noreferrer' };
-
+ 
     // Fetch initial status
     useEffect(() => {
         const fetchStatus = async () => {
@@ -279,12 +275,15 @@ const BusinessPostCard = ({ post, onUpdate }) => {
                 <p className="post-text">{post.content}</p>
 
                 {externalDestination && (
-                    <ExternalDestinationLink
-                        {...externalDestinationProps}
-                        className="external-link"
-                    >
-                        <ExternalLink size={16} /> {post.link_label || 'Ver oportunidade'}
-                    </ExternalDestinationLink>
+                    externalDestination.startsWith('/') ? (
+                        <Link to={externalDestination} className="external-link">
+                            <ExternalLink size={16} /> {post.link_label || 'Ver oportunidade'}
+                        </Link>
+                    ) : (
+                        <a href={externalDestination} target="_blank" rel="noopener noreferrer" className="external-link">
+                            <ExternalLink size={16} /> {post.link_label || 'Ver oportunidade'}
+                        </a>
+                    )
                 )}
             </div>
 
