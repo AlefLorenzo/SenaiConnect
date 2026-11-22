@@ -66,11 +66,7 @@ export default function DiscoveryCampaignCard({ ad }) {
         }).catch(error => console.error('Não foi possível registrar o clique no anúncio:', error));
     };
 
-    const DestinationLink = internal ? Link : 'a';
-    const destinationProps = internal
-        ? { to: destination }
-        : { href: destination || undefined, target: '_blank', rel: 'noopener noreferrer' };
-
+ 
     return (
         <article className="discovery-campaign-card" ref={cardRef}>
             <div className="discovery-campaign-topline">
@@ -92,13 +88,15 @@ export default function DiscoveryCampaignCard({ ad }) {
                 </div>
                 {ad.description && <p>{ad.description}</p>}
                 {destination ? (
-                    <DestinationLink
-                        {...destinationProps}
-                        className="discovery-campaign-cta"
-                        onClick={trackClick}
-                    >
-                        Saiba mais <ExternalLink size={16} />
-                    </DestinationLink>
+                    internal ? (
+                        <Link to={destination} className="discovery-campaign-cta" onClick={trackClick}>
+                            Saiba mais <ExternalLink size={16} />
+                        </Link>
+                    ) : (
+                        <a href={destination} target="_blank" rel="noopener noreferrer" className="discovery-campaign-cta" onClick={trackClick}>
+                            Saiba mais <ExternalLink size={16} />
+                        </a>
+                    )
                 ) : (
                     <span className="discovery-campaign-unavailable">Destino indisponível</span>
                 )}
