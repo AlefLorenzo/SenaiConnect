@@ -505,7 +505,8 @@ const MessageBubble = ({
         <div className="message-content">
           {messageType === 'story_reply' && (
             <div className="story-message-quote" aria-label={isOwnStoryReply ? 'Resposta ao seu story' : 'Resposta a um story'}>
-              {storyReply?.mediaUrl || storyReply?.media_url ? (
+              {(storyReply?.mediaUrl || storyReply?.media_url) &&
+              (storyReply?.mediaType ?? storyReply?.media_type) !== 'video' ? (
                 <img
                   className="story-message-thumbnail"
                   src={storyReply.mediaUrl ?? storyReply.media_url}
@@ -513,7 +514,13 @@ const MessageBubble = ({
                   loading="lazy"
                 />
               ) : (
-                <span className="story-message-placeholder" aria-hidden="true">STORY</span>
+                <span
+                  className="story-message-placeholder"
+                  style={storyReply?.backgroundColor ? { background: storyReply.backgroundColor } : undefined}
+                  aria-hidden="true"
+                >
+                  {(storyReply?.mediaType ?? storyReply?.media_type) === 'video' ? 'VÍDEO' : 'STORY'}
+                </span>
               )}
               <div className="story-message-quote-copy">
                 <span className="story-message-quote-title">
