@@ -339,13 +339,17 @@ const Messages = () => {
       const result = await messagesService.getHistory(contactId, { page, limit: 30, forceRefresh: true });
       if (requestId !== historyRequestIdRef.current) return;
 
-      // Group history does not mark the read cursor through GET; persist it explicitly.
-      if (result.isGroup || result.contact?.isGroup) {
+      // Loading a conversation means its messages are being viewed. Persist the
+      // read state for both direct chats and groups before refreshing global badges.
+      try {
         await messagesService.markAsRead(contactId);
+        if (requestId !== historyRequestIdRef.current) return;
+        await fetchUnreadMessagesCount();
+      } catch (readError) {
+        // A read-receipt failure must not prevent the conversation history from rendering.
+        console.error('Erro ao marcar mensagens como lidas:', readError);
       }
       if (requestId !== historyRequestIdRef.current) return;
-
-      await fetchUnreadMessagesCount();
       if (requestId !== historyRequestIdRef.current) return;
 
       let data = result.data || [];
