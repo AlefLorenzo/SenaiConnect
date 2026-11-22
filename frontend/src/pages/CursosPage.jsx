@@ -151,13 +151,13 @@ export default function CursosPage() {
       )}
 
       {selectedCourse && (
-        <div className="eventos-modal-overlay" role="presentation" onClick={() => setSelectedCourse(null)}>
-          <section className="eventos-modal" role="dialog" aria-modal="true" aria-label={selectedCourse.title} onClick={event => event.stopPropagation()}>
-            <button type="button" className="modal-close" aria-label="Fechar detalhes" onClick={() => setSelectedCourse(null)}>×</button>
-            {selectedCourse.image_url && <img src={selectedCourse.image_url} alt="" className="modal-img" />}
-            <div className="modal-body">
+        <div className="curso-details-overlay" role="presentation" onClick={() => setSelectedCourse(null)}>
+          <section className="curso-details-dialog" role="dialog" aria-modal="true" aria-label={selectedCourse.title} onClick={event => event.stopPropagation()}>
+            <button type="button" className="curso-details-close" aria-label="Fechar detalhes" onClick={() => setSelectedCourse(null)}>×</button>
+            {selectedCourse.image_url && <img src={selectedCourse.image_url} alt="" className="curso-details-image" />}
+            <div className="curso-details-body">
               <h2>{selectedCourse.title}</h2>
-              <p className="modal-desc">{selectedCourse.description || 'Curso publicado pela administração.'}</p>
+              <p className="curso-details-description">{selectedCourse.description || 'Curso publicado pela administração.'}</p>
               {selectedCourse.unit && <p><strong>Unidade:</strong> {selectedCourse.unit}</p>}
               {selectedCourse.duration && <p><strong>Duração:</strong> {selectedCourse.duration}</p>}
               {selectedCourse.modality && <p><strong>Modalidade:</strong> {selectedCourse.modality}</p>}
