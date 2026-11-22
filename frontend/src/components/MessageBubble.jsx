@@ -3,6 +3,8 @@ import { Check, CheckCheck, FileText, Download, X, Maximize2, ZoomIn, ZoomOut, R
 import Avatar from './Avatar';
 import './MessageBubble.css';
 
+const normalizeUserId = (value) => value === null || value === undefined ? '' : String(value);
+
 /**
  * MessageBubble - WhatsApp-style message component with group sender identification
  * Handles: sent/received messages, group sender grouping, images, files, read receipts, date separators
@@ -31,14 +33,13 @@ const MessageBubble = ({
   showDateSeparator = true
 }) => {
   const senderId = message.sender_id ?? message.senderId;
-  const normalizeId = (value) => value === null || value === undefined ? '' : String(value);
-  const normalizedSenderId = normalizeId(senderId);
+  const normalizedSenderId = normalizeUserId(senderId);
   const createdAt = message.created_at ?? message.createdAt;
   const messageType = message.message_type ?? message.type ?? 'text';
   const mediaUrl = message.media_url ?? message.mediaUrl;
   const content = message.content;
   const status = message.status ?? message.messageStatus ?? 'sent';
-  const isSent = normalizedSenderId !== '' && normalizedSenderId === normalizeId(currentUserId);
+  const isSent = normalizedSenderId !== '' && normalizedSenderId === normalizeUserId(currentUserId);
   const isRead = status === 'lida' || status === 'read';
   const isDelivered = status === 'entregue' || status === 'delivered';
   const isSending = status === 'enviando' || status === 'sending';
