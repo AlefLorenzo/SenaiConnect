@@ -410,7 +410,7 @@ describe('messageController', () => {
 
       await messageController.getHistory(mockReq, mockRes, mockNext);
 
-      expect(mockDb.query.mock.calls.some(([sql]) => sql.includes('ORDER BY created_at DESC, id DESC'))).toBe(true);
+      expect(mockDb.query.mock.calls.some(([sql]) => sql.includes('ORDER BY m.created_at DESC, m.id DESC'))).toBe(true);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.arrayContaining([
