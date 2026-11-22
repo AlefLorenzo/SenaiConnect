@@ -48,7 +48,14 @@ const uploadController = {
         return res.status(400).json({ error: 'O tamanho máximo do arquivo é 5MB.' });
       }
 
-      const folderName = ALLOWED_FOLDERS.has(folder) ? folder : 'notices';
+      const requestedFolder = folder || (req.user?.admin_role ? 'notices' : 'posts');
+      if (!ALLOWED_FOLDERS.has(requestedFolder)) {
+        return res.status(400).json({ error: 'Pasta de destino inválida.' });
+      }
+      if (['notices', 'courses', 'events'].includes(requestedFolder) && !req.user?.admin_role) {
+        return res.status(403).json({ error: 'Apenas administradores podem enviar arquivos institucionais.' });
+      }
+      const folderName = requestedFolder;
       const uploadsRoot = path.resolve(__dirname, '..', 'uploads');
       const uploadsDir = path.resolve(uploadsRoot, folderName);
       if (!uploadsDir.startsWith(uploadsRoot + path.sep)) {
