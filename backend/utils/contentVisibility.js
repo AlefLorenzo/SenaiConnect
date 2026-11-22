@@ -57,6 +57,26 @@ function buildNoticeVisibilityClause(user = {}, alias = 'n') {
   };
 }
 
+function buildUnitVisibilityClause(user = {}, alias = 'c') {
+  if (!/^[a-z][a-z0-9_]*$/i.test(alias)) {
+    throw new TypeError('Invalid SQL table alias');
+  }
+
+  if (user.admin_role === 'super_admin') return { sql: 'TRUE', params: [] };
+
+  if (!user.unit) {
+    return {
+      sql: `(${alias}.unit IS NULL OR TRIM(${alias}.unit) = '')`,
+      params: []
+    };
+  }
+
+  return {
+    sql: `(${alias}.unit IS NULL OR TRIM(${alias}.unit) = '' OR LOWER(TRIM(${alias}.unit)) = LOWER(TRIM(?)))`,
+    params: [String(user.unit)]
+  };
+}
+
 function normalizePublicationStatus(value, fallback = 'ativo') {
   const status = String(value || fallback).trim().toLowerCase();
   if (['ativo', 'active', 'published'].includes(status)) return 'ativo';
@@ -65,4 +85,4 @@ function normalizePublicationStatus(value, fallback = 'ativo') {
   throw new TypeError('Status de publicação inválido.');
 }
 
-module.exports = { buildNoticeVisibilityClause, normalizePublicationStatus };
+module.exports = { buildNoticeVisibilityClause, buildUnitVisibilityClause, normalizePublicationStatus };
