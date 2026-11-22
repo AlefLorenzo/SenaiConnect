@@ -35,7 +35,18 @@ const NotificationDropdown = () => {
             navigate(conversationId ? `/messages?conversationId=${encodeURIComponent(conversationId)}` : '/messages');
             return;
         }
-        if (notification.post_id) {
+        const metadata = typeof notification.metadata === 'string'
+            ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+            : (notification.metadata || {});
+        const resource = metadata.resource || notification.reference_type;
+        const destination = resource === 'events' || resource === 'event' ? '/eventos'
+            : resource === 'courses' || resource === 'course' ? '/cursos'
+            : resource === 'notices' || resource === 'notice' ? '/avisos'
+            : null;
+        if (destination) {
+            setIsOpen(false);
+            navigate(destination);
+        } else if (notification.post_id) {
             setIsOpen(false);
             navigate('/');
         } else if (notification.source_user_id) {
@@ -52,6 +63,7 @@ const NotificationDropdown = () => {
             case 'friend_request':
             case 'friend_accepted': return '👤';
             case 'message': return '💬';
+            case 'admin_publication': return '📢';
             case 'mention': return '📢';
             default: return '🔔';
         }
