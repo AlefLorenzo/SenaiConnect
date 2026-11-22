@@ -4,6 +4,9 @@ import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { SocketProvider } from './context/SocketContext.jsx'
 import './index.css'
+import { bootstrapTheme } from './utils/theme.js'
+
+bootstrapTheme()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
