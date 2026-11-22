@@ -32,6 +32,8 @@ const AdminEventForm = () => {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
 
   useEffect(() => {
     if (!isEditing) return undefined;
@@ -44,12 +46,15 @@ const AdminEventForm = () => {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o evento.');
-        if (active) setForm({
-          ...EMPTY_FORM,
-          ...data,
-          event_date: toLocalDateTime(data.event_date),
-          vacancies: Number(data.vacancies) || 0,
-        });
+        if (active) {
+          setForm({
+            ...EMPTY_FORM,
+            ...data,
+            event_date: toLocalDateTime(data.event_date),
+            vacancies: Number(data.vacancies) || 0,
+          });
+          setImagePreview(data.image_url || '');
+        }
       } catch (err) {
         if (active) setError(err.message);
       } finally {
@@ -66,12 +71,56 @@ const AdminEventForm = () => {
     setForm(previous => ({ ...previous, [name]: value }));
   };
 
+  const handleImageSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Selecione um arquivo de imagem.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('A imagem deve ter no máximo 5MB.');
+      event.target.value = '';
+      return;
+    }
+    setImageFile(file);
+    setForm(previous => ({ ...previous, image_url: '' }));
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(String(reader.result || ''));
+    reader.onerror = () => setError('Não foi possível ler a imagem selecionada.');
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setForm(previous => ({ ...previous, image_url: '' }));
+  };
+
+  const uploadImage = async () => {
+    if (!imageFile || !imagePreview.startsWith('data:')) return form.image_url;
+    const response = await fetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sessionStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ file: imagePreview, name: imageFile.name, folder: 'events' })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível enviar a imagem.');
+    return data.url;
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
     setError('');
 
     try {
+      const imageUrl = await uploadImage();
+      const payload = { ...form, image_url: imageUrl, vacancies: Math.max(0, Number(form.vacancies) || 0) };
       const response = await fetch(
         isEditing ? `${API_URL}/api/admin/events/${id}` : `${API_URL}/api/admin/events`,
         {
@@ -80,7 +129,7 @@ const AdminEventForm = () => {
             Authorization: `Bearer ${sessionStorage.getItem('token')}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...form, vacancies: Math.max(0, Number(form.vacancies) || 0) }),
+          body: JSON.stringify(payload),
         }
       );
       const data = await response.json();
@@ -148,10 +197,18 @@ const AdminEventForm = () => {
             <input name="vacancies" type="number" min="0" value={form.vacancies} onChange={handleChange} />
           </label>
 
-          <label className="admin-content-field admin-content-field-full">
-            <span>Imagem (URL)</span>
-            <input name="image_url" type="url" value={form.image_url} onChange={handleChange} placeholder="https://…" />
-          </label>
+          <div className="admin-content-field admin-content-field-full">
+            <span>Imagem de capa</span>
+            {imagePreview && (
+              <div className="admin-content-image-preview">
+                <img src={imagePreview} alt="Prévia da capa" />
+                <button type="button" onClick={handleRemoveImage}>Remover imagem</button>
+              </div>
+            )}
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleImageSelect} />
+            <small>PNG, JPG, WebP ou GIF • máximo de 5MB. Também pode informar uma URL abaixo.</small>
+            <input name="image_url" type="url" value={form.image_url} onChange={(event) => { handleChange(event); setImageFile(null); setImagePreview(event.target.value); }} placeholder="https://…" />
+          </div>
 
           <label className="admin-content-field">
             <span>Visibilidade</span>
