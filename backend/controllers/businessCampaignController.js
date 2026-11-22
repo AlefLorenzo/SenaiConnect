@@ -3,6 +3,18 @@ const socketHelper = require('../socketHelper');
 const notificationController = require('./notificationController');
 const { logAdminAction } = require('./adminAuthController');
 
+function isSafeCampaignDestination(value) {
+    const destination = String(value || '').trim();
+    if (!destination || /^(javascript|data|file|vbscript):/i.test(destination)) return false;
+    if (destination.startsWith('/') && !destination.startsWith('//') && !destination.includes('\\\\')) return true;
+    try {
+        const parsed = new URL(destination);
+        return ['http:', 'https:'].includes(parsed.protocol);
+    } catch {
+        return false;
+    }
+}
+
 const businessCampaignController = {
     // ============================================
     // CAMPANHAS - EMPRESA (ANUNCIANTE)
@@ -149,8 +161,16 @@ const businessCampaignController = {
 
             const startDate = new Date(start_date);
             const endDate = new Date(end_date);
-            if (startDate >= endDate) {
-                return res.status(400).json({ error: 'Data de início deve ser anterior à data de término.' });
+            if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate >= endDate) {
+                return res.status(400).json({ error: 'A data de início deve ser válida e anterior à data de término.' });
+            }
+            if (!Array.isArray(creatives) || creatives.length === 0) {
+                return res.status(400).json({ error: 'Adicione pelo menos uma peça publicitária antes de criar a campanha.' });
+            }
+            for (const creative of creatives) {
+                if (!creative.ad_space_id || !creative.image_url || !isSafeCampaignDestination(creative.destination_url)) {
+                    return res.status(400).json({ error: 'Cada anúncio precisa de uma imagem, um espaço publicitário e um destino HTTP(S) ou caminho interno válido.' });
+                }
             }
 
             const [result] = await db.query(
@@ -283,10 +303,15 @@ const businessCampaignController = {
                 return res.status(400).json({ error: 'Apenas campanhas em rascunho podem ser enviadas para aprovação.' });
             }
 
-            // Verificar se tem pelo menos um criativo aprovado
-            const [creatives] = await db.query('SELECT id FROM campaign_creatives WHERE campaign_id = ? AND status = "approved"', [id]);
-            if (creatives.length === 0) {
-                return res.status(400).json({ error: 'A campanha precisa ter pelo menos um criativo aprovado para ser submetida.' });
+            // O criativo fica pendente até a revisão administrativa.
+            const [creatives] = await db.query(
+                'SELECT id, image_url, destination_url FROM campaign_creatives WHERE campaign_id = ?',
+                [id]
+            );
+            if (creatives.length === 0 || creatives.some(creative =>
+                !creative.image_url || !isSafeCampaignDestination(creative.destination_url)
+            )) {
+                return res.status(400).json({ error: 'A campanha precisa ter pelo menos um anúncio válido, com imagem e destino seguro.' });
             }
 
             await db.query('UPDATE business_campaigns SET status = "pending_approval", updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
@@ -298,8 +323,11 @@ const businessCampaignController = {
                     admin.id,
                     'campaign_submitted',
                     userId,
+                    `Nova campanha "${campaign[0].name}" aguarda aprovação.`,
+                    'business_campaign',
+                    parseInt(id),
                     null,
-                    `Nova campanha "${campaign[0].name}" aguarda aprovação.`
+                    { resource: 'business_campaign', campaignId: parseInt(id) }
                 );
                 socketHelper.sendToUser(admin.id, 'campaign_pending_approval', {
                     campaignId: parseInt(id),
@@ -482,6 +510,19 @@ const businessCampaignController = {
             `;
             params.push(parseInt(limit), offset);
             const [campaigns] = await db.query(query, params);
+            for (const campaign of campaigns) {
+                const [creatives] = await db.query(`
+                    SELECT cc.*, a.name AS ad_space_name, a.location AS ad_space_location
+                    FROM campaign_creatives cc
+                    LEFT JOIN ad_spaces a ON a.id = cc.ad_space_id
+                    WHERE cc.campaign_id = ?
+                    ORDER BY cc.created_at ASC
+                `, [campaign.id]);
+                campaign.creatives = creatives;
+                if (campaign.target_audience) {
+                    try { campaign.target_audience = JSON.parse(campaign.target_audience); } catch { campaign.target_audience = {}; }
+                }
+            }
 
             const countQuery = `SELECT COUNT(*) as total FROM business_campaigns bc JOIN businesses b ON bc.business_id = b.id ${whereClause}`;
             const [[{ total }]] = await db.query(countQuery, params.slice(0, -2));
@@ -503,12 +544,21 @@ const businessCampaignController = {
                 return res.status(404).json({ error: 'Campanha não encontrada.' });
             }
 
-            // Verificar se tem criativos aprovados
-            const [creatives] = await db.query('SELECT id FROM campaign_creatives WHERE campaign_id = ? AND status = "approved"', [id]);
-            if (creatives.length === 0) {
-                return res.status(400).json({ error: 'A campanha precisa ter pelo menos um criativo aprovado.' });
+            // A aprovação da campanha também aprova seus criativos pendentes.
+            const [creatives] = await db.query(
+                'SELECT id, image_url, destination_url FROM campaign_creatives WHERE campaign_id = ?',
+                [id]
+            );
+            if (creatives.length === 0 || creatives.some(creative =>
+                !creative.image_url || !isSafeCampaignDestination(creative.destination_url)
+            )) {
+                return res.status(400).json({ error: 'A campanha precisa ter pelo menos um criativo com imagem e destino seguro.' });
             }
 
+            await db.query(
+                "UPDATE campaign_creatives SET status = 'approved' WHERE campaign_id = ? AND status IN ('pending', 'approved')",
+                [id]
+            );
             await db.query('UPDATE business_campaigns SET status = "approved", approved_at = NOW(), approved_by = ? WHERE id = ?', [admin.id, id]);
 
             // Notificar empresa
@@ -518,8 +568,11 @@ const businessCampaignController = {
                     biz[0].owner_user_id,
                     'campaign_approved',
                     admin.id,
+                    `Sua campanha "${campaign[0].name}" foi aprovada e está pronta para veiculação!`,
+                    'business_campaign',
+                    parseInt(id),
                     null,
-                    `Sua campanha "${campaign[0].name}" foi aprovada e está pronta para veiculação!`
+                    { resource: 'business_campaign', campaignId: parseInt(id) }
                 );
                 socketHelper.sendToUser(biz[0].owner_user_id, 'campaign_status_changed', {
                     campaignId: parseInt(id),
@@ -555,8 +608,11 @@ const businessCampaignController = {
                     biz[0].owner_user_id,
                     'campaign_rejected',
                     admin.id,
+                    `Sua campanha "${campaign[0].name}" foi rejeitada. Motivo: ${reason}`,
+                    'business_campaign',
+                    parseInt(id),
                     null,
-                    `Sua campanha "${campaign[0].name}" foi rejeitada. Motivo: ${reason}`
+                    { resource: 'business_campaign', campaignId: parseInt(id), reason: reason || null }
                 );
                 socketHelper.sendToUser(biz[0].owner_user_id, 'campaign_status_changed', {
                     campaignId: parseInt(id),
