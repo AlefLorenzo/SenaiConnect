@@ -77,7 +77,7 @@ const Auth = () => {
 
       <section className="auth-brand-panel" aria-label="SENAI Connect">
         <div className="auth-brand-lockup">
-          <span className="auth-brand-mark">S</span>
+          <img className="auth-brand-mark auth-brand-logo" src="/favicon.svg?v=5" alt="Logotipo SENAI Connect" />
           <span className="auth-brand-name">SENAI <strong>CONNECT</strong></span>
         </div>
 
@@ -98,7 +98,7 @@ const Auth = () => {
         <div className="auth-card">
           <header className="auth-header">
             <div className="auth-mobile-brand">
-              <span className="auth-brand-mark">S</span>
+              <img className="auth-brand-mark auth-brand-logo" src="/favicon.svg?v=5" alt="Logotipo SENAI Connect" />
               <span className="auth-brand-name">SENAI <strong>CONNECT</strong></span>
             </div>
             <span className="auth-form-kicker">{isLogin ? 'BEM-VINDO DE VOLTA' : 'FAÇA PARTE DA COMUNIDADE'}</span>
