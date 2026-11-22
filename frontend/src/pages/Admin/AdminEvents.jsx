@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, ChevronLeft, ChevronRight, Edit, Trash2, Users, Send, X } from 'lucide-react';
+import { useSocket } from '../../hooks/useSocket';
 import './AdminEvents.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -24,6 +25,7 @@ const formatDate = (dateStr) => {
 
 const AdminEvents = () => {
     const [events, setEvents] = useState([]);
+    const { registerEventHandler } = useSocket();
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -117,6 +119,24 @@ const AdminEvents = () => {
             setSendingMessage(false);
         }
     };
+
+    useEffect(() => {
+        const unsubscribe = registerEventHandler('event_registration_changed', (change) => {
+            fetchEvents();
+            if (selectedEvent && Number(change?.eventId) === Number(selectedEvent.id)) {
+                fetch(`${API_URL}/api/admin/events/${selectedEvent.id}/registrations`, {
+                    headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` }
+                }).then(response => response.ok ? response.json() : null)
+                  .then(data => {
+                    if (data) {
+                      setRegistrations(data.registrations || []);
+                      setRegistrationSummary(data);
+                    }
+                  }).catch(() => {});
+            }
+        });
+        return unsubscribe;
+    }, [registerEventHandler, fetchEvents, selectedEvent]);
 
     const handleSearch = (e) => {
         setSearch(e.target.value);
