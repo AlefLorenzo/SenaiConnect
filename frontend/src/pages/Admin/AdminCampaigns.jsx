@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ExternalLink, Megaphone, Pause, Play, RefreshCw, Search, XCircle } from 'lucide-react';
+import { Check, ExternalLink, Megaphone, Pause, Play, Plus, RefreshCw, Search, XCircle } from 'lucide-react';
 import './AdminCampaigns.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -43,6 +43,8 @@ function safeDestination(value) {
 export default function AdminCampaigns() {
     const [campaigns, setCampaigns] = useState([]);
     const [stats, setStats] = useState(null);
+    const [adSpaces, setAdSpaces] = useState([]);
+    const [spaceWorking, setSpaceWorking] = useState(false);
     const [status, setStatus] = useState('pending_approval');
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
@@ -59,14 +61,19 @@ export default function AdminCampaigns() {
             if (status) params.set('status', status);
             if (search.trim()) params.set('search', search.trim());
             const headers = { Authorization: 'Bearer ' + token() };
-            const [campaignResponse, statsResponse] = await Promise.all([
+            const [campaignResponse, statsResponse, spacesResponse] = await Promise.all([
                 fetch(API_URL + '/api/business/admin/campaigns?' + params.toString(), { headers }),
-                fetch(API_URL + '/api/business/admin/campaigns/stats', { headers })
+                fetch(API_URL + '/api/business/admin/campaigns/stats', { headers }),
+                fetch(API_URL + '/api/business/admin/ad-spaces?page=1&limit=100', { headers })
             ]);
             if (!campaignResponse.ok) throw new Error('Não foi possível carregar as campanhas.');
             const campaignData = await campaignResponse.json();
             setCampaigns(Array.isArray(campaignData.campaigns) ? campaignData.campaigns : []);
             if (statsResponse.ok) setStats(await statsResponse.json());
+            if (spacesResponse.ok) {
+                const spaceData = await spacesResponse.json();
+                setAdSpaces(Array.isArray(spaceData.spaces) ? spaceData.spaces : []);
+            }
         } catch (loadError) {
             setError(loadError.message || 'Erro ao carregar publicidade.');
         } finally {
@@ -114,6 +121,79 @@ export default function AdminCampaigns() {
         performAction(campaign, 'reject', { reason: reason.trim() });
     };
 
+    const createDefaultAdSpaces = async () => {
+        const defaults = [
+            { name: 'Descobrir · Destaque superior', slug: 'descobrir-feed-topo', location: 'business_feed_top' },
+            { name: 'Descobrir · Entre publicações', slug: 'descobrir-feed-meio', location: 'business_feed_middle' },
+            { name: 'Descobrir · Final do feed', slug: 'descobrir-feed-rodape', location: 'business_feed_bottom' },
+            { name: 'Descobrir · Espaço global', slug: 'descobrir-feed-global', location: 'global_feed' }
+        ];
+        const existingSlugs = new Set(adSpaces.map(space => space.slug));
+        const missing = defaults.filter(space => !existingSlugs.has(space.slug));
+        if (!missing.length) {
+            setError('Os espaços padrão já estão cadastrados. Ative os que deseja disponibilizar.');
+            return;
+        }
+
+        setSpaceWorking(true);
+        setError('');
+        try {
+            for (const space of missing) {
+                const response = await fetch(API_URL + '/api/business/admin/ad-spaces', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: 'Bearer ' + token(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ...space,
+                        description: 'Espaço de anúncios patrocinados do feed Descobrir.',
+                        width: 1080,
+                        height: 600,
+                        max_ads: 2,
+                        frequency_cap: 3
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.error || 'Não foi possível criar os espaços publicitários.');
+            }
+            await loadData();
+        } catch (spaceError) {
+            setError(spaceError.message || 'Erro ao configurar os espaços publicitários.');
+        } finally {
+            setSpaceWorking(false);
+        }
+    };
+
+    const toggleAdSpace = async (space) => {
+        setSpaceWorking(true);
+        setError('');
+        try {
+            const response = await fetch(API_URL + '/api/business/admin/ad-spaces/' + space.id, {
+                method: 'PUT',
+                headers: {
+                    Authorization: 'Bearer ' + token(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_active: !space.is_active })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'Não foi possível alterar o espaço.');
+            await loadData();
+        } catch (spaceError) {
+            setError(spaceError.message || 'Erro ao atualizar o espaço publicitário.');
+        } finally {
+            setSpaceWorking(false);
+        }
+    };
+
+    const feedSpaces = adSpaces.filter(space => [
+        'global_feed',
+        'business_feed_top',
+        'business_feed_middle',
+        'business_feed_bottom'
+    ].includes(space.location));
+
     return (
         <div className="admin-campaigns-page">
             <header className="admin-campaigns-header">
@@ -135,6 +215,41 @@ export default function AdminCampaigns() {
                     <div><strong>{stats.rejected || 0}</strong><span>Rejeitadas</span></div>
                 </section>
             )}
+
+            <section className="admin-ad-spaces">
+                <div className="admin-ad-spaces-heading">
+                    <div>
+                        <h2>Espaços do feed Descobrir</h2>
+                        <p>Configure onde os anúncios aprovados poderão aparecer. Apenas espaços ativos ficam disponíveis para as empresas.</p>
+                    </div>
+                    <button type="button" onClick={createDefaultAdSpaces} disabled={spaceWorking}>
+                        <Plus size={16} /> {spaceWorking ? 'Configurando…' : 'Configurar espaços padrão'}
+                    </button>
+                </div>
+                {feedSpaces.length ? (
+                    <div className="admin-ad-spaces-list">
+                        {feedSpaces.map(space => (
+                            <div className="admin-ad-space-row" key={space.id}>
+                                <div>
+                                    <strong>{space.name}</strong>
+                                    <span>{space.location} · até {space.max_ads || 1} anúncios</span>
+                                </div>
+                                <span className={'admin-ad-space-status ' + (space.is_active ? 'active' : 'inactive')}>
+                                    {space.is_active ? 'Ativo' : 'Desativado'}
+                                </span>
+                                <button type="button" onClick={() => toggleAdSpace(space)} disabled={spaceWorking}>
+                                    {space.is_active ? 'Desativar' : 'Ativar'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="admin-ad-spaces-empty">
+                        <Megaphone size={22} />
+                        <span>Nenhum espaço de publicidade foi configurado. Crie os espaços padrão para liberar anúncios no feed.</span>
+                    </div>
+                )}
+            </section>
 
             <section className="admin-campaigns-toolbar">
                 <label className="admin-campaigns-search">
