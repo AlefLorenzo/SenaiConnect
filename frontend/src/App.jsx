@@ -65,7 +65,7 @@ const OnboardingPage = lazy(() => import('./pages/Onboarding/OnboardingPage'));
 const AdminRoutes = () => (
   <Routes>
     <Route path="dashboard" element={<AdminDashboard />} />
-    <Route path="notices" element={<AdminNotices />} />
+    <Route path="notices" element={<AdminNoticesList />} />
     <Route path="notices/list" element={<AdminNoticesList />} />
     <Route path="notices/create" element={<AdminNoticeForm />} />
     <Route path="notices/edit/:id" element={<AdminNoticeForm />} />
