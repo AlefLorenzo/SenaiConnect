@@ -95,7 +95,7 @@ describe('MessageBubble', () => {
       expect(bubble).toHaveClass('sent');
     });
 
-    test('shows "Você" for own group messages even when sender ID types differ', () => {
+    test('shows "You" for own group messages even when sender ID types differ', () => {
       const sentMessage = {
         ...defaultProps.message,
         sender_id: '1',
@@ -110,7 +110,7 @@ describe('MessageBubble', () => {
 
       const bubble = screen.getByText('Mensagem de teste').closest('.message-bubble');
       expect(bubble).toHaveClass('sent');
-      expect(screen.getByText('Você')).toBeInTheDocument();
+      expect(screen.getByText('You')).toBeInTheDocument();
       expect(screen.queryByText('Nome da conta')).not.toBeInTheDocument();
     });
 
@@ -144,6 +144,20 @@ describe('MessageBubble', () => {
       });
 
       expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+    });
+
+    test('uses the participant name instead of a generic Unknown sender label', () => {
+      renderMessageBubble({
+        message: {
+          ...defaultProps.message,
+          senderName: 'Unknown',
+          sender_name: 'Unknown',
+        },
+        isGroup: true,
+      });
+
+      expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+      expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
     });
 
     test('shows sender avatar for received messages in groups', () => {
