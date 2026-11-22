@@ -12,6 +12,7 @@ const AppLayout = ({ children }) => {
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   useEffect(() => {
     if (!user?.id) return;
@@ -45,10 +46,10 @@ const AppLayout = ({ children }) => {
 
   return (
     <StoryViewerContext.Provider value={{ setStoryViewerOpen: setIsStoryViewerOpen }}>
-      <div className="app-layout">
+      <div className={"app-layout " + (isAdminRoute ? "app-layout--admin" : "")}>
         {/* Main Content Area */}
-        <main className="app-main" role="main">
-          <div className="app-feed-container">
+        <main className={"app-main " + (isAdminRoute ? "app-main--admin" : "")} role="main">
+          <div className={"app-feed-container " + (isAdminRoute ? "app-feed-container--admin" : "")}>
             {children}
           </div>
         </main>

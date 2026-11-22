@@ -214,3 +214,35 @@
   .app-layout .mobile-bottom-nav-inner { max-width: 100%; }
   .app-layout .create-button-inner { width: 42px; height: 42px; }
 }
+
+/* The administrative workspace is a full-width app, not a feed column. */
+.app-layout--admin {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+.app-layout--admin .app-main--admin {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+.app-layout--admin .app-feed-container--admin {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  flex: none;
+}
