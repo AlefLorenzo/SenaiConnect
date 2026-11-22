@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
 import { Image, Paperclip, Smile, Video, X, Plus } from 'lucide-react';
@@ -17,6 +17,7 @@ const Home = () => {
   const { user } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
   const location = useLocation();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [postsPage, setPostsPage] = useState(1);
   const [hasMorePosts, setHasMorePosts] = useState(false);
@@ -120,6 +121,18 @@ const Home = () => {
     setStoryGroups(markViewed);
     setStories(markViewed);
   }, []);
+
+  // A successful status reply becomes a private chat, just like WhatsApp.
+  const handleStoryReplySent = useCallback((storyId, content, result) => {
+    const conversationId = result?.conversationId ??
+      result?.conversation_id ??
+      result?.message?.conversationId ??
+      result?.message?.conversation_id;
+    if (!conversationId) return;
+
+    setViewingStoryIndex(null);
+    navigate(`/messages?conversationId=${encodeURIComponent(conversationId)}`);
+  }, [navigate]);
 
   // Transform storyGroups into story groups for MobileStories (one item per user)
   useEffect(() => {
@@ -276,6 +289,7 @@ const Home = () => {
           initialGroupIndex={viewingStoryIndex}
           onClose={() => setViewingStoryIndex(null)}
           onStoryViewed={handleStoryViewed}
+          onReply={handleStoryReplySent}
         />
       )}
 
