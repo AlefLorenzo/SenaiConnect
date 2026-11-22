@@ -282,3 +282,37 @@
     .admin-events th,.admin-events td{ padding: 10px 12px; }
     .admin-events .actions{ flex-wrap: wrap; }
 }
+.event-registrations-panel {
+  margin: 22px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+.event-registrations-heading {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 18px 20px; border-bottom: 1px solid var(--border-color);
+}
+.event-registrations-heading h2 { margin: 0 0 5px; color: var(--text-primary); font-size: 17px; }
+.event-registrations-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.event-registrations-table-wrap { width: 100%; overflow-x: auto; }
+.admin-events .event-registrations-table { min-width: 860px; }
+.admin-events .event-registrations-table th,
+.admin-events .event-registrations-table td { padding: 12px 14px; vertical-align: top; }
+.admin-events .event-registrations-table td small { display: block; margin-top: 4px; color: var(--text-muted); }
+.event-registrations-empty { padding: 24px !important; text-align: center; color: var(--text-secondary); }
+.event-message-composer { padding: 18px 20px 20px; border-top: 1px solid var(--border-color); }
+.event-message-composer h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--text-primary); font-size: 15px; }
+.event-message-controls { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(260px, 2fr) auto; gap: 10px; align-items: stretch; }
+.event-message-controls select,
+.event-message-controls textarea {
+  width: 100%; min-width: 0; border: 1px solid var(--border-color); border-radius: 9px;
+  background: var(--bg-card); color: var(--text-primary); padding: 10px 12px; font: inherit; font-size: 13px;
+}
+.event-message-controls textarea { resize: vertical; }
+.event-message-controls .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; border: 0; border-radius: 9px; padding: 10px 14px; cursor: pointer; }
+.event-message-controls .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+.event-message-feedback { margin: 10px 0 0; color: var(--text-secondary); font-size: 13px; }
+@media (max-width: 900px) {
+  .event-message-controls { grid-template-columns: 1fr; }
+}
