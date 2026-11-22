@@ -341,7 +341,7 @@ const discoveryFeedController = {
                   AND bc.status IN ('approved', 'active')
                   AND bc.start_date <= NOW() AND bc.end_date >= NOW()
                   AND b.status = 'approved' AND a.is_active = TRUE
-                  AND a.location = ANY(?)
+                  AND a.location IN (?)
                 LIMIT 1
             `, [creativeId, ALLOWED_AD_LOCATIONS]);
             const creative = rows[0];
