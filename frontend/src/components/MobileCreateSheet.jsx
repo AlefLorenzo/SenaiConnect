@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { X, Image, Video, FileText, MessageSquare, HelpCircle, Lightbulb, Calendar, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import './MobileCreateSheet.css';
 
 const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNavigateHome }) => {
@@ -206,7 +207,7 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
     opacity: isDragging ? Math.max(0.7, 1 - dragOffset / sheetHeight.current) : 1,
   };
 
-  return (
+  return createPortal((
     <div
       className="mobile-create-sheet-overlay"
       onClick={handleBackdropClick}
@@ -261,7 +262,7 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 export default MobileCreateSheet;
