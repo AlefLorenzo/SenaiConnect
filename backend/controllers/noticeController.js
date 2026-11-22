@@ -10,7 +10,7 @@ const noticeController = {
                 FROM notices n
                 JOIN users u ON n.author_id = u.id
                 LEFT JOIN notice_reads nr ON nr.notice_id = n.id AND nr.user_id = ?
-                WHERE n.status = 'published'
+                WHERE (n.status = 'published' OR (n.status = 'scheduled' AND n.published_at <= NOW()))
                   AND (n.published_at IS NULL OR n.published_at <= NOW())
                   AND (n.expires_at IS NULL OR n.expires_at > NOW())
                   AND ${visibility.sql}
@@ -31,7 +31,7 @@ const noticeController = {
                 SELECT n.id
                 FROM notices n
                 WHERE n.id = ?
-                  AND n.status = 'published'
+                  AND (n.status = 'published' OR (n.status = 'scheduled' AND n.published_at <= NOW()))
                   AND (n.published_at IS NULL OR n.published_at <= NOW())
                   AND (n.expires_at IS NULL OR n.expires_at > NOW())
                   AND ${visibility.sql}
@@ -67,7 +67,7 @@ const noticeController = {
                        u.name as author_name
                 FROM notices n
                 LEFT JOIN users u ON u.id = n.author_id
-                WHERE n.status = 'published'
+                WHERE (n.status = 'published' OR (n.status = 'scheduled' AND n.published_at <= NOW()))
                   AND (n.published_at IS NULL OR n.published_at <= NOW())
                   AND (n.expires_at IS NULL OR n.expires_at > NOW())
                   AND n.attachment_url IS NOT NULL
