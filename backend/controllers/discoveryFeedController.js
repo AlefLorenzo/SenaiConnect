@@ -93,7 +93,7 @@ const discoveryFeedController = {
             const sort = ['popular', 'oldest'].includes(req.query.sort) ? req.query.sort : 'recent';
 
             const [userRows] = await db.query(
-                'SELECT course, unit, role FROM users WHERE id = ? LIMIT 1',
+                'SELECT course, unit, role, admin_role FROM users WHERE id = ? LIMIT 1',
                 [userId]
             );
             const viewer = userRows[0] || {};
@@ -371,6 +371,7 @@ const discoveryFeedController = {
                 || businessPosts.length === take
                 || events.length === take
                 || courses.length === take
+                || notices.length === take
                 || campaignAds.length === take;
 
             return res.json({
