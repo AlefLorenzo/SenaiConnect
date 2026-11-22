@@ -480,6 +480,7 @@
 .settings-select { width: 180px; cursor: pointer; }
 
 .settings-switch {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
