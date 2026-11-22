@@ -321,6 +321,29 @@ const groupController = {
                 [id, userId]
             );
 
+            // If the departing member was the last admin, promote a remaining member
+            // so the group never becomes impossible to manage.
+            const [remainingAdmins] = await db.query(
+                'SELECT admin_id FROM group_admins WHERE group_id = ?',
+                [id]
+            );
+            if (remainingAdmins.length === 0) {
+                const [nextAdmin] = await db.query(
+                    'SELECT user_id FROM group_members WHERE group_id = ? ORDER BY user_id ASC LIMIT 1',
+                    [id]
+                );
+                if (nextAdmin.length > 0) {
+                    await db.query(
+                        'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?)',
+                        [id, nextAdmin[0].user_id, userId]
+                    );
+                    await db.query(
+                        "UPDATE group_members SET role = 'admin' WHERE group_id = ? AND user_id = ?",
+                        [id, nextAdmin[0].user_id]
+                    );
+                }
+            }
+
             // Emit group_updated event
             const [members] = await db.query(`
                 SELECT u.id, u.name, u.avatar, gm.role
