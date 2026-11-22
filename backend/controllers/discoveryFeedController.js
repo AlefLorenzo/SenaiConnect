@@ -54,6 +54,25 @@ function matchesAudience(rawAudience, user) {
         && matches(roleValues, user.role);
 }
 
+function matchesNoticeAudience(rawRecipients, user) {
+    const recipients = parseJson(rawRecipients, {});
+    const type = String(recipients.type || rawRecipients || 'all').toLowerCase();
+    const values = asList(recipients.values ?? recipients.courses ?? recipients.units);
+    const matchesValues = (current) => !values.length || values.some(value =>
+        value.toLowerCase() === String(current || '').trim().toLowerCase()
+    );
+    const role = String(user.role || '').toLowerCase();
+    const isStudent = ['aluno', 'student', 'estudante'].includes(role);
+    const isTeacher = ['professor', 'professora', 'teacher', 'docente'].includes(role);
+    const isAdmin = Boolean(user.admin_role) || ['admin', 'administrator', 'administrador', 'super_admin'].includes(role);
+    if (type === 'all' || type === 'todos') return isStudent && !isAdmin;
+    if (type === 'courses') return isStudent && matchesValues(user.course);
+    if (type === 'units') return isStudent && matchesValues(user.unit);
+    if (type === 'teachers') return isTeacher;
+    if (type === 'admins') return isAdmin;
+    if (type === 'roles') return matchesValues(user.role);
+    return false;
+}
 function dateValue(value) {
     const timestamp = new Date(value || 0).getTime();
     return Number.isFinite(timestamp) ? timestamp : 0;
@@ -127,6 +146,44 @@ const discoveryFeedController = {
                 businessPosts.forEach(post => {
                     if (!Array.isArray(post.carousel_images)) post.carousel_images = [];
                 });
+            }
+
+            let notices = [];
+            if (institutionsEnabled) {
+                const [noticeRows] = await db.query(
+                    `SELECT n.id, n.title, n.content, n.priority, n.recipients, n.published_at,
+                        n.expires_at, n.image_url, n.attachment_url, n.attachment_name,
+                        n.is_pinned, n.created_at, u.name AS author_name, u.avatar AS author_avatar
+                    FROM notices n
+                    LEFT JOIN users u ON u.id = n.author_id
+                    WHERE n.status = 'published'
+                      AND (n.published_at IS NULL OR n.published_at <= NOW())
+                      AND (n.expires_at IS NULL OR n.expires_at >= NOW())
+                    ORDER BY n.is_pinned DESC, n.published_at DESC, n.created_at DESC
+                    LIMIT ?`,
+                    [take]
+                );
+                notices = noticeRows
+                    .filter(notice => matchesNoticeAudience(notice.recipients, viewer))
+                    .filter(notice => !search || [notice.title, notice.content, notice.author_name]
+                        .some(value => String(value || '').toLowerCase().includes(search.toLowerCase())))
+                    .map(notice => ({
+                        ...notice,
+                        id: 'notice-' + notice.id,
+                        entity_id: notice.id,
+                        feed_type: 'institutional',
+                        institution_type: 'notice',
+                        source_type: 'institution',
+                        company_name: notice.author_name || 'Comunicado institucional',
+                        logo_url: notice.author_avatar || null,
+                        post_type: 'notice',
+                        content: notice.content || '',
+                        attachment_url: notice.image_url || null,
+                        attachment_type: 'image',
+                        published_at: notice.published_at || notice.created_at,
+                        external_link: '/notices',
+                        link_label: 'Ler comunicado'
+                    }));
             }
 
             let events = [];
@@ -266,7 +323,7 @@ const discoveryFeedController = {
                     .filter(ad => ad.external_link);
             }
 
-            const organicItems = [...businessPosts, ...events, ...courses];
+            const organicItems = [...businessPosts, ...notices, ...events, ...courses];
             const sortItems = (items) => items.sort((a, b) => {
                 if (sort === 'popular') {
                     const scoreA = Number(a.likes_count || 0) + Number(a.comments_count || 0) * 2 + Number(a.shares_count || 0);
@@ -296,9 +353,16 @@ const discoveryFeedController = {
                         adIndex += 1;
                     }
                 });
+                if (adIndex < campaignAds.length && organicItems.length > 0 && organicItems.length < 4) {
+                    mixedItems.push(campaignAds[adIndex]);
+                    adIndex += 1;
+                }
                 while (adIndex < campaignAds.length && organicItems.length === 0) {
                     mixedItems.push(campaignAds[adIndex]);
                     adIndex += 1;
+                }
+                if (adIndex < campaignAds.length && organicItems.length >= 4) {
+                    mixedItems.push(campaignAds[adIndex]);
                 }
             }
 
