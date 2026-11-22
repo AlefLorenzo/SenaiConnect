@@ -474,9 +474,11 @@ async function sendNoticeNotifications(notice, recipientsJson) {
                 userId,
                 'notice',
                 notice.author_id,
-                notice.id,
                 `Novo aviso: ${notice.title}`,
-                { priority: notice.priority, noticeId: notice.id }
+                'notice',
+                notice.id,
+                null,
+                { priority: notice.priority, noticeId: notice.id, resource: 'notices', title: notice.title }
             );
         }
 
