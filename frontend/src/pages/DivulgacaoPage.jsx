@@ -130,7 +130,8 @@ const DivulgacaoPage = () => {
         if (!socket) return;
 
         const handleNewPost = (post) => {
-            setPosts(prev => [post, ...prev].slice(0, 50));
+            if (!['all', 'business', 'opportunities'].includes(filters.feedType)) return;
+            if (post && post.id) setPosts(prev => [post, ...prev.filter(item => item.id !== post.id)].slice(0, 50));
         };
 
         const handlePostUpdate = (post) => {
@@ -171,7 +172,8 @@ const DivulgacaoPage = () => {
         };
 
         const handleBusinessPostCreated = (post) => {
-            if (!filters.search && !filters.postType && !filters.category) {
+            if (['all', 'business', 'opportunities'].includes(filters.feedType)
+                && !filters.search && !filters.postType && !filters.category) {
                 setPosts(prev => [post, ...prev].slice(0, 50));
             }
         };
@@ -191,20 +193,18 @@ const DivulgacaoPage = () => {
             socket.off('business_story_created', handleNewStory);
             socket.off('business_story_updated', handleStoryUpdate);
         };
-    }, [socket]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [socket, filters.feedType]);
 
     // Initial load
     useEffect(() => {
          
         fetchStoriesRef.current();
-         
-        fetchPostsRef.current(1);
     }, []);
 
     // Refetch when filters change
     useEffect(() => {
         fetchPostsRef.current(1);
-    }, [filters.search, filters.postType, filters.category, filters.sort, fetchPostsRef]);
+    }, [filters.search, filters.postType, filters.category, filters.sort, filters.feedType, fetchPostsRef]);
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
