@@ -77,3 +77,36 @@
     .discovery-institution-label, .discovery-institution-content { padding: 12px; }
 }
 [data-theme="dark"] .discovery-institution-card { background: var(--bg-card-dark, #1b1b1b); }
+
+/* Institutional cards: keep uploaded cover images inside their own media area. */
+.discovery-institution-media {
+    position: relative;
+    width: 100%;
+    height: clamp(180px, 42vw, 340px);
+    max-height: 340px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #123b61, #0d6ea8);
+}
+.discovery-institution-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    object-position: center;
+}
+.discovery-institution-media img[hidden] { display: none; }
+.discovery-institution-media.has-image-error::after {
+    content: 'Imagem indisponível';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255,255,255,.85);
+    font-size: 13px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #123b61, #0d6ea8);
+}
+@media (max-width: 600px) {
+    .discovery-institution-media { height: clamp(160px, 52vw, 260px); }
+}
