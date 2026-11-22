@@ -41,12 +41,15 @@ const Files = () => {
         let successfulSources = 0;
 
         if (postsResult.status === 'fulfilled' && postsResult.value.ok) {
-          const posts = await postsResult.value.json();
-          if (Array.isArray(posts)) {
-            collected.push(...posts
-              .filter(post => post.attachment_url)
-              .map(post => normalizeFile(post, 'Comunidade')));
-          }
+          const postsPayload = await postsResult.value.json();
+          const posts = Array.isArray(postsPayload)
+            ? postsPayload
+            : Array.isArray(postsPayload?.data)
+              ? postsPayload.data
+              : [];
+          collected.push(...posts
+            .filter(post => post.attachment_url)
+            .map(post => normalizeFile(post, 'Comunidade')));
           successfulSources += 1;
         }
 
