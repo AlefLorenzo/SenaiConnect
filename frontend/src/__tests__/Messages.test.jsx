@@ -509,6 +509,72 @@ describe('Messages Page', () => {
         jest.useFakeTimers();
       }
     });
+    test('closes a deep-linked conversation without reopening it', async () => {
+      jest.useRealTimers();
+      const originalPath = window.location.pathname + window.location.search;
+      const originalWidth = window.innerWidth;
+
+      try {
+        window.innerWidth = 375;
+        window.history.pushState({}, '', '/messages?conversationId=1_2');
+        messagesService.getConversation.mockResolvedValue({
+          id: '1_2',
+          isGroup: false,
+          participants: [
+            { id: 1, name: 'Você', avatar: null },
+            { id: 2, name: 'Maria Silva', avatar: null, isOnline: true },
+          ],
+        });
+
+        renderMessages({ conversations: [], groups: [] });
+
+        await waitFor(() => {
+          expect(screen.getByRole('region', { name: /conversa com maria silva/i })).toBeInTheDocument();
+        }, { timeout: 10000 });
+
+        fireEvent.click(screen.getByRole('button', { name: /voltar para lista de conversas/i }));
+
+        await waitFor(() => {
+          expect(screen.getByText('Selecione uma conversa')).toBeInTheDocument();
+          expect(new URLSearchParams(window.location.search).has('conversationId')).toBe(false);
+        }, { timeout: 10000 });
+
+        expect(screen.queryByRole('region', { name: /conversa com maria silva/i })).not.toBeInTheDocument();
+        expect(messagesService.getConversation).toHaveBeenCalledTimes(1);
+      } finally {
+        window.innerWidth = originalWidth;
+        window.history.pushState({}, '', originalPath || '/');
+        window.dispatchEvent(new Event('resize'));
+        jest.useFakeTimers();
+      }
+    }, 15000);
+
+    test('does not restart history loading when the loading state changes', async () => {
+      jest.useRealTimers();
+      try {
+        renderMessages();
+
+        await waitFor(() => {
+          expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+        }, { timeout: 10000 });
+
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 1,
+            limit: 30,
+            forceRefresh: true,
+          });
+        }, { timeout: 10000 });
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledTimes(1);
+        }, { timeout: 10000 });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
   });
 
   describe('Group Conversations', () => {
