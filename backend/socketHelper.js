@@ -1,11 +1,14 @@
 const { Server } = require('socket.io');
 const db = require('./db');
-const { supabaseAuthRequest } = require('./services/supabaseAuth');
+const { getVerifiedIdentity } = require('./services/verifiedIdentity');
 
 // Map of userId -> Set of socketId
 const userSockets = new Map();
 // Map of conversationId -> Set of userIds currently viewing
 const conversationViewers = new Map();
+const conversationMembershipCache = new Map();
+const MEMBERSHIP_CACHE_TTL_MS = 5000;
+const MAX_MEMBERSHIP_CACHE_ENTRIES = 10000;
 let ioInstance = null;
 
 // Allowed origins for CORS
@@ -55,22 +58,51 @@ const configuredOrigins = [
 ].map((value) => value.trim()).filter(Boolean);
 const allowedOriginSet = new Set([...allowedOrigins, ...configuredOrigins]);
 
+function getCachedMembership(cacheKey) {
+  const cached = conversationMembershipCache.get(cacheKey);
+  if (!cached) return false;
+  if (cached.expiresAt <= Date.now()) {
+    conversationMembershipCache.delete(cacheKey);
+    return false;
+  }
+  conversationMembershipCache.delete(cacheKey);
+  conversationMembershipCache.set(cacheKey, cached);
+  return cached.allowed;
+}
+
+function rememberMembership(cacheKey) {
+  if (!conversationMembershipCache.has(cacheKey) && conversationMembershipCache.size >= MAX_MEMBERSHIP_CACHE_ENTRIES) {
+    const oldestKey = conversationMembershipCache.keys().next().value;
+    if (oldestKey) conversationMembershipCache.delete(oldestKey);
+  }
+  conversationMembershipCache.delete(cacheKey);
+  conversationMembershipCache.set(cacheKey, {
+    allowed: true,
+    expiresAt: Date.now() + MEMBERSHIP_CACHE_TTL_MS
+  });
+}
+
 async function isConversationMember(userId, conversationId) {
   const currentUserId = Number(userId);
   const key = String(conversationId || '').trim();
   if (!Number.isSafeInteger(currentUserId) || currentUserId <= 0 || !key) return false;
 
-  if (/^\d+$/.test(key)) {
+  const cacheKey = `${currentUserId}:${key}`;
+  if (getCachedMembership(cacheKey)) return true;
+
+  if (/^\\d+$/.test(key)) {
     const groupId = Number(key);
     if (!Number.isSafeInteger(groupId) || groupId <= 0) return false;
     const [members] = await db.query(
       'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1',
       [groupId, currentUserId]
     );
-    return members.length > 0;
+    const allowed = members.length > 0;
+    if (allowed) rememberMembership(cacheKey);
+    return allowed;
   }
 
-  const match = key.match(/^(\d+)_(\d+)$/);
+  const match = key.match(/^(\\d+)_(\\d+)$/);
   if (!match) return false;
   const firstId = Number(match[1]);
   const secondId = Number(match[2]);
@@ -87,7 +119,13 @@ async function isConversationMember(userId, conversationId) {
     'AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id = u.id AND b.blocked_id = ?)',
     [peerId, currentUserId, currentUserId]
   );
-  return peers.length > 0;
+  const allowed = peers.length > 0;
+  if (allowed) rememberMembership(cacheKey);
+  return allowed;
+}
+
+function clearMembershipCache() {
+  conversationMembershipCache.clear();
 }
 
 function init(server) {
@@ -115,23 +153,10 @@ function init(server) {
       const token = String(socket.handshake.auth?.token || '').trim();
       if (!token) return next(new Error('unauthorized'));
 
-      const authUser = await supabaseAuthRequest('user', {
-        method: 'GET',
-        accessToken: token
-      });
-      if (!authUser || !authUser.id) return next(new Error('unauthorized'));
-
-      const [profiles] = await db.query(
-        'SELECT id, name, is_blocked FROM users WHERE auth_user_id = ?',
-        [authUser.id]
-      );
-      if (!profiles.length || profiles[0].is_blocked) {
-        return next(new Error('unauthorized'));
-      }
-
-      socket.userId = Number(profiles[0].id);
-      socket.authUserId = authUser.id;
-      socket.userName = profiles[0].name;
+      const identity = await getVerifiedIdentity(token);
+      socket.userId = Number(identity.user.id);
+      socket.authUserId = identity.authUser.id;
+      socket.userName = identity.user.name;
       return next();
     } catch (error) {
       console.warn('Conexão Socket.IO recusada: autenticação inválida.');
@@ -433,5 +458,6 @@ module.exports = {
   broadcastToGroup,
   notifyContactsOnlineStatus,
   emitMessageStatus,
-  isConversationMember
+  isConversationMember,
+  clearMembershipCache
 };
