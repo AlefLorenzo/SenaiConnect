@@ -150,7 +150,7 @@ const createNotice = async (req, res) => {
             [admin.id, title, content || '', unit || '', priority || 'normal', image_url || null, expires_at || null]
         );
         const [rows] = await db.query('SELECT * FROM notices WHERE id = ?', [result.insertId]);
-        socketHelper.broadcast('new_notice', rows[0]);
+        socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
         await logAdminAction(admin.id, 'NOTICE_CREATED', 'notice', rows[0].id, `Criou o aviso "${rows[0].title}"`, null, req);
         res.status(201).json(rows[0]);
     } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao criar aviso' }); }
@@ -166,7 +166,7 @@ const updateNotice = async (req, res) => {
             [title, content, unit, priority, image_url, expires_at, id]
         );
         const [rows] = await db.query('SELECT * FROM notices WHERE id = ?', [id]);
-        socketHelper.broadcast('notice_updated', rows[0]);
+        socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
         await logAdminAction(admin.id, 'NOTICE_UPDATED', 'notice', parseInt(id), `Editou o aviso "${rows[0].title}"`, null, req);
         res.json(rows[0]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar aviso' }); }
@@ -178,7 +178,7 @@ const deleteNotice = async (req, res) => {
         const { id } = req.params;
         const [rows] = await db.query('SELECT title FROM notices WHERE id = ?', [id]);
         await db.query('DELETE FROM notices WHERE id = ?', [id]);
-        socketHelper.broadcast('notice_deleted', { id: parseInt(id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
         await logAdminAction(admin.id, 'NOTICE_DELETED', 'notice', parseInt(id), `Apagou o aviso "${rows[0]?.title}"`, null, req);
         res.json({ message: 'Aviso apagado' });
     } catch (err) { res.status(500).json({ error: 'Erro ao apagar aviso' }); }
