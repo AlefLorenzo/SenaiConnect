@@ -102,7 +102,7 @@ const Messages = () => {
   } = useContext(SocketContext);
 
   // Read conversationId from URL params
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlConversationId = searchParams.get('conversationId');
 
   // Tab state - Instagram style: Primary, General, Requests, Groups
@@ -139,6 +139,9 @@ const Messages = () => {
   const processedSocketMessagesRef = useRef(new Set());
   const sendingMessageRef = useRef(false);
   const syncInFlightRef = useRef(false);
+  const historyRequestIdRef = useRef(0);
+  const activeConversationIdRef = useRef(null);
+  const conversationsRef = useRef(conversations);
 
   // Refs
   const chatBodyRef = useRef(null);
@@ -153,6 +156,46 @@ const Messages = () => {
   const lastReadMessageIdRef = useRef(null);
   const isTypingRef = useRef(false);
   const typingDebounceRef = useRef(null);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  // Deep links must be removed when leaving a conversation, otherwise the URL
+  // resolver immediately selects the same conversation again.
+  const clearConversationQuery = useCallback(() => {
+    if (!urlConversationId) return;
+    setSearchParams(currentParams => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.delete('conversationId');
+      return nextParams;
+    }, { replace: true });
+  }, [urlConversationId, setSearchParams]);
+
+  const closeConversation = useCallback(() => {
+    historyRequestIdRef.current += 1;
+    activeConversationIdRef.current = null;
+    setSelectedContact(null);
+    setHistory([]);
+    setLoadingHistory(false);
+    setShowMobileChat(false);
+    setShowMessageSearch(false);
+    setMessageSearchTerm('');
+    setShowEmojiPicker(false);
+    clearConversationQuery();
+  }, [clearConversationQuery]);
+
+  const handleSelectContact = useCallback((contact) => {
+    if (!contact) {
+      closeConversation();
+      return;
+    }
+
+    activeConversationIdRef.current = String(contact.id ?? contact.conversation_id);
+    setSelectedContact(contact);
+    // A manually selected inbox item becomes the source of truth.
+    clearConversationQuery();
+  }, [closeConversation, clearConversationQuery]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -246,19 +289,29 @@ const Messages = () => {
     fetchGroups();
   }, [fetchConversations, fetchGroups]);
 
-  // Resolve deep links from profiles even if the inbox list is still loading.
+  // Resolve a deep link once per URL change. Inbox refreshes must not restart
+  // this request or re-select a conversation after the user has left it.
   useEffect(() => {
-    if (!urlConversationId) return;
+    if (!urlConversationId) return undefined;
     let cancelled = false;
-    const existing = conversations.find(c => String(c.id) === String(urlConversationId));
+    const requestedId = String(urlConversationId);
+    const existing = conversationsRef.current.find(c => String(c.id ?? c.conversation_id) === requestedId);
+
+    const applyConversation = (contact) => {
+      if (cancelled || !contact) return;
+      activeConversationIdRef.current = String(contact.id ?? contact.conversation_id ?? requestedId);
+      setSelectedContact(contact);
+      setActiveTab(contact.isGroup ? 'groups' : 'general');
+    };
+
     if (existing) {
-      setSelectedContact(existing);
-      setActiveTab(existing.isGroup ? 'groups' : 'general');
-      return;
+      applyConversation(existing);
+      return () => { cancelled = true; };
     }
+
     messagesService.getConversation(urlConversationId, true)
       .then(conversation => {
-        if (cancelled || !conversation) return;
+        if (!conversation || cancelled) return;
         const normalized = {
           ...conversation,
           id: String(conversation.id ?? conversation.conversationId ?? urlConversationId),
@@ -266,27 +319,35 @@ const Messages = () => {
           participants: conversation.participants || [],
           unreadCount: conversation.unreadCount || conversation.unread_count || 0,
         };
-        setSelectedContact(normalized);
-        setActiveTab(normalized.isGroup ? 'groups' : 'general');
+        applyConversation(normalized);
       })
       .catch(error => {
         if (!cancelled) console.error('Não foi possível abrir a conversa solicitada:', error);
       });
     return () => { cancelled = true; };
-  }, [urlConversationId, conversations]);
+  }, [urlConversationId]);
 
   const fetchHistory = useCallback(async (contactId, page = 1, append = false) => {
     if (!contactId) return;
-    if (loadingHistory) return;
+
+    // Each request gets a generation. Switching or closing a chat invalidates
+    // older responses so they cannot repopulate another conversation's screen.
+    const requestId = ++historyRequestIdRef.current;
+    setLoadingHistory(true);
 
     try {
-      setLoadingHistory(true);
       const result = await messagesService.getHistory(contactId, { page, limit: 30, forceRefresh: true });
+      if (requestId !== historyRequestIdRef.current) return;
+
       // Group history does not mark the read cursor through GET; persist it explicitly.
       if (result.isGroup || result.contact?.isGroup) {
         await messagesService.markAsRead(contactId);
       }
+      if (requestId !== historyRequestIdRef.current) return;
+
       await fetchUnreadMessagesCount();
+      if (requestId !== historyRequestIdRef.current) return;
+
       let data = result.data || [];
 
       // Ensure messages are in chronological order (oldest first) for proper grouping
@@ -309,12 +370,16 @@ const Messages = () => {
       setHistoryPage(page);
       fetchConversations();
     } catch (err) {
-      console.error('Erro ao buscar histórico:', err);
-      setHasMoreHistory(false);
+      if (requestId === historyRequestIdRef.current) {
+        console.error('Erro ao buscar histórico:', err);
+        setHasMoreHistory(false);
+      }
     } finally {
-      setLoadingHistory(false);
+      if (requestId === historyRequestIdRef.current) {
+        setLoadingHistory(false);
+      }
     }
-  }, [fetchConversations, fetchUnreadMessagesCount, loadingHistory]);
+  }, [fetchConversations, fetchUnreadMessagesCount]);
 
   // Socket.IO is the fast path; this periodic reconciliation is the reliability path.
   // It recovers messages missed while a mobile browser suspends an apparently-live socket.
@@ -334,11 +399,15 @@ const Messages = () => {
         return;
       }
 
+      const expectedConversationId = String(selectedContact.id);
+      if (activeConversationIdRef.current !== expectedConversationId) return;
+
       const result = await messagesService.getHistory(selectedContact.id, {
         page: 1,
         limit: 50,
         forceRefresh: true,
       });
+      if (activeConversationIdRef.current !== expectedConversationId) return;
       const latestMessages = [...(result.data || [])].reverse();
 
       if (result.isGroup || result.contact?.isGroup) {
@@ -455,6 +524,7 @@ const Messages = () => {
   // Fetch history when contact changes
   useEffect(() => {
     if (selectedContact) {
+      activeConversationIdRef.current = String(selectedContact.id);
       messageIdsRef.current.clear();
       processedSocketMessagesRef.current.clear();
       fetchHistory(selectedContact.id, 1, false);
@@ -464,7 +534,10 @@ const Messages = () => {
       // Join conversation for typing indicators
       joinConversation(selectedContact.id);
     } else {
+      historyRequestIdRef.current += 1;
+      activeConversationIdRef.current = null;
       setHistory([]);
+      setLoadingHistory(false);
       setShowMobileChat(false);
       setHasMoreHistory(true);
       setHistoryPage(1);
@@ -709,11 +782,11 @@ const Messages = () => {
 
   const handleGroupDeleted = useCallback((data) => {
     if (selectedContact && selectedContact.isGroup && data.groupId === selectedContact.id) {
-      setSelectedContact(null);
+      closeConversation();
     }
     fetchGroups();
     fetchConversations();
-  }, [selectedContact, fetchGroups, fetchConversations]);
+  }, [selectedContact, closeConversation, fetchGroups, fetchConversations]);
 
   const handleMessageSentConfirmed = useCallback((data) => {
     const { tempId, message } = data;
@@ -1245,7 +1318,7 @@ const Messages = () => {
             getContactAvatar={getContactAvatar}
             getContactUnread={getContactUnread}
             getOtherParticipant={getOtherParticipant}
-            onSelectContact={setSelectedContact}
+            onSelectContact={handleSelectContact}
             selectedContactId={selectedContact?.id || null}
             isMobile={isMobile}
             showMobileChat={showMobileChat}
@@ -1275,7 +1348,7 @@ const Messages = () => {
           getContactAvatar={getContactAvatar}
           getContactUnread={getContactUnread}
           getOtherParticipant={getOtherParticipant}
-          onSelectContact={setSelectedContact}
+          onSelectContact={handleSelectContact}
           selectedContactId={selectedContact?.id || null}
           isMobile={isMobile}
           showMobileChat={showMobileChat}
@@ -1294,7 +1367,7 @@ const Messages = () => {
           isMobile={isMobile}
           showMobileChat={showMobileChat}
           setShowMobileChat={setShowMobileChat}
-          setSelectedContact={setSelectedContact}
+          onCloseConversation={closeConversation}
           onSearchToggle={setShowMessageSearch}
           showMessageSearch={showMessageSearch}
         />
@@ -1590,8 +1663,8 @@ const MessagesSidebar = ({
 
 const ConversationHeader = ({
   contact, isGroup, isOnline, user,
-  isMobile, setShowMobileChat,
-  setSelectedContact,
+  isMobile,
+  onCloseConversation,
   onSearchToggle, showMessageSearch
 }) => {
   // Find other participant by name not being "Você" (handles case where both have same ID)
@@ -1609,7 +1682,7 @@ const ConversationHeader = ({
         {isMobile && (
           <button
             className="mobile-back-btn"
-            onClick={() => { setShowMobileChat(false); setSelectedContact(null); }}
+            onClick={onCloseConversation}
             aria-label="Voltar para lista de conversas"
             title="Voltar"
           >
