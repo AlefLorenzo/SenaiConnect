@@ -202,7 +202,7 @@ const MessageBubble = ({
       ? messageSenderName
       : '';
     const participantName = String(participant?.name ?? '').trim();
-    const name = usableMessageName || participantName || 'Participant';
+    const name = participantName || usableMessageName || 'Participant';
 
     return {
       name,
