@@ -124,24 +124,24 @@ const adminNoticesController = {
                 image_url = null,
                 attachment_url = null,
                 attachment_name = null,
-                send_notification = true
+                send_notification = true,
+                status: requestedStatus
             } = req.body;
 
             if (!title) {
                 return res.status(400).json({ error: 'Título é obrigatório' });
             }
 
-            // Determinar status baseado em published_at
-            let status = 'draft';
-            if (published_at) {
+            // Rascunho nunca deve aparecer para usuários, mesmo com data preenchida.
+            let status = 'published';
+            if (requestedStatus === 'draft') {
+                status = 'draft';
+            } else if (published_at) {
                 const pubDate = new Date(published_at);
-                if (pubDate <= new Date()) {
-                    status = 'published';
-                } else {
-                    status = 'scheduled';
+                if (Number.isNaN(pubDate.getTime())) {
+                    return res.status(400).json({ error: 'Data de publicação inválida.' });
                 }
-            } else {
-                status = 'published'; // Publicar imediatamente se não agendado
+                status = pubDate > new Date() ? 'scheduled' : 'published';
             }
 
             const recipientsJson = typeof recipients === 'string' ? recipients : JSON.stringify(recipients);
@@ -195,7 +195,8 @@ const adminNoticesController = {
                 image_url,
                 attachment_url,
                 attachment_name,
-                send_notification
+                send_notification,
+                status: requestedStatus
             } = req.body;
 
             const [existing] = await db.query('SELECT * FROM notices WHERE id = ?', [id]);
@@ -206,12 +207,27 @@ const adminNoticesController = {
             const oldNotice = existing[0];
             const wasPublished = oldNotice.status === 'published';
 
-            // Determinar novo status
+            // O estado de publicação é independente da data de agendamento.
             let status = oldNotice.status;
-            if (published_at !== undefined) {
+            if (requestedStatus === 'draft') {
+                status = 'draft';
+            } else if (requestedStatus === 'published') {
                 if (published_at) {
                     const pubDate = new Date(published_at);
-                    status = pubDate <= new Date() ? 'published' : 'scheduled';
+                    if (Number.isNaN(pubDate.getTime())) {
+                        return res.status(400).json({ error: 'Data de publicação inválida.' });
+                    }
+                    status = pubDate > new Date() ? 'scheduled' : 'published';
+                } else {
+                    status = 'published';
+                }
+            } else if (published_at !== undefined) {
+                if (published_at) {
+                    const pubDate = new Date(published_at);
+                    if (Number.isNaN(pubDate.getTime())) {
+                        return res.status(400).json({ error: 'Data de publicação inválida.' });
+                    }
+                    status = pubDate > new Date() ? 'scheduled' : 'published';
                 } else {
                     status = 'draft';
                 }
