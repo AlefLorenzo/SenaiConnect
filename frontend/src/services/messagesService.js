@@ -421,11 +421,55 @@ class MessagesService extends BaseService {
   }
 
   /**
+   * Get people eligible to be added to a group:
+   * existing direct conversations, people I follow, and people who follow me.
+   */
+  async getGroupContacts() {
+    if (USE_MOCK) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      const contacts = new Map();
+      this.mockIndividualConversations.forEach(conversation => {
+        (conversation.participants || []).forEach(participant => {
+          if (!participant || Number(participant.id) === 1 || participant.name === 'Você') return;
+          const key = String(participant.id);
+          contacts.set(key, {
+            ...participant,
+            has_conversation: true,
+            is_following: false,
+            follows_you: false,
+          });
+        });
+      });
+      return [...contacts.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    return this.get(ENDPOINTS.GROUPS.CONTACTS);
+  }
+
+  /**
    * Create a new group conversation
    */
   async createGroup(groupData) {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 500));
+      const availableContacts = new Map();
+      this.mockIndividualConversations.forEach(conversation => {
+        (conversation.participants || []).forEach(participant => {
+          if (participant && Number(participant.id) !== 1 && participant.name !== 'Você') {
+            availableContacts.set(String(participant.id), participant);
+          }
+        });
+      });
+      const selectedParticipants = [...new Set((groupData.participants || []).map(String))]
+        .map(id => availableContacts.get(id))
+        .filter(Boolean)
+        .map(participant => ({
+          ...participant,
+          member: { role: 'member' },
+          role: 'member',
+          user_role: 'member',
+          joinedAt: new Date().toISOString(),
+        }));
       const newGroup = {
         conversation_id: Date.now(),
         id: Date.now(),
@@ -434,7 +478,10 @@ class MessagesService extends BaseService {
         description: groupData.description || '',
         participants: [
           { id: 1, name: 'Você', avatar: null, member: { role: 'admin' }, role: 'admin', user_role: 'admin', isOnline: true, joinedAt: new Date().toISOString() },
+          ...selectedParticipants,
         ],
+        memberCount: selectedParticipants.length + 1,
+        members_count: selectedParticipants.length + 1,
         adminIds: [1],
         last_message: null,
         unread_count: 0,
