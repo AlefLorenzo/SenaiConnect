@@ -99,9 +99,9 @@ describe('Integration Tests - Stories Flow', () => {
     jest.useRealTimers();
   });
 
-  const renderWithProviders = (component) => {
+  const renderWithProviders = (component, user = mockUser) => {
     return render(
-      <AuthContext.Provider value={{ user: mockUser, login: jest.fn(), logout: jest.fn(), register: jest.fn() }}>
+      <AuthContext.Provider value={{ user, login: jest.fn(), logout: jest.fn(), register: jest.fn() }}>
         <SocketContext.Provider value={{ socket: mockSocket, isConnected: true }}>
           {component}
         </SocketContext.Provider>
@@ -146,6 +146,9 @@ describe('Integration Tests - Stories Flow', () => {
         },
       ];
 
+      // View the newly created story from a different account. WhatsApp-style
+      // status replies are private messages and cannot be sent to your own story.
+      const storyViewerUser = { ...mockUser, id: 2, name: 'Story Viewer' };
       const { unmount } = renderWithProviders(
         <StoryViewer
           storyGroups={storyGroups}
@@ -153,7 +156,8 @@ describe('Integration Tests - Stories Flow', () => {
           onClose={jest.fn()}
           onReply={jest.fn()}
           onReact={jest.fn()}
-        />
+        />,
+        storyViewerUser
       );
 
       await waitFor(() => {
@@ -170,9 +174,9 @@ describe('Integration Tests - Stories Flow', () => {
 
       // Step 4: Reply to the story
       fireEvent.click(screen.getByLabelText('Responder'));
-      const textarea = screen.getByPlaceholderText('Escreva uma resposta...');
+      const textarea = screen.getByPlaceholderText('Escreva uma mensagem...');
       fireEvent.change(textarea, { target: { value: 'Great story!' } });
-      fireEvent.click(screen.getByText('Enviar'));
+      fireEvent.click(screen.getByText('Enviar mensagem'));
 
       await waitFor(() => {
         expect(storiesService.replyToStory).toHaveBeenCalledWith(createdStory.id, 'Great story!');
