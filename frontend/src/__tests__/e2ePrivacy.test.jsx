@@ -498,9 +498,9 @@ describe('E2E Privacy Verification - 3 Account Matrix', () => {
       const { unmount } = renderStoryViewer({ ...testAccounts.eve, id: 205 }, [closeStory]);
 
       fireEvent.click(screen.getByLabelText('Responder'));
-      const textarea = screen.getByPlaceholderText('Escreva uma resposta...');
+      const textarea = screen.getByPlaceholderText('Escreva uma mensagem...');
       fireEvent.change(textarea, { target: { value: 'Love it!' } });
-      fireEvent.click(screen.getByText('Enviar'));
+      fireEvent.click(screen.getByText('Enviar mensagem'));
 
       await waitFor(() => {
         expect(storiesService.replyToStory).toHaveBeenCalledWith('notify-3', 'Love it!');
