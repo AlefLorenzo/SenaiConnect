@@ -262,52 +262,29 @@ const storyController = {
             const { id } = req.params;
             const userId = req.user.id;
 
-            const connection = await db.getConnection();
-            try {
-                await connection.beginTransaction();
+            // The composite primary key makes this an atomic, idempotent write.
+            // Returning a row tells us whether this request created the first view.
+            const [insertResult] = await db.query(
+                'INSERT INTO story_views (story_id, user_id, viewed_at) VALUES (?, ?, NOW()) ' +
+                'ON CONFLICT (story_id, user_id) DO NOTHING RETURNING story_id',
+                [id, userId]
+            );
 
-                // Check if already viewed
-                const [existing] = await connection.execute(
-                    'SELECT * FROM story_views WHERE story_id = ? AND user_id = ?',
-                    [id, userId]
-                );
-
-                if (existing.length === 0) {
-                    // Insert view with timestamp
-                    await connection.execute(
-                        'INSERT INTO story_views (story_id, user_id, viewed_at) VALUES (?, ?, NOW())',
-                        [id, userId]
+            if (insertResult.rows?.length) {
+                const [story] = await db.query('SELECT user_id FROM stories WHERE id = ?', [id]);
+                if (story.length > 0 && Number(story[0].user_id) !== Number(userId)) {
+                    const notificationController = require('./notificationController');
+                    await notificationController.createNotification(
+                        story[0].user_id,
+                        'story_view',
+                        userId,
+                        'visualizou sua história.',
+                        'story',
+                        parseInt(id, 10),
+                        `story_${id}_view`,
+                        { action: 'view', story_id: parseInt(id, 10) }
                     );
-
-                    // Increment view count on story
-                    await connection.execute(
-                        'UPDATE stories SET views_count = COALESCE(views_count, 0) + 1 WHERE id = ?',
-                        [id]
-                    );
-
-                    // Create Activity Center notification for story view (owner gets notified)
-                    const [story] = await connection.execute('SELECT user_id FROM stories WHERE id = ?', [id]);
-                    if (story.length > 0 && story[0].user_id !== userId) {
-                        const notificationController = require('./notificationController');
-                        await notificationController.createNotification(
-                            story[0].user_id,
-                            'story_view',
-                            userId,
-                            'visualizou sua história.',
-                            'story',
-                            parseInt(id),
-                            `story_${id}_view`,
-                            { action: 'view', story_id: parseInt(id) }
-                        );
-                    }
                 }
-
-                await connection.commit();
-            } catch (error) {
-                await connection.rollback();
-                throw error;
-            } finally {
-                connection.release();
             }
 
             res.status(200).json({ success: true });
