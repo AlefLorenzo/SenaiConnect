@@ -14,6 +14,7 @@ const getNotificationIcon = (type) => {
         case 'friend_accepted': return <CheckCircle size={20} fill="#10B981" />;
         case 'mention': return <AtSign size={20} fill="#8B5CF6" />;
         case 'admin_publication': return <BellRing size={20} />;
+        case 'admin_publication': return <BellRing size={20} />;
         default: return <Bell size={20} fill="#6B7280" />;
     }
 };
@@ -221,6 +222,7 @@ const Notifications = () => {
             const destination = resource === 'events' || resource === 'event' ? '/eventos'
                 : resource === 'courses' || resource === 'course' ? '/cursos'
                 : resource === 'notices' || resource === 'notice' ? '/avisos'
+                : resource === 'posts' || resource === 'post' ? '/'
                 : null;
             if (destination) {
                 navigate(destination);
@@ -354,7 +356,7 @@ const Notifications = () => {
                                     onClick={() => handleClick(n)}
                                 >
                                     <div className="notification-icon-wrapper">
-                                        {getNotificationIcon(n.type)}
+                                        {getNotificationIcon(n.activity_type || n.type)}
                                     </div>
                                     <Avatar user={{ avatar: n.source_user_avatar, name: n.source_user_name }} className="notification-avatar" />
                                     <div className="notification-content">
