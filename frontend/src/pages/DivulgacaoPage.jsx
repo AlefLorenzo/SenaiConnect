@@ -5,6 +5,8 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import StoryBar from '../components/Business/StoryBar';
 import BusinessPostCard from '../components/Business/BusinessPostCard';
 import BusinessStoryViewer from '../components/Business/BusinessStoryViewer';
+import DiscoveryCampaignCard from '../components/DiscoveryCampaignCard';
+import DiscoveryInstitutionCard from '../components/DiscoveryInstitutionCard';
 import { companiesService } from '../services/companiesService';
 import { Search, Filter, Building2, Loader2, X, Plus, Bell } from 'lucide-react';
 import './DivulgacaoPage.css';
@@ -42,7 +44,8 @@ const DivulgacaoPage = () => {
         search: '',
         postType: '',
         category: '',
-        sort: 'recent'
+        sort: 'recent',
+        feedType: 'all'
     });
     const [showFilters, setShowFilters] = useState(false);
 
@@ -70,23 +73,24 @@ const DivulgacaoPage = () => {
             const params = {
                 page: pageNum,
                 limit: 10,
-                sort: filters.sort
+                sort: filters.sort,
+                feedType: filters.feedType
             };
             if (filters.search) params.search = filters.search;
             if (filters.postType) params.category = filters.postType;
             if (filters.category) params.category = filters.category;
 
-            const data = await companiesService.getBusinessFeed(params);
+            const data = await companiesService.getDiscoveryFeed(params);
             if (append) {
-                setPosts(prev => [...prev, ...data.data]);
+                setPosts(prev => [...prev, ...(data.items || [])]);
             } else {
-                setPosts(data.data);
-                // Extrair categorias únicas
-                const cats = [...new Set(data.data.map(p => p.category).filter(Boolean))];
+                setPosts(data.items || []);
+                // Extrair categorias únicas das publicações retornadas.
+                const cats = [...new Set((data.items || []).map(p => p.category || p.area).filter(Boolean))];
                 setCategories(cats);
             }
-            setHasMore(data.pagination.hasMore);
-            setPage(data.pagination.page);
+            setHasMore(Boolean(data.pagination?.hasMore));
+            setPage(data.pagination?.page || pageNum);
         } catch (err) {
             console.error('Erro ao buscar posts:', err);
         } finally {
@@ -207,10 +211,10 @@ const DivulgacaoPage = () => {
     };
 
     const clearFilters = () => {
-        setFilters({ search: '', postType: '', category: '', sort: 'recent' });
+        setFilters({ search: '', postType: '', category: '', sort: 'recent', feedType: 'all' });
     };
 
-    const hasActiveFilters = filters.search || filters.postType || filters.category;
+    const hasActiveFilters = filters.search || filters.postType || filters.category || filters.feedType !== 'all';
 
     const openStoryViewer = (group, index) => {
         setActiveStoryGroup(group);
@@ -239,8 +243,8 @@ const DivulgacaoPage = () => {
                 <div className="header-left">
                     <Building2 size={28} className="header-icon" />
                     <div>
-                        <h1>Divulgação</h1>
-                        <p className="header-subtitle">Empresas, oportunidades e networking</p>
+                        <h1>Descobrir</h1>
+                        <p className="header-subtitle">Empresas, instituições, campanhas e oportunidades</p>
                     </div>
                 </div>
                 <div className="header-right">
@@ -263,13 +267,34 @@ const DivulgacaoPage = () => {
             />
 
             {/* Filters */}
-            <div className={`filters-bar ${showFilters ? 'expanded' : ''}`}>
+            <div className={'filters-bar ' + (showFilters ? 'expanded' : '')}>
+                <div className="discovery-feed-tabs" role="group" aria-label="Filtrar conteúdo do feed">
+                    {[
+                        ['all', 'Para você'],
+                        ['business', 'Empresas'],
+                        ['ads', 'Publicidade'],
+                        ['institutions', 'Instituições'],
+                        ['events', 'Eventos'],
+                        ['courses', 'Cursos'],
+                        ['opportunities', 'Oportunidades']
+                    ].map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            className={'discovery-feed-tab ' + (filters.feedType === value ? 'active' : '')}
+                            aria-pressed={filters.feedType === value}
+                            onClick={() => handleFilterChange('feedType', value)}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
                 <div className="filters-main">
                     <div className="search-box">
                         <Search size={18} />
                         <input
                             type="text"
-                            placeholder="Buscar empresas, vagas, cursos..."
+                            placeholder="Buscar marcas, instituições, produtos e oportunidades..."
                             value={filters.search}
                             onChange={(e) => handleFilterChange('search', e.target.value)}
                         />
@@ -339,14 +364,22 @@ const DivulgacaoPage = () => {
                     </div>
                 ) : (
                     <>
-                        {posts.map((post) => (
-                            <BusinessPostCard
-                                key={post.id}
-                                post={post}
-                                currentUserId={user?.id}
-                                onUpdate={() => fetchPosts(page, false)}
-                            />
-                        ))}
+                        {posts.map((post) => {
+                            if (post.feed_type === 'campaign_ad') {
+                                return <DiscoveryCampaignCard key={post.id} ad={post} />;
+                            }
+                            if (post.feed_type === 'institutional') {
+                                return <DiscoveryInstitutionCard key={post.id} item={post} />;
+                            }
+                            return (
+                                <BusinessPostCard
+                                    key={'business-' + post.id}
+                                    post={post}
+                                    currentUserId={user?.id}
+                                    onUpdate={() => fetchPosts(page, false)}
+                                />
+                            );
+                        })}
 
                         {/* Infinite scroll trigger */}
                         <div ref={observerTarget} className="load-more-trigger">
