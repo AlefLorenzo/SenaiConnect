@@ -1269,7 +1269,7 @@ const messageController = {
                 values.push(description);
             }
             if (avatar !== undefined) {
-                updates.push('avatar = ?');
+                updates.push('icon = ?');
                 values.push(avatar);
             }
 
