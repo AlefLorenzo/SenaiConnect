@@ -76,4 +76,20 @@ describe('storyController.view', () => {
     expect(notificationController.createNotification).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
+  test('returns success even if the non-critical notification cannot be created', async () => {
+    mockDb.query
+      .mockResolvedValueOnce([{ rows: [{ story_id: 10 }], affectedRows: 1 }])
+      .mockResolvedValueOnce([[{ user_id: 99 }]]);
+    notificationController.createNotification.mockRejectedValueOnce(new Error('notification store unavailable'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await storyController.view(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+    expect(warn).toHaveBeenCalled();
+
+    warn.mockRestore();
+  });
+
 });
