@@ -18,6 +18,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [replyError, setReplyError] = useState('');
   const [showViewerList, setShowViewerList] = useState(false);
   const [viewers, setViewers] = useState([]);
   const [isLoadingViewers, setIsLoadingViewers] = useState(false);
@@ -109,7 +110,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   const currentStory = currentGroup?.stories?.[currentStoryIndex];
 
   // Track if current user owns this story
-  const isOwner = currentGroup && user && currentGroup.user_id === user.id;
+  const isOwner = Boolean(currentGroup && user && String(currentGroup.user_id) === String(user.id));
   const storyId = currentStory?.id;
   const storyOwnerId = currentGroup?.user_id;
 
@@ -198,6 +199,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     setShowReactions(false);
     setShowReplies(false);
     setReplyText('');
+    setReplyError('');
 
     // Load reactions for new story
     if (storyId) {
@@ -283,19 +285,24 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     }
   };
 
-  // Handle reply
+  // Story replies are private direct messages to the story owner.
+  // The owner cannot reply to their own story, matching WhatsApp status rules.
   const handleReplySubmit = async (e) => {
     e.preventDefault();
-    if (!replyText.trim() || !storyId) return;
+    const content = replyText.trim();
+    if (!content || !storyId || isOwner || isReplying) return;
 
+    setReplyError('');
     setIsReplying(true);
     try {
-      await storiesService.replyToStory(storyId, replyText.trim());
-      if (onReply) onReply(storyId, replyText.trim());
+      const result = await storiesService.replyToStory(storyId, content);
+      onReply?.(storyId, content, result);
       setReplyText('');
       setShowReplies(false);
+      setIsPaused(false);
     } catch (err) {
-      console.error('Erro ao responder:', err);
+      console.error('Erro ao responder ao story:', err);
+      setReplyError(err.message || 'Não foi possível enviar a resposta. Tente novamente.');
     } finally {
       setIsReplying(false);
     }
@@ -385,9 +392,24 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
             <button className="story-action-btn" onClick={() => setShowReactions(!showReactions)} aria-label="Reações">
               <Heart size={22} color="white" />
             </button>
-            <button className="story-action-btn" onClick={() => setShowReplies(!showReplies)} aria-label="Responder">
-              <MessageSquare size={22} color="white" />
-            </button>
+            {!isOwner && (
+              <button
+                className="story-action-btn"
+                onClick={() => {
+                  setShowReactions(false);
+                  setShowReplies(previous => {
+                    const next = !previous;
+                    setIsPaused(next);
+                    setReplyError('');
+                    return next;
+                  });
+                }}
+                aria-label="Responder"
+                aria-expanded={showReplies}
+              >
+                <MessageSquare size={22} color="white" />
+              </button>
+            )}
             {isOwner && (
               <button className="story-action-btn" onClick={toggleMoreMenu} aria-label="Mais opções">
                 <MoreVertical size={22} color="white" />
@@ -462,21 +484,40 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
           )}
 
           {/* Replies panel */}
-          {showReplies && (
-            <div className="story-replies-panel" role="dialog" aria-label="Responder">
+          {showReplies && !isOwner && (
+            <div className="story-replies-panel" role="dialog" aria-label="Responder em particular">
               <div className="replies-header">
-                <span>Responder</span>
-                <button onClick={() => setShowReplies(false)} aria-label="Fechar"><X size={20} color="white" /></button>
+                <div className="story-reply-heading">
+                  <span>Responder em particular</span>
+                  <small>Somente {currentGroup.user_name} receberá sua mensagem</small>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReplies(false);
+                    setIsPaused(false);
+                    setReplyError('');
+                  }}
+                  aria-label="Fechar"
+                >
+                  <X size={20} color="white" />
+                </button>
               </div>
               <form onSubmit={handleReplySubmit} className="reply-form">
                 <textarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Escreva uma resposta..."
+                  onChange={(e) => {
+                    setReplyText(e.target.value);
+                    if (replyError) setReplyError('');
+                  }}
+                  placeholder="Escreva uma mensagem..."
                   maxLength={500}
                   rows={3}
-                  aria-label="Sua resposta"
+                  aria-label="Sua resposta privada"
+                  disabled={isReplying}
+                  autoFocus
                 />
+                {replyError && <p className="story-reply-error" role="alert">{replyError}</p>}
                 <div className="reply-footer">
                   <span className="reply-char-count">{replyText.length}/500</span>
                   <button
@@ -484,7 +525,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
                     className="reply-send-btn"
                     disabled={!replyText.trim() || isReplying}
                   >
-                    {isReplying ? 'Enviando...' : 'Enviar'}
+                    {isReplying ? 'Enviando...' : 'Enviar mensagem'}
                   </button>
                 </div>
               </form>
