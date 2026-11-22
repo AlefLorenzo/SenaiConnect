@@ -71,7 +71,7 @@ export default function EventosPage() {
       if (change?.resource === 'events') loadEvents();
     });
     const unsubscribeRegistrations = registerEventHandler('event_registration_changed', change => {
-      if (!change?.eventId || events.length === 0 || events.some(event => Number(event.id) === Number(change.eventId))) loadEvents();
+      if (change?.eventId) loadEvents();
     });
 
     loadEvents();
