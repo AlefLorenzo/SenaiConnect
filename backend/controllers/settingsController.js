@@ -25,7 +25,7 @@ const settingsController = {
             const notifications = parseObject(user.notification_prefs);
             const accessibility = parseObject(user.accessibility_prefs);
             const defaults = {
-                theme: 'system',
+                theme: 'light',
                 language: 'pt-BR',
                 notifications: { push: true, email: true, likes: true, comments: true, follows: true, messages: true, groups: true, stories: true, mentions: true },
                 privacy: { profileVisibility: 'public', showEmail: false, showLastSeen: 'everyone', showOnlineStatus: true, readReceipts: true },
