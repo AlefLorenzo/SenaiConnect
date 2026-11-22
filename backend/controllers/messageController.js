@@ -536,10 +536,24 @@ const messageController = {
                 const otherUser = user[0];
 
                 const [individualMessages] = await db.query(`
-                    SELECT * FROM messages
-                    WHERE (sender_id = ? AND receiver_id = ?)
-                       OR (sender_id = ? AND receiver_id = ?)
-                    ORDER BY created_at DESC, id DESC
+                    SELECT
+                        m.*,
+                        sr.story_id AS story_id,
+                        s.user_id AS story_owner_id,
+                        story_owner.name AS story_owner_name,
+                        s.media_url AS story_media_url,
+                        s.media_type AS story_media_type,
+                        s.text_content AS story_text_content,
+                        s.background_color AS story_background_color,
+                        s.created_at AS story_created_at
+                    FROM messages m
+                    LEFT JOIN story_replies sr
+                        ON sr.message_id = m.id AND m.message_type = 'story_reply'
+                    LEFT JOIN stories s ON s.id = sr.story_id
+                    LEFT JOIN users story_owner ON story_owner.id = s.user_id
+                    WHERE (m.sender_id = ? AND m.receiver_id = ?)
+                       OR (m.sender_id = ? AND m.receiver_id = ?)
+                    ORDER BY m.created_at DESC, m.id DESC
                     LIMIT ? OFFSET ?
                 `, [loggedUserId, peerId, peerId, loggedUserId, limit, offset]);
 
@@ -563,6 +577,16 @@ const messageController = {
                     fileName: m.attachment_name,
                     fileSize: m.attachment_size,
                     fileType: m.attachment_type,
+                    storyReply: m.story_id ? {
+                        storyId: m.story_id,
+                        ownerId: m.story_owner_id,
+                        ownerName: m.story_owner_name,
+                        mediaUrl: m.story_media_url,
+                        mediaType: m.story_media_type,
+                        textContent: m.story_text_content || '',
+                        backgroundColor: m.story_background_color,
+                        createdAt: m.story_created_at,
+                    } : null,
                 }));
 
                 contact = {
