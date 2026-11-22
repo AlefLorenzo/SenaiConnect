@@ -238,9 +238,18 @@ const messageController = {
                     const key = Number(group.conversation_id);
                     group.participants = participantsByGroup.get(key) || [];
                     group.admin_ids = adminsByGroup.get(key) || [];
+                    const participantSender = (group.participants || []).find(
+                        participant => Number(participant.id ?? participant.user_id) === Number(group.last_message_sender_id)
+                    );
+                    const queriedSenderName = String(group.last_message_sender_name || '').trim();
+                    const genericSenderNames = new Set(['unknown', 'desconhecido', 'participant', 'participante', 'you', 'você']);
                     group.last_message_sender_name = Number(group.last_message_sender_id) === Number(loggedUserId)
                         ? 'You'
-                        : (group.last_message_sender_name || 'Participant');
+                        : (
+                            queriedSenderName && !genericSenderNames.has(queriedSenderName.toLowerCase())
+                                ? queriedSenderName
+                                : (participantSender?.name || 'Participant')
+                        );
                 }
             }
 
