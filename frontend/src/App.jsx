@@ -32,6 +32,7 @@ const BusinessDashboardPosts = lazy(() => import('./pages/BusinessDashboardPosts
 const BusinessDashboardStories = lazy(() => import('./pages/BusinessDashboardStories'));
 const BusinessDashboardBilling = lazy(() => import('./pages/BusinessDashboardBilling'));
 const BusinessDashboardCampaigns = lazy(() => import('./pages/BusinessDashboardCampaigns'));
+const BusinessCampaignForm = lazy(() => import('./pages/BusinessCampaignForm'))
 const BusinessDashboardSettings = lazy(() => import('./pages/BusinessDashboardSettings'));
 const BusinessDirectoryPage = lazy(() => import('./pages/BusinessDirectoryPage'));
 const BusinessFeed = lazy(() => import('./pages/BusinessFeed'));
@@ -153,6 +154,7 @@ function App() {
               <Route path="/business/posts" element={<BusinessDashboardPosts />} />
               <Route path="/business/stories" element={<BusinessDashboardStories />} />
               <Route path="/business/billing" element={<BusinessDashboardBilling />} />
+              <Route path="/business/campaigns/new" element={<BusinessCampaignForm />} />
               <Route path="/business/campaigns" element={<BusinessDashboardCampaigns />} />
               <Route path="/business/settings" element={<BusinessDashboardSettings />} />
               <Route path="/business/directory" element={<BusinessDirectoryPage />} />
