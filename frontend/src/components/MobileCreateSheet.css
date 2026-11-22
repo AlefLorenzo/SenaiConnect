@@ -17,7 +17,7 @@
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: pan-y;
   animation: fadeIn 0.2s ease;
 }
 
