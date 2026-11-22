@@ -116,7 +116,8 @@ const AdminEventForm = () => {
   };
 
   const uploadImage = async () => {
-    if (!imageFile || !imagePreview.startsWith('data:')) return form.image_url;
+    if (!imageFile) return form.image_url;
+    if (!imagePreview.startsWith('data:')) throw new Error('A imagem ainda está sendo processada. Tente novamente.');
     const response = await fetch(`${API_URL}/api/upload`, {
       method: 'POST',
       headers: {
@@ -137,7 +138,7 @@ const AdminEventForm = () => {
 
     try {
       const imageUrl = await uploadImage();
-      const payload = { ...form, image_url: imageUrl, vacancies: Math.max(0, Number(form.vacancies) || 0) };
+      const payload = { ...form, event_date: new Date(form.event_date).toISOString(), image_url: imageUrl, vacancies: Math.max(0, Number(form.vacancies) || 0) };
       const response = await fetch(
         isEditing ? `${API_URL}/api/admin/events/${id}` : `${API_URL}/api/admin/events`,
         {
