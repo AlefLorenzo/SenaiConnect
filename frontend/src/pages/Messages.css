@@ -1171,6 +1171,21 @@
   min-height: 60px;
 }
 
+.history-retry-button {
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--surface-color, #ffffff);
+  color: var(--primary-color, #0056d2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.history-retry-button:hover {
+  background: var(--hover-color, #f3f6fa);
+}
+
 .load-more-spinner {
   display: flex;
   align-items: center;
