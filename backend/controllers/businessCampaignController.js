@@ -557,6 +557,9 @@ const businessCampaignController = {
             if (campaign.length === 0) {
                 return res.status(404).json({ error: 'Campanha não encontrada.' });
             }
+            if (campaign[0].status !== 'pending_approval') {
+                return res.status(409).json({ error: 'Somente campanhas aguardando análise podem ser aprovadas.' });
+            }
 
             // A aprovação da campanha também aprova seus criativos pendentes.
             const [creatives] = await db.query(
@@ -612,6 +615,9 @@ const businessCampaignController = {
             const [campaign] = await db.query('SELECT * FROM business_campaigns WHERE id = ?', [id]);
             if (campaign.length === 0) {
                 return res.status(404).json({ error: 'Campanha não encontrada.' });
+            }
+            if (campaign[0].status !== 'pending_approval') {
+                return res.status(409).json({ error: 'Somente campanhas aguardando análise podem ser rejeitadas.' });
             }
 
             await db.query('UPDATE business_campaigns SET status = "rejected", rejection_reason = ?, approved_by = ? WHERE id = ?', [reason, admin.id, id]);
