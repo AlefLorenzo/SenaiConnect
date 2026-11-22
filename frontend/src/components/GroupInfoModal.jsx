@@ -69,6 +69,21 @@ export default function GroupInfoModal({ groupId, group, currentUserId, onClose,
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      if (showAddMembers) setShowAddMembers(false);
+      else onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose, showAddMembers]);
+
   const filteredMembers = useMemo(() => members.filter(member =>
     (member.name || '').toLocaleLowerCase('pt-BR').includes(memberSearch.trim().toLocaleLowerCase('pt-BR'))
   ), [members, memberSearch]);
