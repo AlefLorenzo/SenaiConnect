@@ -40,6 +40,7 @@ const Profile = () => {
 
   // Edit profile modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const [bioInput, setBioInput] = useState('');
   const [avatarInput, setAvatarInput] = useState('');
   const [stateInput, setStateInput] = useState('');
@@ -61,6 +62,7 @@ const Profile = () => {
     profileService.getProfile(userId)
       .then(data => {
         setProfileUser(data);
+        setNameInput(data.name || '');
         setBioInput(data.bio || '');
         setAvatarInput(data.avatar || '');
         setStateInput(data.state || '');
@@ -173,7 +175,13 @@ const Profile = () => {
         });
       }
 
+      const normalizedName = nameInput.trim();
+      if (normalizedName.length < 2 || normalizedName.length > 80) {
+        throw new Error('O nome deve ter entre 2 e 80 caracteres.');
+      }
+
       const updateBody = {
+        name: normalizedName,
         avatar: finalAvatar,
         bio: bioInput,
         state: stateInput,
@@ -191,6 +199,7 @@ const Profile = () => {
         setProfileUser(prev => ({ ...prev, ...updatedFields }));
         setLoggedInUser(prev => ({ ...prev, ...updatedFields }));
         setAvatarInput(finalAvatar);
+        setNameInput(normalizedName);
         setAvatarFile(null);
         setAvatarPreview(null);
         setIsEditModalOpen(false);
@@ -199,6 +208,7 @@ const Profile = () => {
       }
     } catch (err) {
       console.error(err);
+      window.alert(err.message || 'Não foi possível atualizar seu perfil.');
     } finally {
       setSaving(false);
     }
@@ -259,6 +269,7 @@ const Profile = () => {
                 </button>
                 {moreMenuOpen && (
                   <div role="menu" style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 30, minWidth: 190, padding: 8, background: 'var(--surface, #fff)', border: '1px solid var(--border, #ddd)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,.14)' }}>
+                    {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', marginBottom: 6 }} onClick={() => { setMoreMenuOpen(false); setIsEditModalOpen(true); }}><Settings size={16} /> Editar perfil</button>}
                     {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', marginBottom: 6 }} onClick={() => { setMoreMenuOpen(false); navigate('/settings'); }}><Settings size={16} /> Configurações</button>}
                     {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', color: '#c62828' }} onClick={async () => { setMoreMenuOpen(false); await logout(); navigate('/', { replace: true }); }}>Sair da conta</button>}
                     {!isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%' }} onClick={() => setMoreMenuOpen(false)}>Fechar</button>}
@@ -411,6 +422,10 @@ const Profile = () => {
               <button className="close-modal-btn" onClick={() => setIsEditModalOpen(false)}>✕</button>
             </div>
             <form onSubmit={handleUpdateProfile} className="edit-profile-form">
+              <div className="form-group">
+                <label htmlFor="profile-name">Nome</label>
+                <input id="profile-name" type="text" value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Seu nome completo" className="modal-input" minLength={2} maxLength={80} required />
+              </div>
               <div className="form-group">
                 <label>Avatar</label>
                 <div className="avatar-upload-row">
