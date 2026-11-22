@@ -90,6 +90,8 @@ router.get('/audit/export', adminAuditController.exportLogs);
 // ============================================
 router.get('/events', adminCrudController.listEvents);
 router.get('/events/:id', adminCrudController.getEvent);
+router.get('/events/:id/registrations', adminCrudController.listEventRegistrations);
+router.post('/events/:id/message', adminCrudController.sendEventMessage);
 router.post('/events', adminCrudController.createEvent);
 router.put('/events/:id', adminCrudController.updateEvent);
 router.delete('/events/:id', adminCrudController.deleteEvent);
