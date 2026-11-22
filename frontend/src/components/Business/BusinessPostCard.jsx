@@ -6,6 +6,7 @@ import Avatar from '../Avatar';
 import { companiesService } from '../../services/companiesService';
 import { ThumbsUp, MessageSquare, Share2, Bookmark, Flag, ExternalLink, Building2, Calendar, MapPin, MoreHorizontal, ChevronDown, X, Loader2 } from 'lucide-react';
 import './BusinessPostCard.css';
+import { getSafeDestination } from '../../utils/safeUrl';
 
 const POST_TYPE_CONFIG = {
     general: { label: 'Geral', icon: '📝', color: '#6B7280' },
@@ -54,6 +55,7 @@ const BusinessPostCard = ({ post, onUpdate }) => {
     const [shareHint, setShareHint] = useState('');
 
     const postTypeConfig = POST_TYPE_CONFIG[post.post_type] || POST_TYPE_CONFIG.general;
+    const externalDestination = getSafeDestination(post.external_link);
 
     // Fetch initial status
     useEffect(() => {
@@ -195,13 +197,6 @@ const BusinessPostCard = ({ post, onUpdate }) => {
         }
     };
 
-    const handleExternalLink = (e) => {
-        if (post.external_link) {
-            e.preventDefault();
-            window.open(post.external_link, '_blank', 'noopener,noreferrer');
-        }
-    };
-
     const isOwner = user?.id === post.business_id || user?.admin_role;
 
     return (
@@ -262,7 +257,7 @@ const BusinessPostCard = ({ post, onUpdate }) => {
             </div>
 
             {/* Content */}
-            <div className="post-content" onClick={handleExternalLink}>
+            <div className="post-content">
                 {post.carousel_images && post.carousel_images.length > 0 ? (
                     <div className="post-carousel">
                         {post.carousel_images.map((img, idx) => (
@@ -279,8 +274,13 @@ const BusinessPostCard = ({ post, onUpdate }) => {
 
                 <p className="post-text">{post.content}</p>
 
-                {post.external_link && (
-                    <a href={post.external_link} target="_blank" rel="noopener noreferrer" className="external-link" onClick={(e) => e.stopPropagation()}>
+                {externalDestination && (
+                    <a
+                        href={externalDestination}
+                        target={externalDestination.startsWith('/') ? undefined : '_blank'}
+                        rel="noopener noreferrer"
+                        className="external-link"
+                    >
                         <ExternalLink size={16} /> {post.link_label || 'Ver oportunidade'}
                     </a>
                 )}
