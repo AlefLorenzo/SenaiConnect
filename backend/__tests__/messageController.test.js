@@ -304,7 +304,8 @@ describe('messageController', () => {
       ];
 
       const mockGroups = [
-        { conversation_id: 1, name: 'Group 1', description: 'Desc', avatar: null, role: 'admin', created_at: '2024-01-01', last_message: 'Group msg', last_message_sender_id: 1, last_message_sender_name: 'You', last_interaction: '2024-01-15T12:00:00Z', unread_count: 2, is_muted: 0, is_important: 1 },
+        { conversation_id: 1, name: 'Group 1', description: 'Desc', avatar: null, role: 'admin', created_at: '2024-01-01', last_message: 'Group msg', last_message_sender_id: 1, last_message_sender_name: 'Test User', last_interaction: '2024-01-15T12:00:00Z', unread_count: 2, is_muted: 0, is_important: 1 },
+        { conversation_id: 2, name: 'Group 2', description: 'Desc', avatar: null, role: 'member', created_at: '2024-01-02', last_message: 'Reply from Maria', last_message_sender_id: 2, last_message_sender_name: 'Participant', last_interaction: '2024-01-15T13:00:00Z', unread_count: 0, is_muted: 0, is_important: 0 },
       ];
 
       let callCount = 0;
@@ -320,7 +321,10 @@ describe('messageController', () => {
         }
         // Query 3: Participants for group
         if (sql.includes('group_members gm2') && sql.includes('JOIN users u2')) {
-          return Promise.resolve([[{ id: 1, name: 'User 1', avatar: null, role: 'admin', is_online: 1, last_seen: null }]]);
+          return Promise.resolve([[
+            { group_id: 1, id: 1, name: 'Test User', avatar: null, role: 'admin', is_online: 1, last_seen: null },
+            { group_id: 2, id: 2, name: 'Maria Silva', avatar: null, role: 'member', is_online: 1, last_seen: null },
+          ]]);
         }
         // Query 4: Admins for group
         if (sql.includes('group_admins') && sql.includes('group_id = ?')) {
@@ -351,6 +355,14 @@ describe('messageController', () => {
               last_message: expect.objectContaining({
                 content: 'Group msg',
                 senderName: 'You',
+              }),
+            }),
+            expect.objectContaining({
+              conversation_id: 2,
+              name: 'Group 2',
+              last_message: expect.objectContaining({
+                content: 'Reply from Maria',
+                senderName: 'Maria Silva',
               }),
             }),
           ]),
