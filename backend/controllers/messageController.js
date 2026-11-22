@@ -4,6 +4,7 @@ const path = require('path');
 const socketHelper = require('../socketHelper');
 const crypto = require('crypto');
 const { buildPrivacyWhereClause } = require('../utils/privacyHelper');
+const { getEligibleGroupParticipantIds } = require('../utils/groupEligibility');
 
 // Import new socket helper functions
 const { emitMessageStatus, broadcastToGroup } = require('../socketHelper');
@@ -1068,6 +1069,13 @@ const messageController = {
             );
             if (adminCheck.length === 0) {
                 return res.status(403).json({ error: 'Apenas administradores podem adicionar membros.' });
+            }
+
+            const eligibleIds = await getEligibleGroupParticipantIds(loggedUserId, [userId]);
+            if (eligibleIds.length !== 1) {
+                return res.status(403).json({
+                    error: 'Só é possível adicionar pessoas com quem você já conversou, segue ou que seguem você.'
+                });
             }
 
             // Verify user exists
