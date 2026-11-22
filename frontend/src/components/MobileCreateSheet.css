@@ -4,12 +4,12 @@
 .mobile-create-sheet-overlay {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  min-height: 100vh;
-  min-height: 100dvh;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
   box-sizing: border-box;
-  padding-left: env(safe-area-inset-left, 0);
-  padding-right: env(safe-area-inset-right, 0);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   z-index: 2000;
   display: flex;
   align-items: flex-end;
@@ -33,7 +33,8 @@
 .mobile-create-sheet {
   width: 100%;
   max-width: 560px;
-  margin-inline: auto;
+  min-width: 0;
+  margin: 0 auto;
   box-sizing: border-box;
   background: var(--color-surface, #ffffff);
   border-radius: 20px 20px 0 0;
@@ -41,6 +42,7 @@
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   max-height: min(85vh, 680px);
   max-height: min(85dvh, 680px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -141,21 +143,23 @@
 }
 
 /* Options Grid */
-.sheet-options {
+ .sheet-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 8px;
-  padding: 20px;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  max-height: calc(min(85vh, 680px) - 120px);
-  max-height: calc(min(85dvh, 680px) - 120px);
 }
 
 /* Create Option Button */
-.create-option {
+ .create-option {
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -298,8 +302,68 @@
   }
 }
 @media (max-width: 480px) {
-  .mobile-create-sheet { border-radius: 18px 18px 0 0; }
-  .sheet-options { padding: 12px 14px calc(16px + env(safe-area-inset-bottom)); gap: 10px; }
-  .create-option { min-height: 88px; padding: 12px 8px; }
-  .option-description { white-space: normal; line-height: 1.25; }
+  .mobile-create-sheet {
+    width: 100%;
+    max-width: none;
+    max-height: min(88vh, 680px);
+    max-height: min(88dvh, 680px);
+    border-radius: 18px 18px 0 0;
+  }
+
+  .sheet-options {
+    padding: 12px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+    gap: 10px;
+  }
+
+  .create-option {
+    min-height: 88px;
+    padding: 12px 8px;
+  }
+
+  .option-description {
+    white-space: normal;
+    line-height: 1.25;
+  }
+}
+
+@media (max-height: 620px) {
+  .mobile-create-sheet {
+    max-height: 94vh;
+    max-height: 94dvh;
+  }
+
+  .sheet-handle {
+    padding-top: 8px;
+    padding-bottom: 6px;
+  }
+
+  .sheet-header {
+    padding-bottom: 10px;
+  }
+
+  .sheet-options {
+    padding-top: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .create-option {
+    min-height: 76px;
+    padding: 10px 8px;
+  }
+
+  .option-icon-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.mobile-create-sheet,
+.mobile-create-sheet * {
+  box-sizing: border-box;
+}
+
+.sheet-options > *,
+.create-option,
+.option-content {
+  min-width: 0;
 }
