@@ -19,9 +19,9 @@ function buildNoticeVisibilityClause(user = {}, alias = 'n') {
     `${recipients} IS NULL`,
     `${recipients} = 'null'::jsonb`,
     `${recipients} = '"all"'::jsonb`,
-    `${recipients}->>'type' = 'all'`
+    `(${recipients}->>'type' = 'all' AND LOWER(COALESCE(?, 'aluno')) IN ('aluno', 'student', 'estudante'))`
   ];
-  const params = [];
+  const params = [String(user.role || 'aluno')];
 
   if (user.course) {
     conditions.push(
