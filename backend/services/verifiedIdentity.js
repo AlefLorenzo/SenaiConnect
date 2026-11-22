@@ -36,7 +36,7 @@ async function loadIdentity(token) {
   }
 
   const [profiles] = await db.query(
-    'SELECT id, name, email, role, admin_role, unit_id, is_blocked, onboarding_completed FROM users WHERE auth_user_id = ?',
+    'SELECT id, name, email, role, admin_role, unit_id, unit, course, area, city, state, is_blocked, onboarding_completed FROM users WHERE auth_user_id = ?',
     [authUser.id]
   );
 
@@ -59,6 +59,11 @@ async function loadIdentity(token) {
       role: profile.role,
       admin_role: profile.admin_role,
       unit_id: profile.unit_id,
+      unit: profile.unit,
+      course: profile.course,
+      area: profile.area,
+      city: profile.city,
+      state: profile.state,
       onboarding_completed: profile.onboarding_completed
     }
   };
