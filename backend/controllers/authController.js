@@ -68,7 +68,13 @@ const authController = {
 
             const authUser = authData.user || (authData.id ? authData : null);
             const session = authData.session || (authData.access_token ? authData : null);
-            const profile = authUser ? await findProfile(authUser.id) : null;
+            let profile = authUser ? await findProfile(authUser.id) : null;
+
+            // A função é determinada pelo domínio institucional, nunca pelo formulário do cliente.
+            if (authUser && profile && normalizedEmail.endsWith('@docente.senai.com') && !profile.admin_role) {
+                await db.query("UPDATE users SET role = 'Professor' WHERE auth_user_id = ? AND admin_role IS NULL", [authUser.id]);
+                profile = await findProfile(authUser.id);
+            }
 
             if (authUser && !profile) {
                 return res.status(503).json({
