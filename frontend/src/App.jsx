@@ -53,6 +53,7 @@ const AdminEvents = lazy(() => import('./pages/Admin/AdminEvents'));
 const AdminEventForm = lazy(() => import('./pages/Admin/AdminEventForm'));
 const AdminNotices = lazy(() => import('./pages/Admin/AdminNotices'));
 const AdminNoticesList = lazy(() => import('./pages/Admin/AdminNoticesList'));
+const AdminCampaigns = lazy(() => import('./pages/Admin/AdminCampaigns'));
 const AdminNoticeForm = lazy(() => import('./pages/Admin/AdminNoticeForm'));
 const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'));
 const AdminAudit = lazy(() => import('./pages/Admin/AdminAudit'));
@@ -66,6 +67,7 @@ const AdminRoutes = () => (
   <Routes>
     <Route path="dashboard" element={<AdminDashboard />} />
     <Route path="notices" element={<AdminNoticesList />} />
+    <Route path="campaigns" element={<AdminCampaigns />} />
     <Route path="notices/list" element={<AdminNoticesList />} />
     <Route path="notices/create" element={<AdminNoticeForm />} />
     <Route path="notices/edit/:id" element={<AdminNoticeForm />} />
@@ -166,6 +168,7 @@ function App() {
               <Route path="/admin" element={<AdminLayout />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="notices" element={<AdminNoticesList />} />
+                <Route path="campaigns" element={<AdminCampaigns />} />
                 <Route path="notices/list" element={<AdminNoticesList />} />
                 <Route path="notices/new" element={<AdminNoticeForm />} />
                 <Route path="notices/create" element={<AdminNoticeForm />} />
