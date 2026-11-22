@@ -16,8 +16,15 @@ const Profile = () => {
   const { user: loggedInUser, setUser: setLoggedInUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const userId = id ? parseInt(id) : loggedInUser?.id;
-  const isOwnProfile = userId === loggedInUser?.id;
+  // IDs podem chegar como string pela sessão e como number pela rota.
+  // Normalize antes de decidir se o perfil pertence ao usuário autenticado.
+  const routeUserId = id ? Number(id) : null;
+  const userId = id
+    ? (Number.isSafeInteger(routeUserId) && routeUserId > 0 ? routeUserId : null)
+    : loggedInUser?.id;
+  const isOwnProfile = loggedInUser?.id != null
+    && userId != null
+    && Number(userId) === Number(loggedInUser.id);
 
   const [profileUser, setProfileUser] = useState(null);
   const [posts, setPosts] = useState([]);
