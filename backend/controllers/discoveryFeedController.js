@@ -223,7 +223,7 @@ const discoveryFeedController = {
                       AND bc.end_date >= NOW()
                       AND b.status = 'approved'
                       AND a.is_active = TRUE
-                      AND a.location = ANY(?)
+                      AND a.location IN (?)
                 `;
                 const campaignParams = [ALLOWED_AD_LOCATIONS];
                 if (search) {
