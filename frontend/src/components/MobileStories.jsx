@@ -14,11 +14,36 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
   const storiesRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
 
-  // Build display stories: always include "Add Story" button first, then real stories from API
-  const displayStories = useMemo(() => [
-    { id: 'add', user_id: user?.id, user_name: 'Sua história', user_avatar: user?.avatar, isAdd: true, hasUnviewed: false },
-    ...stories
-  ], [stories, user]);
+  // WhatsApp behavior: the current user's status is always the first item.
+  // If the user has active stories, show that group as "You" and keep a small
+  // plus action on the avatar to publish another one. Otherwise show the
+  // familiar empty "Sua história" item first.
+  const displayStories = useMemo(() => {
+    const currentUserId = user?.id ?? user?.user_id;
+    const normalizedCurrentUserId = currentUserId == null ? '' : String(currentUserId).trim();
+    const normalizedStories = (Array.isArray(stories) ? stories : []).map((story) => {
+      const isOwn = normalizedCurrentUserId !== '' &&
+        String(story.user_id ?? story.id ?? '').trim() === normalizedCurrentUserId;
+      return isOwn ? { ...story, isOwn: true, user_name: 'You' } : story;
+    });
+
+    const ownStory = normalizedStories.find(story => story.isOwn);
+    const otherStories = normalizedStories.filter(story => !story.isOwn);
+
+    if (ownStory) return [ownStory, ...otherStories];
+
+    return [
+      {
+        id: 'add',
+        user_id: currentUserId,
+        user_name: 'Sua história',
+        user_avatar: user?.avatar,
+        isAdd: true,
+        hasUnviewed: false
+      },
+      ...otherStories
+    ];
+  }, [stories, user]);
 
   const handleScroll = useCallback((e) => {
     setScrollPosition(e.target.scrollLeft);
@@ -215,6 +240,21 @@ const MobileStories = ({ stories = [], onStoryClick, onAddStory, isLoading = fal
                           aria-hidden="true"
                         />
                       </>
+                    )}
+
+                    {story.isOwn && (
+                      <button
+                        type="button"
+                        className="story-add-overlay"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddStory?.();
+                        }}
+                        aria-label="Adicionar outra história"
+                        title="Adicionar outra história"
+                      >
+                        <Plus size={13} strokeWidth={3} />
+                      </button>
                     )}
 
                     {!story.isAdd && story.storyCount > 1 && (
