@@ -238,17 +238,26 @@ const messageController = {
                     const key = Number(group.conversation_id);
                     group.participants = participantsByGroup.get(key) || [];
                     group.admin_ids = adminsByGroup.get(key) || [];
+                    const senderId = group.last_message_sender_id == null
+                        ? ''
+                        : String(group.last_message_sender_id).trim().toLowerCase();
+                    const currentUserId = String(loggedUserId).trim().toLowerCase();
                     const participantSender = (group.participants || []).find(
-                        participant => Number(participant.id ?? participant.user_id) === Number(group.last_message_sender_id)
+                        participant => String(participant.id ?? participant.user_id ?? '').trim().toLowerCase() === senderId
                     );
                     const queriedSenderName = String(group.last_message_sender_name || '').trim();
+                    const participantSenderName = String(participantSender?.name || '').trim();
                     const genericSenderNames = new Set(['unknown', 'desconhecido', 'participant', 'participante', 'you', 'você']);
-                    group.last_message_sender_name = Number(group.last_message_sender_id) === Number(loggedUserId)
+                    group.last_message_sender_name = senderId && senderId === currentUserId
                         ? 'You'
                         : (
-                            queriedSenderName && !genericSenderNames.has(queriedSenderName.toLowerCase())
-                                ? queriedSenderName
-                                : (participantSender?.name || 'Participant')
+                            participantSenderName && !genericSenderNames.has(participantSenderName.toLowerCase())
+                                ? participantSenderName
+                                : (
+                                    queriedSenderName && !genericSenderNames.has(queriedSenderName.toLowerCase())
+                                        ? queriedSenderName
+                                        : 'Participant'
+                                )
                         );
                 }
             }
@@ -309,6 +318,7 @@ const messageController = {
                     participants: participants,
                     adminIds: adminIds,
                     last_message: group.last_message ? {
+                        senderId: group.last_message_sender_id,
                         content: group.last_message,
                         senderName: lastMessageSenderName,
                         type: 'text',
@@ -496,7 +506,9 @@ const messageController = {
                     id: m.id,
                     conversationId: m.group_id,
                     senderId: m.sender_id,
-                    senderName: Number(m.sender_id) === Number(loggedUserId) ? 'You' : (m.sender_name || 'Participant'),
+                    senderName: String(m.sender_id ?? '').trim().toLowerCase() === String(loggedUserId).trim().toLowerCase()
+                        ? 'You'
+                        : (m.sender_name || 'Participant'),
                     senderAvatar: m.sender_avatar,
                     content: m.content,
                     type: m.message_type || 'text',
