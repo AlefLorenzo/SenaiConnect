@@ -599,7 +599,16 @@ describe('Messages Page', () => {
       jest.useRealTimers();
       try {
         messagesService.getHistory.mockResolvedValue({
-          data: [],
+          data: [{
+            id: 90,
+            content: 'Mensagem recente',
+            senderId: 2,
+            sender_id: 2,
+            senderName: 'Maria Silva',
+            type: 'text',
+            createdAt: '2024-01-15T11:00:00Z',
+            created_at: '2024-01-15T11:00:00Z',
+          }],
           contact: null,
           isGroup: false,
           pagination: { page: 1, limit: 30, total: 60, hasMore: true },
@@ -615,6 +624,11 @@ describe('Messages Page', () => {
             limit: 30,
             forceRefresh: true,
           });
+        });
+
+        await screen.findByText('Mensagem recente');
+        await act(async () => {
+          await new Promise(resolve => setTimeout(resolve, 0));
         });
 
         const chatBody = document.querySelector('.chat-body');
@@ -682,6 +696,11 @@ describe('Messages Page', () => {
             limit: 30,
             forceRefresh: true,
           });
+        });
+
+        await screen.findByText('Mensagem anterior');
+        await act(async () => {
+          await new Promise(resolve => setTimeout(resolve, 0));
         });
 
         const chatBody = document.querySelector('.chat-body');
