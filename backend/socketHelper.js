@@ -90,9 +90,10 @@ async function isConversationMember(userId, conversationId) {
   const cacheKey = `${currentUserId}:${key}`;
   if (getCachedMembership(cacheKey)) return true;
 
-  if (/^\\d+$/.test(key)) {
-    const groupId = Number(key);
-    if (!Number.isSafeInteger(groupId) || groupId <= 0) return false;
+  const parts = key.split('_');
+  if (parts.length === 1) {
+    const groupId = Number(parts[0]);
+    if (!Number.isSafeInteger(groupId) || groupId <= 0 || String(groupId) !== parts[0]) return false;
     const [members] = await db.query(
       'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1',
       [groupId, currentUserId]
@@ -102,14 +103,14 @@ async function isConversationMember(userId, conversationId) {
     return allowed;
   }
 
-  const match = key.match(/^(\\d+)_(\\d+)$/);
-  if (!match) return false;
-  const firstId = Number(match[1]);
-  const secondId = Number(match[2]);
+  if (parts.length !== 2) return false;
+  const firstId = Number(parts[0]);
+  const secondId = Number(parts[1]);
   if (
     !Number.isSafeInteger(firstId) || !Number.isSafeInteger(secondId) ||
-    firstId <= 0 || secondId <= 0 || firstId === secondId ||
-    ![firstId, secondId].includes(currentUserId)
+    firstId <= 0 || secondId <= 0 ||
+    String(firstId) !== parts[0] || String(secondId) !== parts[1] ||
+    firstId === secondId || ![firstId, secondId].includes(currentUserId)
   ) return false;
 
   const peerId = firstId === currentUserId ? secondId : firstId;
