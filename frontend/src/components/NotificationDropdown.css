@@ -172,3 +172,69 @@
     margin: 0;
     font-size: 14px;
 }
+
+
+/* Keep the notification panel inside the viewport on every screen size. */
+.notification-dropdown {
+    width: min(360px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: min(480px, calc(100dvh - 96px));
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.notification-list {
+    min-height: 0;
+    max-height: min(400px, calc(100dvh - 190px));
+    overscroll-behavior: contain;
+}
+
+.notification-item {
+    min-width: 0;
+}
+
+.notification-text p {
+    overflow-wrap: anywhere;
+}
+
+.notification-view-all {
+    flex: 0 0 auto;
+    width: 100%;
+    border: 0;
+    border-top: 1px solid var(--border-color, #e4e6e9);
+    padding: 12px 16px;
+    background: var(--bg-card, #fff);
+    color: var(--senai-blue-primary, #0066cc);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.notification-view-all:hover {
+    background: var(--bg-secondary, rgba(0, 119, 181, 0.06));
+}
+
+@media (max-width: 600px) {
+    .notification-dropdown {
+        position: fixed;
+        top: 64px;
+        right: 12px;
+        width: min(360px, calc(100vw - 24px));
+        max-height: calc(100dvh - 88px);
+        z-index: 1200;
+    }
+
+    .notification-dropdown-header {
+        padding: 13px 16px;
+    }
+
+    .notification-list {
+        max-height: calc(100dvh - 170px);
+    }
+
+    .notification-item {
+        padding: 11px 14px;
+    }
+}
