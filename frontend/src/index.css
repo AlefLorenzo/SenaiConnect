@@ -609,8 +609,8 @@ select {
 
   .modal,
   .modal-content,
-  /* The create sheet is a full-viewport overlay, not a centered modal. */
-  [role="dialog"]:not(.mobile-create-sheet-overlay) {
+  /* Full-viewport creation overlays own their viewport sizing. */
+  [role="dialog"]:not(.mobile-create-sheet-overlay):not(.create-story-overlay):not(.create-post-dialog) {
     max-width: calc(100vw - 24px);
     max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
