@@ -17,7 +17,7 @@ const normalizeList = (value) => {
   return [];
 };
 
-export default function GroupInfoModal({ groupId, group, currentUserId, onClose, onLeave, onDelete, onUpdated }) {
+export default function GroupInfoModal({ groupId, group, currentUserId, onClose, onLeave, onDelete, onUpdated, onSearch }) {
   const [details, setDetails] = useState(group || {});
   const [members, setMembers] = useState([]);
   const [adminIds, setAdminIds] = useState((group?.adminIds || []).map(Number));
@@ -229,7 +229,7 @@ export default function GroupInfoModal({ groupId, group, currentUserId, onClose,
             <div className="group-info-quick-actions">
               <button type="button" onClick={toggleMute} disabled={saving}><span><BellOff size={19} /></span>{muted ? 'Ativar avisos' : 'Silenciar'}</button>
               {isAdmin && <button type="button" onClick={loadContacts}><span><UserPlus size={19} /></span>Adicionar</button>}
-              <button type="button" onClick={() => { onClose(); }}><span><Search size={19} /></span>Buscar</button>
+              <button type="button" onClick={() => { onClose(); onSearch?.(); }}><span><Search size={19} /></span>Buscar</button>
             </div>
 
             <section className="group-info-section">
