@@ -275,6 +275,7 @@ class MessagesService extends BaseService {
           participants: conv.participants || [],
           adminIds: (conv.admin_ids ?? conv.adminIds) || [],
           last_message: conv.last_message ? {
+            senderId: conv.last_message.senderId ?? conv.last_message.sender_id,
             content: conv.last_message.content,
             senderName: conv.last_message.senderName,
             type: conv.last_message.type,
