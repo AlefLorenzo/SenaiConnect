@@ -1626,6 +1626,7 @@ const Messages = () => {
             setShowMobileChat={setShowMobileChat}
             isConnected={isConnected}
             onCreateGroup={openGroupCreator}
+            currentUserId={user?.id}
           />
         </aside>
         <div className="messages-chat">
@@ -1674,6 +1675,7 @@ const Messages = () => {
           setShowMobileChat={setShowMobileChat}
           isConnected={isConnected}
           onCreateGroup={openGroupCreator}
+            currentUserId={user?.id}
         />
       </aside>
 
@@ -1879,7 +1881,7 @@ const Messages = () => {
 const MessagesSidebar = ({
   activeTab, setActiveTab, tabs, searchTerm, setSearchTerm,
   currentContacts, getContactName, getContactAvatar,
-  getContactUnread, getOtherParticipant,
+  getContactUnread, getOtherParticipant, currentUserId,
   onSelectContact, selectedContactId, isMobile, setShowMobileChat,
   isConnected, onCreateGroup
 }) => (
@@ -1954,7 +1956,7 @@ const MessagesSidebar = ({
           const hasUnread = unreadCount > 0;
           const contactName = getContactName(contact);
           const groupSenderName = contact.isGroup
-            ? getGroupLastMessageSenderName(contact, user?.id)
+            ? getGroupLastMessageSenderName(contact, currentUserId)
             : '';
           const otherParticipant = getOtherParticipant(contact);
           const contactOnline = otherParticipant?.isOnline || false;
