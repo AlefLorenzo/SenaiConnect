@@ -219,6 +219,16 @@ describe('StoryViewer', () => {
     expect(storiesService.viewStory).toHaveBeenCalledWith('1');
   });
 
+  test('notifies the feed after the server confirms a story view', async () => {
+    const onStoryViewed = jest.fn();
+    renderStoryViewer({ onStoryViewed });
+
+    await waitFor(() => {
+      expect(storiesService.viewStory).toHaveBeenCalledWith('1');
+      expect(onStoryViewed).toHaveBeenCalledWith('1');
+    });
+  });
+
   test('starts the 30-second countdown immediately when the viewer opens', () => {
     renderStoryViewer();
     const currentStoryProgress = screen.getByRole('progressbar', { name: 'História 1 de 2' });
