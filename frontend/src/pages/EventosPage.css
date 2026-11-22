@@ -366,3 +366,71 @@
   .evento-registration-form label:first-child,
   .evento-registration-form label:last-of-type { grid-column: 1; }
 }
+
+/* Modal de eventos: viewport seguro, conteúdo centralizado e rolagem sem cortes. */
+.eventos-modal-overlay {
+  z-index: 1200;
+  box-sizing: border-box;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.eventos-modal {
+  width: min(100%, 560px);
+  max-width: 560px;
+  max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: auto;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.eventos-modal *, .eventos-modal *::before, .eventos-modal *::after { box-sizing: border-box; }
+.eventos-modal .modal-body { width: 100%; min-width: 0; padding: 22px 24px; overflow-wrap: anywhere; }
+.eventos-modal .modal-details > div { min-width: 0; overflow-wrap: anywhere; }
+.eventos-modal .evento-registration-panel { width: 100%; min-width: 0; padding: 20px 24px 24px; }
+.eventos-modal .evento-registration-form {
+  width: 100%; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start;
+}
+.eventos-modal .evento-registration-form > label { min-width: 0; }
+.eventos-modal .evento-registration-form input,
+.eventos-modal .evento-registration-form select,
+.eventos-modal .evento-registration-form textarea {
+  display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+}
+.eventos-modal .evento-registration-form .evento-btn { min-height: 46px; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .eventos-modal-overlay {
+    align-items: center; justify-content: center;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+  }
+  .eventos-modal {
+    width: 100%; max-width: 560px;
+    max-height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border-radius: 16px;
+  }
+  .eventos-modal .modal-body { padding: 20px 18px; }
+  .eventos-modal .evento-registration-panel { padding: 18px; }
+  .eventos-modal .evento-registration-form { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .eventos-modal .evento-registration-form > label,
+  .eventos-modal .evento-registration-form > label:first-child,
+  .eventos-modal .evento-registration-form > label:last-of-type,
+  .eventos-modal .evento-registration-form > .evento-btn,
+  .eventos-modal .evento-registration-form > .registration-feedback {
+    grid-column: 1 / -1; width: 100%;
+  }
+  .eventos-modal .evento-registration-form input,
+  .eventos-modal .evento-registration-form select { min-height: 48px; }
+  .eventos-modal .evento-registration-form textarea { min-height: 96px; resize: vertical; }
+  .eventos-modal .modal-close {
+    position: sticky; float: right; top: 10px; right: 10px; margin: 10px 10px -42px 0;
+  }
+}
+@media (max-height: 700px) {
+  .eventos-modal-overlay { align-items: flex-start; }
+  .eventos-modal { margin-top: 8px; margin-bottom: 8px; }
+}
