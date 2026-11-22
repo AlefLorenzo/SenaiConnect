@@ -35,11 +35,6 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Load settings from backend on mount
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
   // Apply persisted appearance/accessibility preferences across the application.
   useEffect(() => {
     const root = document.documentElement;
@@ -87,6 +82,11 @@ const Settings = () => {
       setLoading(false);
     }
   };
+
+  // Load settings from backend on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
 
   const handleSave = async () => {
     try {
