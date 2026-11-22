@@ -170,7 +170,8 @@ const AdminNoticeForm = () => {
     const handleUpload = async (field) => {
         const file = files[field];
         const dataUri = previews[field];
-        if (!file || !dataUri) return null;
+        if (!file) return null;
+        if (!dataUri) throw new Error('O arquivo ainda está sendo processado. Tente novamente.');
 
         const token = sessionStorage.getItem('token');
         const res = await fetch(`${API_URL}/api/upload`, {
@@ -237,7 +238,7 @@ const AdminNoticeForm = () => {
             }
         } catch (error) {
             console.error('Erro ao salvar:', error);
-            alert('Erro ao salvar aviso');
+            alert(error.message || 'Erro ao salvar aviso');
         } finally {
             setSaving(false);
         }
@@ -485,6 +486,14 @@ const AdminNoticeForm = () => {
                                     </button>
                                 </div>
                             )}
+                            {!previews.image && formData.image_url && (
+                                <div className="file-preview">
+                                    <img src={formData.image_url} alt="Imagem atualmente salva" />
+                                    <button type="button" className="remove-file" onClick={() => removeFile('image')}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className={`upload-area ${previews.attachment ? 'has-file' : ''}`}>
@@ -504,6 +513,17 @@ const AdminNoticeForm = () => {
                                 <div className="file-preview attachment">
                                     <FileText size={32} color="#E53935" />
                                     <span>{files.attachment?.name}</span>
+                                    <button type="button" className="remove-file" onClick={() => removeFile('attachment')}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
+                            {!previews.attachment && formData.attachment_url && (
+                                <div className="file-preview attachment">
+                                    <FileText size={32} color="#E53935" />
+                                    <a href={formData.attachment_url} target="_blank" rel="noopener noreferrer">
+                                        {formData.attachment_name || 'Abrir arquivo salvo'}
+                                    </a>
                                     <button type="button" className="remove-file" onClick={() => removeFile('attachment')}>
                                         <X size={16} />
                                     </button>
