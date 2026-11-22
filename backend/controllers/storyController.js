@@ -274,16 +274,22 @@ const storyController = {
                 const [story] = await db.query('SELECT user_id FROM stories WHERE id = ?', [id]);
                 if (story.length > 0 && Number(story[0].user_id) !== Number(userId)) {
                     const notificationController = require('./notificationController');
-                    await notificationController.createNotification(
-                        story[0].user_id,
-                        'story_view',
-                        userId,
-                        'visualizou sua história.',
-                        'story',
-                        parseInt(id, 10),
-                        `story_${id}_view`,
-                        { action: 'view', story_id: parseInt(id, 10) }
-                    );
+                    try {
+                        await notificationController.createNotification(
+                            story[0].user_id,
+                            'story_view',
+                            userId,
+                            'visualizou sua história.',
+                            'story',
+                            parseInt(id, 10),
+                            `story_${id}_view`,
+                            { action: 'view', story_id: parseInt(id, 10) }
+                        );
+                    } catch (notificationError) {
+                        // The view is already persisted; a notification failure must
+                        // not turn a successful story view into an apparent API failure.
+                        console.warn('Falha ao criar notificação de visualização de story:', notificationError.message);
+                    }
                 }
             }
 
