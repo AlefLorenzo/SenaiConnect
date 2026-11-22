@@ -16,14 +16,14 @@ describe('Admin dashboard statistics', () => {
         const req = {};
         const res = createResponse();
 
-        mockDb.query.mockResolvedValueOnce([{
+        mockDb.query.mockResolvedValueOnce([ [{
             totalStudents: '12',
             activeUsers: '8',
             totalNotices: '5',
             pendingReports: '2',
             resolvedReports: '7',
             reviewingReports: '1'
-        }]);
+        }] ]);
 
         await adminDashboardController.getStats(req, res);
 
@@ -45,14 +45,14 @@ describe('Admin dashboard statistics', () => {
         const req = {};
         const res = createResponse();
 
-        mockDb.query.mockResolvedValueOnce([{
+        mockDb.query.mockResolvedValueOnce([ [{
             totalStudents: null,
             activeUsers: null,
             totalNotices: null,
             pendingReports: null,
             resolvedReports: null,
             reviewingReports: null
-        }]);
+        }] ]);
 
         await adminDashboardController.getStats(req, res);
 
