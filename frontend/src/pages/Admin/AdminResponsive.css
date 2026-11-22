@@ -319,6 +319,30 @@
   .admin-layout .admin-content-area .details-btn { min-width: 36px; min-height: 36px; }
 }
 
+.admin-layout .admin-content-area .loading-state,
+.admin-layout .admin-content-area .detail-loading,
+.admin-layout .admin-content-area .detail-error,
+.admin-layout .admin-content-area .form-loading,
+.admin-layout .admin-content-area .admin-content-form-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 32px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.admin-layout .admin-content-area .detail-error {
+  color: #b91c1c;
+}
+
+.admin-layout .admin-content-area .page-header h1,
+.admin-layout .admin-content-area .section-header h2 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 480px) {
   .admin-layout .admin-content-area { padding: 12px 10px calc(20px + env(safe-area-inset-bottom)); }
   .admin-layout .admin-content-area .stats-row,
@@ -344,6 +368,19 @@
     max-height: calc(100dvh - 16px - env(safe-area-inset-bottom));
     border-radius: 16px 16px 10px 10px;
   }
+  .admin-layout .admin-topbar { padding: 8px 10px; }
+  .admin-layout .admin-profile-info { max-width: 28vw; }
+  .admin-layout .admin-role-badge { display: none; }
+  .admin-layout .admin-logout-btn {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+  .admin-layout .admin-logout-btn svg { flex: 0 0 auto; }
+  .admin-layout .admin-topbar-left h2 { white-space: nowrap; }
   .admin-layout .admin-content-area .user-detail-header { align-items: flex-start; }
   .admin-layout .admin-content-area .pagination { gap: 6px; padding: 12px 8px; }
   .admin-layout .admin-content-area .pagination-info {
