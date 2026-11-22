@@ -21,6 +21,13 @@ const AppLayout = ({ children }) => {
   const isDisclosureRoute = ['/divulgacao', '/notices', '/events', '/courses'].includes(location.pathname);
 
   useEffect(() => {
+    const refreshPermission = () => setNotificationPermission('Notification' in window ? Notification.permission : 'unsupported');
+    window.addEventListener('focus', refreshPermission);
+    document.addEventListener('visibilitychange', refreshPermission);
+    return () => { window.removeEventListener('focus', refreshPermission); document.removeEventListener('visibilitychange', refreshPermission); };
+  }, []);
+
+  useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(error => console.error('Falha ao registrar notificações:', error));
     }
@@ -31,6 +38,7 @@ const AppLayout = ({ children }) => {
       setShowNotificationPrompt(false);
       return;
     }
+    // localStorage is isolated by browser profile/device and origin; never store this dismissal on the account/backend.
     const dismissed = localStorage.getItem(`notification_prompt_dismissed_${user.id}`);
     setShowNotificationPrompt(!dismissed);
   }, [user?.id, notificationPermission]);
