@@ -36,7 +36,12 @@ async function loadIdentity(token) {
   }
 
   const [profiles] = await db.query(
-    'SELECT id, name, email, role, admin_role, unit_id, unit, course, area, city, state, is_blocked, onboarding_completed FROM users WHERE auth_user_id = ?',
+    `SELECT users.id, users.name, users.email, users.role, users.admin_role, users.unit_id,
+            COALESCE(NULLIF(TRIM(users.unit), ''), unit.name) AS unit,
+            users.course, users.area, users.city, users.state, users.is_blocked, users.onboarding_completed
+     FROM users
+     LEFT JOIN units unit ON unit.id = users.unit_id
+     WHERE users.auth_user_id = ?`,
     [authUser.id]
   );
 
