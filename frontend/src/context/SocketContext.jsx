@@ -260,7 +260,7 @@ export const SocketProvider = ({ children }) => {
 
     recoverMessages();
     // Socket.IO remains the primary delivery path; this small polling pass is the safety net.
-    const intervalId = window.setInterval(recoverMessages, 30000);
+    const intervalId = window.setInterval(recoverMessages, 90000);
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') recoverMessages();
     };
@@ -449,7 +449,7 @@ export const SocketProvider = ({ children }) => {
     const refreshUnreadCount = () => {
       if (document.visibilityState === 'visible') fetchUnreadMessagesCount();
     };
-    const intervalId = window.setInterval(refreshUnreadCount, 30000);
+    const intervalId = window.setInterval(refreshUnreadCount, 90000);
     document.addEventListener('visibilitychange', refreshUnreadCount);
 
     return () => {
