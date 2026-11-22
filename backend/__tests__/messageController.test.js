@@ -390,7 +390,7 @@ describe('messageController', () => {
           return Promise.resolve([[{ id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all' }]]);
         }
         // Query 3: Get messages
-        if (sql.includes('SELECT * FROM messages') && sql.includes('ORDER BY created_at DESC')) {
+        if (sql.includes('FROM messages m') && sql.includes('ORDER BY m.created_at DESC, m.id DESC')) {
           const mockMessages = [
             { id: 1, content: 'Msg 1', sender_id: 1, receiver_id: 2, status: 'lida', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T10:30:00Z' },
             { id: 2, content: 'Msg 2', sender_id: 2, receiver_id: 1, status: 'enviada', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:00:00Z' },
