@@ -125,6 +125,10 @@ const Notifications = () => {
 
     useEffect(() => {
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(error => console.error('Falha ao registrar service worker:', error));
+        const refreshPermission = () => setBrowserPermission('Notification' in window ? Notification.permission : 'unsupported');
+        window.addEventListener('focus', refreshPermission);
+        document.addEventListener('visibilitychange', refreshPermission);
+        return () => { window.removeEventListener('focus', refreshPermission); document.removeEventListener('visibilitychange', refreshPermission); };
     }, []);
 
     // Update allNotifications when notifications from socket change
