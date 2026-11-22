@@ -14,7 +14,6 @@ const getNotificationIcon = (type) => {
         case 'friend_accepted': return <CheckCircle size={20} fill="#10B981" />;
         case 'mention': return <AtSign size={20} fill="#8B5CF6" />;
         case 'admin_publication': return <BellRing size={20} />;
-        case 'admin_publication': return <BellRing size={20} />;
         default: return <Bell size={20} fill="#6B7280" />;
     }
 };
