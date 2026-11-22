@@ -166,30 +166,65 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
   }, [onClose]);
 
   useEffect(() => {
-    if (isOpen) {
-      previousActiveElement.current = document.activeElement;
-      document.body.style.overflow = 'hidden';
-      // Capture sheet height for drag threshold
-      setTimeout(() => {
-        if (sheetRef.current) {
-          sheetHeight.current = sheetRef.current.offsetHeight;
-        }
-        const firstFocusable = sheetRef.current?.querySelector(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        firstFocusable?.focus();
-      }, 50);
-
-      document.addEventListener('keydown', handleKeyDown);
-    } else {
-      document.body.style.overflow = '';
-      previousActiveElement.current?.focus();
+    if (!isOpen) {
       setDragOffset(0);
+      return undefined;
     }
 
+    // Lock the document itself, not only body overflow. This also prevents
+    // touch-driven background scrolling on mobile browsers (especially iOS).
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const html = document.documentElement;
+    const previousStyles = {
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyOverflow: body.style.overflow,
+      htmlOverflow: html.style.overflow,
+      htmlOverscrollBehavior: html.style.overscrollBehavior,
+    };
+
+    previousActiveElement.current = document.activeElement;
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
+
+    const focusTimer = window.setTimeout(() => {
+      if (sheetRef.current) {
+        sheetHeight.current = sheetRef.current.offsetHeight;
+      }
+      const firstFocusable = sheetRef.current?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus({ preventScroll: true });
+    }, 50);
+
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
-      document.body.style.overflow = '';
+      window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
+
+      body.style.position = previousStyles.bodyPosition;
+      body.style.top = previousStyles.bodyTop;
+      body.style.left = previousStyles.bodyLeft;
+      body.style.right = previousStyles.bodyRight;
+      body.style.width = previousStyles.bodyWidth;
+      body.style.overflow = previousStyles.bodyOverflow;
+      html.style.overflow = previousStyles.htmlOverflow;
+      html.style.overscrollBehavior = previousStyles.htmlOverscrollBehavior;
+
+      // Restore the exact position the home feed had before opening the sheet.
+      window.scrollTo(0, scrollY);
+      previousActiveElement.current?.focus({ preventScroll: true });
     };
   }, [isOpen, handleKeyDown]);
 
