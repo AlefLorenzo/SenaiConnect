@@ -23,6 +23,40 @@ const noticeController = {
         }
     },
 
+    markNoticeRead: async (req, res) => {
+        try {
+            const { buildNoticeVisibilityClause } = require('../utils/contentVisibility');
+            const visibility = buildNoticeVisibilityClause(req.user, 'n');
+            const [visible] = await db.query(`
+                SELECT n.id
+                FROM notices n
+                WHERE n.id = ?
+                  AND n.status = 'published'
+                  AND (n.published_at IS NULL OR n.published_at <= NOW())
+                  AND (n.expires_at IS NULL OR n.expires_at > NOW())
+                  AND ${visibility.sql}
+                LIMIT 1
+            `, [req.params.id, ...visibility.params]);
+
+            if (!visible.length) {
+                return res.status(404).json({ error: 'Aviso não encontrado.' });
+            }
+
+            await db.query(`
+                INSERT INTO notice_reads (notice_id, user_id)
+                SELECT ?, ?
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM notice_reads WHERE notice_id = ? AND user_id = ?
+                )
+            `, [req.params.id, req.user.id, req.params.id, req.user.id]);
+
+            return res.status(200).json({ notice_id: Number(req.params.id), read: true });
+        } catch (error) {
+            console.error('Erro ao marcar aviso como lido:', error);
+            return res.status(500).json({ error: 'Não foi possível marcar o aviso como lido.' });
+        }
+    },
+
     getNoticeFiles: async (req, res) => {
         try {
             const { buildNoticeVisibilityClause } = require('../utils/contentVisibility');
