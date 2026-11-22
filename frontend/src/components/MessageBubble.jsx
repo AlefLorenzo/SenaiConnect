@@ -38,6 +38,10 @@ const MessageBubble = ({
   const messageType = message.message_type ?? message.type ?? 'text';
   const mediaUrl = message.media_url ?? message.mediaUrl;
   const content = message.content;
+  const storyReply = message.storyReply ?? message.story_reply ?? null;
+  const storyReplyOwnerId = storyReply?.ownerId ?? storyReply?.owner_id;
+  const isOwnStoryReply = storyReplyOwnerId != null &&
+    normalizeUserId(storyReplyOwnerId) === normalizeUserId(currentUserId);
   const status = message.status ?? message.messageStatus ?? 'sent';
   const isSent = normalizedSenderId !== '' && normalizedSenderId === normalizeUserId(currentUserId);
   const isRead = status === 'lida' || status === 'read';
@@ -499,6 +503,34 @@ const MessageBubble = ({
       >
         {/* Message Content */}
         <div className="message-content">
+          {messageType === 'story_reply' && (
+            <div className="story-message-quote" aria-label={isOwnStoryReply ? 'Resposta ao seu story' : 'Resposta a um story'}>
+              {storyReply?.mediaUrl || storyReply?.media_url ? (
+                <img
+                  className="story-message-thumbnail"
+                  src={storyReply.mediaUrl ?? storyReply.media_url}
+                  alt=""
+                  loading="lazy"
+                />
+              ) : (
+                <span className="story-message-placeholder" aria-hidden="true">STORY</span>
+              )}
+              <div className="story-message-quote-copy">
+                <span className="story-message-quote-title">
+                  {isOwnStoryReply
+                    ? 'Seu story'
+                    : `Story de ${storyReply?.ownerName ?? storyReply?.owner_name ?? 'outro usuário'}`}
+                </span>
+                <span className="story-message-quote-text">
+                  {storyReply?.textContent || storyReply?.text_content || (
+                    (storyReply?.mediaType ?? storyReply?.media_type) === 'video' ? 'Vídeo' :
+                    (storyReply?.mediaUrl ?? storyReply?.media_url) ? 'Foto' : 'Story compartilhado'
+                  )}
+                </span>
+              </div>
+              <span className="story-message-quote-label">STORY</span>
+            </div>
+          )}
           {/* Image Message */}
           {messageType === 'image' && mediaUrl && (
             <div className="message-image-wrapper" role="img" aria-label={`Imagem: ${content || 'sem descrição'}`}>
