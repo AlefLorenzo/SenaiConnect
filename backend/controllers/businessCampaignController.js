@@ -6,7 +6,7 @@ const { logAdminAction } = require('./adminAuthController');
 function isSafeCampaignDestination(value) {
     const destination = String(value || '').trim();
     if (!destination || /^(javascript|data|file|vbscript):/i.test(destination)) return false;
-    if (destination.startsWith('/') && !destination.startsWith('//') && !destination.includes('\\\\')) return true;
+    if (destination.startsWith('/') && !destination.startsWith('//') && !destination.includes(String.fromCharCode(92))) return true;
     try {
         const parsed = new URL(destination);
         return ['http:', 'https:'].includes(parsed.protocol);
