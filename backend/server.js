@@ -32,6 +32,9 @@ const socketHelper = require('./socketHelper');
 const { startStoryCleanupCron } = require('./utils/storyCleanup');
 
 const app = express();
+// Render terminates TLS at its proxy; trust the first proxy hop so req.protocol
+// generates public HTTPS URLs for uploaded files in production.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Inicializa o Socket.io
