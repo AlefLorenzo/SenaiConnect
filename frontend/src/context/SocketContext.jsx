@@ -36,9 +36,6 @@ export const SocketProvider = ({ children }) => {
 
   // Reconnection state
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 10;
-  const reconnectDelayRef = useRef(1000);
-  const maxReconnectDelay = 30000;
   const heartbeatIntervalRef = useRef(null);
   const missedMessagesCheckRef = useRef(false);
   const isProcessingQueueRef = useRef(false);
@@ -281,7 +278,6 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(true);
       setConnectionError(null);
       reconnectAttemptsRef.current = 0;
-      reconnectDelayRef.current = 1000;
 
 
       startHeartbeat();
@@ -313,10 +309,6 @@ export const SocketProvider = ({ children }) => {
       console.error('Socket connection error:', err);
       setConnectionError(err.message);
       reconnectAttemptsRef.current++;
-
-      if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-        setConnectionError('Max reconnection attempts reached');
-      }
 
       emitToHandlers('connection_error', { error: err.message, attempts: reconnectAttemptsRef.current });
     });
