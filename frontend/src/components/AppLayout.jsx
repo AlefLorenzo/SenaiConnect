@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext.jsx';
 import { StoryViewerContext } from '../context/StoryViewerContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
 import MobileBottomNav from './MobileBottomNav';
+import DivulgacaoNavigation from './DivulgacaoNavigation';
 import './AppLayout.css';
 
 const AppLayout = ({ children }) => {
@@ -13,6 +14,7 @@ const AppLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isDisclosureRoute = ['/divulgacao', '/notices', '/events', '/courses'].includes(location.pathname);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -49,8 +51,10 @@ const AppLayout = ({ children }) => {
       <div className={"app-layout " + (isAdminRoute ? "app-layout--admin" : "")}>
         {/* Main Content Area */}
         <main className={"app-main " + (isAdminRoute ? "app-main--admin" : "")} role="main">
-          <div className={"app-feed-container " + (isAdminRoute ? "app-feed-container--admin" : "")}>
-            {children}
+          <div className={"app-feed-container " + (isAdminRoute ? "app-feed-container--admin" : "") + (isDisclosureRoute ? " app-feed-container--disclosure" : "")}>
+            {isDisclosureRoute ? (
+              <DivulgacaoNavigation>{children}</DivulgacaoNavigation>
+            ) : children}
           </div>
         </main>
 
