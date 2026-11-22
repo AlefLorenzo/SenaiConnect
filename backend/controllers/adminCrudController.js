@@ -1,6 +1,7 @@
 const db = require('../db');
 const socketHelper = require('../socketHelper');
 const { logAdminAction } = require('./adminAuthController');
+const { normalizePublicationStatus } = require('../utils/contentVisibility');
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────────
 
@@ -42,16 +43,35 @@ const listEvents = async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Erro ao listar eventos' }); }
 };
 
+const getEvent = async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT e.*, u.name as author_name
+            FROM events e
+            LEFT JOIN users u ON u.id = e.author_id
+            WHERE e.id = ?
+        `, [req.params.id]);
+        if (!rows.length) return res.status(404).json({ error: 'Evento não encontrado.' });
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Erro ao buscar evento para edição:', err);
+        res.status(500).json({ error: 'Erro ao buscar evento.' });
+    }
+};
+
 const createEvent = async (req, res) => {
     try {
         const admin = req.admin;
         const { title, description, event_date, event_time, location, unit, category, vacancies, image_url, status } = req.body;
         if (!title || !event_date) return res.status(400).json({ error: 'Título e data são obrigatórios.' });
+        let publicationStatus;
+        try { publicationStatus = normalizePublicationStatus(status, 'ativo'); }
+        catch { return res.status(400).json({ error: 'Status de publicação inválido.' }); }
 
         const [result] = await db.query(
             `INSERT INTO events (author_id, title, description, event_date, event_time, location, unit, category, vacancies, image_url, status)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [admin.id, title, description || '', event_date, event_time || null, location || '', unit || '', category || '', vacancies || 0, image_url || null, status || 'ativo']
+            [admin.id, title.trim(), description || '', event_date, event_time || null, location || '', unit || '', category || '', Math.max(0, Number(vacancies) || 0), image_url || null, publicationStatus]
         );
         const [rows] = await db.query('SELECT * FROM events WHERE id = ?', [result.insertId]);
         const ev = rows[0];
@@ -69,10 +89,17 @@ const updateEvent = async (req, res) => {
         const admin = req.admin;
         const { id } = req.params;
         const { title, description, event_date, event_time, location, unit, category, vacancies, image_url, status } = req.body;
+        if (!title || !event_date) return res.status(400).json({ error: 'Título e data são obrigatórios.' });
+        let publicationStatus;
+        try { publicationStatus = normalizePublicationStatus(status, 'ativo'); }
+        catch { return res.status(400).json({ error: 'Status de publicação inválido.' }); }
+
+        const [existing] = await db.query('SELECT id FROM events WHERE id = ?', [id]);
+        if (!existing.length) return res.status(404).json({ error: 'Evento não encontrado.' });
 
         await db.query(
-            `UPDATE events SET title=?, description=?, event_date=?, event_time=?, location=?, unit=?, category=?, vacancies=?, image_url=?, status=? WHERE id=?`,
-            [title, description, event_date, event_time, location, unit, category, vacancies, image_url, status, id]
+            `UPDATE events SET title=?, description=?, event_date=?, event_time=?, location=?, unit=?, category=?, vacancies=?, image_url=?, status=?, updated_at=NOW() WHERE id=?`,
+            [title.trim(), description || '', event_date, event_time || null, location || '', unit || '', category || '', Math.max(0, Number(vacancies) || 0), image_url || null, publicationStatus, id]
         );
         const [rows] = await db.query('SELECT * FROM events WHERE id = ?', [id]);
         socketHelper.broadcast('event_updated', rows[0]);
@@ -192,16 +219,35 @@ const listCourses = async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Erro ao listar cursos' }); }
 };
 
+const getCourse = async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT c.*, u.name as author_name
+            FROM courses c
+            LEFT JOIN users u ON u.id = c.author_id
+            WHERE c.id = ?
+        `, [req.params.id]);
+        if (!rows.length) return res.status(404).json({ error: 'Curso não encontrado.' });
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Erro ao buscar curso para edição:', err);
+        res.status(500).json({ error: 'Erro ao buscar curso.' });
+    }
+};
+
 const createCourse = async (req, res) => {
     try {
         const admin = req.admin;
         const { title, description, unit, area, duration, modality, period, skills, vacancies, enrollment_info, status, image_url } = req.body;
         if (!title) return res.status(400).json({ error: 'Título é obrigatório.' });
+        let publicationStatus;
+        try { publicationStatus = normalizePublicationStatus(status, 'ativo'); }
+        catch { return res.status(400).json({ error: 'Status de publicação inválido.' }); }
 
         const [result] = await db.query(
             `INSERT INTO courses (author_id, title, description, unit, area, duration, modality, period, skills, vacancies, enrollment_info, status, image_url)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [admin.id, title, description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', vacancies || 0, enrollment_info || '', status || 'ativo', image_url || null]
+            [admin.id, title.trim(), description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', Math.max(0, Number(vacancies) || 0), enrollment_info || '', publicationStatus, image_url || null]
         );
         const [rows] = await db.query('SELECT * FROM courses WHERE id = ?', [result.insertId]);
         socketHelper.broadcast('new_course', rows[0]);
@@ -215,9 +261,17 @@ const updateCourse = async (req, res) => {
         const admin = req.admin;
         const { id } = req.params;
         const { title, description, unit, area, duration, modality, period, skills, vacancies, enrollment_info, status, image_url } = req.body;
+        if (!title) return res.status(400).json({ error: 'Título é obrigatório.' });
+        let publicationStatus;
+        try { publicationStatus = normalizePublicationStatus(status, 'ativo'); }
+        catch { return res.status(400).json({ error: 'Status de publicação inválido.' }); }
+
+        const [existing] = await db.query('SELECT id FROM courses WHERE id = ?', [id]);
+        if (!existing.length) return res.status(404).json({ error: 'Curso não encontrado.' });
+
         await db.query(
-            `UPDATE courses SET title=?, description=?, unit=?, area=?, duration=?, modality=?, period=?, skills=?, vacancies=?, enrollment_info=?, status=?, image_url=? WHERE id=?`,
-            [title, description, unit, area, duration, modality, period, skills, vacancies, enrollment_info, status, image_url, id]
+            `UPDATE courses SET title=?, description=?, unit=?, area=?, duration=?, modality=?, period=?, skills=?, vacancies=?, enrollment_info=?, status=?, image_url=?, updated_at=NOW() WHERE id=?`,
+            [title.trim(), description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', Math.max(0, Number(vacancies) || 0), enrollment_info || '', publicationStatus, image_url || null, id]
         );
         const [rows] = await db.query('SELECT * FROM courses WHERE id = ?', [id]);
         socketHelper.broadcast('course_updated', rows[0]);
@@ -284,8 +338,8 @@ const blockUser = async (req, res) => {
 };
 
 module.exports = {
-    listEvents, createEvent, updateEvent, deleteEvent,
+    listEvents, getEvent, createEvent, updateEvent, deleteEvent,
     listNotices, createNotice, updateNotice, deleteNotice,
-    listCourses, createCourse, updateCourse, deleteCourse,
+    listCourses, getCourse, createCourse, updateCourse, deleteCourse,
     listUsers, blockUser
 };
