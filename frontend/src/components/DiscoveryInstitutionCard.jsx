@@ -1,4 +1,4 @@
-import { CalendarDays, GraduationCap, MapPin } from 'lucide-react';
+import { Bell, CalendarDays, GraduationCap, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getSafeDestination } from '../utils/safeUrl';
 import './DiscoveryInstitutionCard.css';
@@ -14,6 +14,7 @@ export default function DiscoveryInstitutionCard({ item }) {
     const destination = getSafeDestination(item.external_link);
     const internal = Boolean(destination && destination.startsWith('/'));
     const isEvent = item.institution_type === 'event';
+    const isNotice = item.institution_type === 'notice';
     const DestinationLink = internal ? Link : 'a';
     const destinationProps = internal
         ? { to: destination }
@@ -22,8 +23,8 @@ export default function DiscoveryInstitutionCard({ item }) {
     return (
         <article className="discovery-institution-card">
             <div className="discovery-institution-label">
-                {isEvent ? <CalendarDays size={15} /> : <GraduationCap size={15} />}
-                <span>{isEvent ? 'Evento institucional' : 'Oportunidade de formação'}</span>
+                {isNotice ? <Bell size={15} /> : isEvent ? <CalendarDays size={15} /> : <GraduationCap size={15} />}
+                <span>{isNotice ? 'Aviso institucional' : isEvent ? 'Evento institucional' : 'Oportunidade de formação'}</span>
             </div>
             {item.attachment_url && (
                 <div className="discovery-institution-media">
@@ -36,13 +37,14 @@ export default function DiscoveryInstitutionCard({ item }) {
                 {item.content && <p>{item.content}</p>}
                 <div className="discovery-institution-meta">
                     {item.event_date && <span><CalendarDays size={14} /> {formatDate(item.event_date)}</span>}
+                    {isNotice && item.priority && <span>{String(item.priority).toUpperCase()}</span>}
                     {(item.location || item.unit || item.area) && (
                         <span><MapPin size={14} /> {item.location || item.unit || item.area}</span>
                     )}
                 </div>
                 {destination && (
                     <DestinationLink {...destinationProps} className="discovery-institution-link">
-                        {item.link_label || (isEvent ? 'Ver evento' : 'Conhecer curso')}
+                        {item.link_label || (isNotice ? 'Ler comunicado' : isEvent ? 'Ver evento' : 'Conhecer curso')}
                     </DestinationLink>
                 )}
             </div>
