@@ -6,6 +6,9 @@ const { authenticateToken } = require('../middlewares/auth');
 // User's groups (my groups)
 router.get('/my-groups', authenticateToken, groupController.getMyGroups);
 
+// Contacts that can be invited to a new group (existing chats or follow relationship).
+router.get('/contacts', authenticateToken, groupController.getEligibleContacts);
+
 // Group CRUD
 router.get('/', authenticateToken, groupController.getAll);
 router.post('/', authenticateToken, groupController.create);
