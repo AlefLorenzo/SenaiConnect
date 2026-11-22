@@ -13,7 +13,10 @@ const getNotificationIcon = (type) => {
         case 'friend_request': return <UserPlus size={20} fill="#F59E0B" />;
         case 'friend_accepted': return <CheckCircle size={20} fill="#10B981" />;
         case 'mention': return <AtSign size={20} fill="#8B5CF6" />;
-        case 'admin_publication': return <BellRing size={20} />;
+        case 'admin_publication':
+        case 'notice': return <BellRing size={20} />;
+        case 'business_publication':
+        case 'business_ad': return <BellRing size={20} />;
         default: return <Bell size={20} fill="#6B7280" />;
     }
 };
@@ -27,6 +30,9 @@ const getNotificationTypeLabel = (type) => {
         friend_accepted: 'aceitou sua solicitação de amizade',
         mention: 'te mencionou',
         admin_publication: 'publicou um novo conteúdo institucional',
+        notice: 'publicou um comunicado',
+        business_publication: 'publicou uma oportunidade empresarial',
+        business_ad: 'publicou um anúncio empresarial',
     };
     return labels[type] || 'enviou uma notificação';
 };
@@ -74,6 +80,7 @@ const Notifications = () => {
     const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } = useContext(SocketContext);
     const navigate = useNavigate();
     const [page, setPage] = useState(1);
+    const [categoryFilter, setCategoryFilter] = useState('all');
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [allNotifications, setAllNotifications] = useState(notifications);
@@ -218,11 +225,11 @@ const Notifications = () => {
                 ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
                 : (notification.metadata || {});
             const resource = metadata.resource || notification.reference_type;
-            const destination = resource === 'events' || resource === 'event' ? '/eventos'
-                : resource === 'courses' || resource === 'course' ? '/cursos'
-                : resource === 'notices' || resource === 'notice' ? '/avisos'
+            const destination = resource === 'events' || resource === 'event' ? '/events'
+                : resource === 'courses' || resource === 'course' ? '/courses'
+                : resource === 'notices' || resource === 'notice' ? '/notices'
                 : resource === 'posts' || resource === 'post' ? '/'
-                : null;
+                : (typeof metadata.destination === 'string' && metadata.destination.startsWith('/') ? metadata.destination : null);
             if (destination) {
                 navigate(destination);
             } else if (notification.post_id) {
@@ -238,7 +245,21 @@ const Notifications = () => {
         if (updated) setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
     };
 
-    const groupedNotifications = groupNotificationsByDate(allNotifications);
+    const getCategory = (notification) => {
+        const type = String(notification.activity_type || notification.type || '').toLowerCase();
+        const metadata = typeof notification.metadata === 'string'
+            ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+            : (notification.metadata || {});
+        const resource = String(metadata.resource || notification.reference_type || '').toLowerCase();
+        if (type.includes('business') || type.includes('campaign') || type.includes('advert') || resource.includes('business') || resource.includes('campaign')) return 'business';
+        if (['admin_publication', 'notice', 'event_reminder'].includes(type) || ['notice', 'notices', 'event', 'events', 'course', 'courses'].includes(resource)) return 'institutional';
+        return 'community';
+    };
+
+    const filteredNotifications = categoryFilter === 'all'
+        ? allNotifications
+        : allNotifications.filter(notification => getCategory(notification) === categoryFilter);
+    const groupedNotifications = groupNotificationsByDate(filteredNotifications);
 
     const handlePreferenceChange = (key, value) => {
         setPreferences(prev => ({ ...prev, [key]: value }));
@@ -261,7 +282,7 @@ const Notifications = () => {
     return (
         <div className="notifications-page">
             <div className="notifications-page-header">
-                <h1>Notificações</h1>
+                <div><h1>Central de avisos</h1><p className="notifications-page-subtitle">Comunicados institucionais, oportunidades de empresas e atividades da comunidade.</p></div>
                 <div className="header-actions">
                     {unreadCount > 0 && (
                         <button className="mark-all-read-btn" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
@@ -279,6 +300,26 @@ const Notifications = () => {
                         {showPreferences ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
                 </div>
+            </div>
+
+            {/* Category filters */}
+            <div className="notification-category-filters" role="group" aria-label="Filtrar avisos">
+                {[
+                    ['all', 'Tudo'],
+                    ['institutional', 'Institucional'],
+                    ['business', 'Empresas'],
+                    ['community', 'Comunidade']
+                ].map(([value, label]) => (
+                    <button
+                        key={value}
+                        type="button"
+                        className={`notification-category-filter ${categoryFilter === value ? 'active' : ''}`}
+                        aria-pressed={categoryFilter === value}
+                        onClick={() => setCategoryFilter(value)}
+                    >
+                        {label}
+                    </button>
+                ))}
             </div>
 
             {/* Preferences Panel */}
@@ -373,7 +414,7 @@ const Notifications = () => {
                 ) : (
                     <div className="notifications-page-empty">
                         <Bell size={64} className="empty-icon" aria-hidden="true" />
-                        <p>Nenhuma notificação ainda</p>
+                        <p>Nenhum aviso nesta categoria</p>
                     </div>
                 )}
 
