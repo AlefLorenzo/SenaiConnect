@@ -123,7 +123,8 @@ const Home = () => {
   }, []);
 
   // A successful status reply becomes a private chat, just like WhatsApp.
-  const handleStoryReplySent = useCallback((storyId, content, result) => {
+  const handleStoryReplySent = useCallback((...replyArgs) => {
+    const result = replyArgs[2];
     const conversationId = result?.conversationId ??
       result?.conversation_id ??
       result?.message?.conversationId ??
