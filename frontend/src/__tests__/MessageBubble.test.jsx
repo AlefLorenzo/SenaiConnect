@@ -461,7 +461,7 @@ describe('MessageBubble', () => {
         { ...defaultProps.message, id: 3, sender_id: 3, created_at: '2024-01-15T10:32:00Z' },
       ];
 
-      // Participants include sender_id 3 with name "Maria Silva" for the third message
+      // Participant data is authoritative when an older message object carries a stale sender label.
       const participants = [
         { id: 1, name: 'Você', avatar: 'current-avatar.jpg' },
         { id: 2, name: 'Maria Silva', avatar: 'maria.jpg' },
