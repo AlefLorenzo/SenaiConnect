@@ -29,6 +29,23 @@ const AdminCourseForm = () => {
   const [error, setError] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [unitOptions, setUnitOptions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_URL}/api/admin/notices/recipient-options`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` }
+    })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar as unidades.');
+        if (active) setUnitOptions(Array.isArray(data.units) ? data.units : []);
+      })
+      .catch(err => {
+        if (active) setError(err.message);
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!isEditing) return undefined;
@@ -163,7 +180,12 @@ const AdminCourseForm = () => {
 
           <label className="admin-content-field">
             <span>Unidade de destino</span>
-            <input name="unit" value={form.unit} onChange={handleChange} placeholder="Vazio = todas as unidades" />
+            <select name="unit" value={form.unit} onChange={handleChange}>
+              <option value="">Todas as unidades</option>
+              {Array.from(new Set([...(form.unit ? [form.unit] : []), ...unitOptions])).map(unit => (
+                <option key={unit} value={unit}>{unit}</option>
+              ))}
+            </select>
             <small>Ao informar uma unidade, o curso aparece apenas para usuários vinculados a ela.</small>
           </label>
 
