@@ -16,6 +16,7 @@ const adminCrudController = require('../controllers/adminCrudController');
 const adminNoticesController = require('../controllers/adminNoticesController');
 const notificationController = require('../controllers/notificationController');
 const publicRoutes = require('../routes/publicRoutes');
+const postController = require('../controllers/postController');
 
 const createResponse = () => ({
   status: jest.fn().mockReturnThis(),
@@ -103,6 +104,30 @@ describe('admin-created content delivery', () => {
     expect(socketHelper.broadcast).toHaveBeenCalledWith('admin_content_changed', { resource: 'notices' });
     expect(socketHelper.broadcast.mock.calls[0][1]).not.toHaveProperty('title');
     expect(socketHelper.broadcast.mock.calls[0][1]).not.toHaveProperty('recipients');
+  });
+
+
+  test('feed posts created by an administrator notify active non-admin users', async () => {
+    mockDb.query
+      .mockResolvedValueOnce([{ insertId: 84 }])
+      .mockResolvedValueOnce([[
+        { id: 84, user_id: 9, content: 'Comunicado no mural', user_name: 'Admin', user_role: 'admin' }
+      ]])
+      .mockResolvedValueOnce([[{ id: 12 }]]);
+
+    const req = {
+      user: { id: 9, role: 'admin', admin_role: 'super_admin' },
+      body: { content: 'Comunicado no mural' }
+    };
+    const res = createResponse();
+
+    await postController.create(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(notificationController.createNotification).toHaveBeenCalledWith(
+      12, 'admin_publication', 9, 'Nova publicação institucional no mural.',
+      'post', 84, null, expect.objectContaining({ resource: 'posts' })
+    );
   });
 
   test('public event listing applies the authenticated user unit and publication status filters', async () => {
