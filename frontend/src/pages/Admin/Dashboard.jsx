@@ -10,11 +10,10 @@ import Card from '../../components/ui/Card/Card';
 import Alert from '../../components/ui/Alert/Alert';
 import Link from '../../components/ui/Link/Link';
 
+import { API_URL, getAuthHeader } from '../../config/api';
 import './Dashboard.css';
 
 ChartJS.register(ArcElement, LineElement, PointElement, LinearScale, CategoryScale, Title, Tooltip, Legend, Filler);
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const StatCard = ({ title, value, change, changeLabel, icon: Icon, color, bgColor, link, loading }) => (
     <Card className="stat-card" padding="lg" elevation="md" hoverable>
@@ -134,37 +133,84 @@ const Dashboard = () => {
     const [error, setError] = useState(null);
 
     const fetchDashboardData = useCallback(async () => {
-        try {
-            setError(null);
-            const token = sessionStorage.getItem('token');
-            const [statsRes, chartsRes, activityRes] = await Promise.all([
-                fetch(`${API_URL}/api/admin/dashboard`, { headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${API_URL}/api/admin/dashboard/charts`, { headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${API_URL}/api/admin/dashboard/activity`, { headers: { Authorization: `Bearer ${token}` } })
-            ]);
+        setLoading(true);
+        setError(null);
 
-            if (statsRes.ok) {
-                const data = await statsRes.json();
-                setStats(data.stats);
-            } else {
-                throw new Error('Erro ao carregar estatísticas');
+        const requestJson = async (endpoint) => {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                headers: getAuthHeader(),
+                credentials: 'include'
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ||
+                    payload.message ||
+                    `Não foi possível carregar ${endpoint} (HTTP ${response.status}).`
+                );
             }
 
-            if (chartsRes.ok) {
-                const data = await chartsRes.json();
-                setCharts(data.charts);
-            }
+            return payload;
+        };
 
-            if (activityRes.ok) {
-                const data = await activityRes.json();
-                setActivity(data.activity);
-            }
-        } catch (err) {
-            console.error('Erro ao carregar dashboard:', err);
-            setError('Não foi possível carregar os dados do dashboard. Tente novamente mais tarde.');
-        } finally {
-            setLoading(false);
+        // Cada bloco é independente: uma falha nos gráficos ou na auditoria
+        // não pode derrubar os indicadores principais nem a página inteira.
+        const [statsResult, chartsResult, activityResult] = await Promise.allSettled([
+            requestJson('/api/admin/dashboard'),
+            requestJson('/api/admin/dashboard/charts'),
+            requestJson('/api/admin/dashboard/activity')
+        ]);
+
+        if (statsResult.status === 'fulfilled' && statsResult.value?.stats) {
+            const received = statsResult.value.stats;
+            setStats({
+                totalStudents: Number(received.totalStudents) || 0,
+                activeUsers: Number(received.activeUsers) || 0,
+                totalNotices: Number(received.totalNotices) || 0,
+                pendingReports: Number(received.pendingReports) || 0,
+                resolvedReports: Number(received.resolvedReports) || 0,
+                reviewingReports: Number(received.reviewingReports) || 0
+            });
+        } else {
+            const reason = statsResult.status === 'rejected'
+                ? statsResult.reason
+                : new Error('O servidor retornou um formato inválido para as estatísticas.');
+            console.error('Erro ao carregar estatísticas do dashboard:', reason);
+            setStats({
+                totalStudents: 0,
+                activeUsers: 0,
+                totalNotices: 0,
+                pendingReports: 0,
+                resolvedReports: 0,
+                reviewingReports: 0
+            });
+            setError(reason.message || 'Não foi possível carregar as estatísticas do dashboard.');
         }
+
+        if (chartsResult.status === 'fulfilled') {
+            const received = chartsResult.value?.charts || {};
+            setCharts({
+                userGrowth: Array.isArray(received.userGrowth) ? received.userGrowth : [],
+                reportsByCategory: Array.isArray(received.reportsByCategory) ? received.reportsByCategory : [],
+                postsPerDay: Array.isArray(received.postsPerDay) ? received.postsPerDay : [],
+                usersByRole: Array.isArray(received.usersByRole) ? received.usersByRole : [],
+                noticesByPriority: Array.isArray(received.noticesByPriority) ? received.noticesByPriority : []
+            });
+        } else {
+            console.warn('Não foi possível carregar os gráficos do dashboard:', chartsResult.reason);
+            setCharts({ userGrowth: [], reportsByCategory: [], postsPerDay: [], usersByRole: [], noticesByPriority: [] });
+        }
+
+        if (activityResult.status === 'fulfilled') {
+            const received = activityResult.value?.activity;
+            setActivity(Array.isArray(received) ? received : []);
+        } else {
+            console.warn('Não foi possível carregar as atividades do dashboard:', activityResult.reason);
+            setActivity([]);
+        }
+
+        setLoading(false);
     }, []);
 
     useEffect(() => {
@@ -263,9 +309,7 @@ const Dashboard = () => {
             <div className="stats-grid">
                 <StatCard
                     title="Total de Alunos"
-                    value={stats.totalStudents.toLocaleString()}
-                    change={12}
-                    changeLabel="vs mês anterior"
+                    value={stats.totalStudents.toLocaleString("pt-BR")}
                     icon={Users}
                     color="var(--color-primary)"
                     bgColor="var(--color-primary-light)"
@@ -274,9 +318,7 @@ const Dashboard = () => {
                 />
                 <StatCard
                     title="Usuários Ativos (7d)"
-                    value={stats.activeUsers.toLocaleString()}
-                    change={8}
-                    changeLabel="vs semana anterior"
+                    value={stats.activeUsers.toLocaleString("pt-BR")}
                     icon={UserPlus}
                     color="var(--color-success)"
                     bgColor="var(--color-success-light)"
@@ -286,8 +328,6 @@ const Dashboard = () => {
                 <StatCard
                     title="Avisos Publicados"
                     value={stats.totalNotices}
-                    change={3}
-                    changeLabel="esta semana"
                     icon={Bell}
                     color="var(--color-primary)"
                     bgColor="var(--color-primary-light)"
@@ -297,8 +337,6 @@ const Dashboard = () => {
                 <StatCard
                     title="Denúncias Pendentes"
                     value={stats.pendingReports}
-                    change={-2}
-                    changeLabel="novas hoje"
                     icon={Flag}
                     color="var(--color-error)"
                     bgColor="var(--color-error-light)"
