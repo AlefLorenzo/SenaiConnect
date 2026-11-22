@@ -168,9 +168,23 @@ const businessCampaignController = {
                 return res.status(400).json({ error: 'Adicione pelo menos uma peça publicitária antes de criar a campanha.' });
             }
             for (const creative of creatives) {
-                if (!creative.ad_space_id || !creative.image_url || !isSafeCampaignDestination(creative.destination_url)) {
-                    return res.status(400).json({ error: 'Cada anúncio precisa de uma imagem, um espaço publicitário e um destino HTTP(S) ou caminho interno válido.' });
+                if (!creative.ad_space_id || !creative.image_url
+                    || !isSafeCampaignDestination(creative.image_url)
+                    || !isSafeCampaignDestination(creative.destination_url)) {
+                    return res.status(400).json({ error: 'Cada anúncio precisa de uma imagem e de um destino HTTP(S) ou caminho interno válido.' });
                 }
+            }
+
+            const adSpaceIds = [...new Set(creatives.map(creative => Number(creative.ad_space_id)))];
+            if (adSpaceIds.some(id => !Number.isInteger(id) || id <= 0)) {
+                return res.status(400).json({ error: 'Espaço publicitário inválido.' });
+            }
+            const [availableAdSpaces] = await db.query(
+                "SELECT id FROM ad_spaces WHERE id IN (?) AND is_active = TRUE AND location IN (?)",
+                [adSpaceIds, ['global_feed', 'business_feed_top', 'business_feed_middle', 'business_feed_bottom']]
+            );
+            if (availableAdSpaces.length !== adSpaceIds.length) {
+                return res.status(400).json({ error: 'Selecione apenas espaços publicitários ativos e liberados para o feed Descobrir.' });
             }
 
             const [result] = await db.query(
