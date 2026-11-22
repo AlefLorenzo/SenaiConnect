@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Trash2, Edit2, Send, X, Hash } from 'lucide-react';
+import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Trash2, Edit2, Send, X, Hash, GraduationCap } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import Avatar from './Avatar';
 import { postsService } from '../services/postsService';
@@ -171,6 +171,7 @@ const Post = ({ post, onDeleted }) => {
 
   // Handle user data from mock structure (post.user object)
   const postUser = post.user || {};
+  const authorRole = String(postUser.role || post.user_role || '').toLowerCase();
   const userAvatar = postUser.avatar ? `/uploads/avatars/${postUser.avatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(postUser.name || 'User')}&background=0D8ABC&color=fff`;
 
   const isImageUrl = (url) => {
@@ -193,8 +194,7 @@ const Post = ({ post, onDeleted }) => {
               <Link to={`/profile/${postUser.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {postUser.name}
               </Link>
-              {postUser.role === 'instrutor' && <span className="role-badge">INSTRUTOR</span>}
-              {postUser.role === 'PROFESSOR' && <span className="role-badge">PROFESSOR</span>}
+              {(authorRole === 'professor' || authorRole === 'instrutor') && <span className="role-badge role-badge-professor"><GraduationCap size={12} aria-hidden="true" /> PROFESSOR SENAI</span>}
               {postUser.isVerified && <span className="verified-badge" title="Verificado">✓</span>}
             </div>
             <div className="post-time">
