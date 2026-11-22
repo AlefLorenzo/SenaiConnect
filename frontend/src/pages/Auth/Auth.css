@@ -110,6 +110,18 @@
   line-height: 1;
 }
 
+.auth-brand-logo {
+  display: block;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: transparent;
+}
+
 .auth-brand-name {
   color: inherit;
   font-size: 18px;
@@ -749,6 +761,13 @@
     height: 40px;
     border-radius: 12px;
     font-size: 21px;
+  }
+
+  .auth-brand-logo {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
   }
 
   .auth-brand-name {
