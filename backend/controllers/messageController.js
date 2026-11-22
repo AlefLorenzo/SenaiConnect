@@ -752,6 +752,28 @@ const messageController = {
                         fileSize: message.attachment_size,
                         fileType: message.attachment_type,
                     };
+                    if (wasCreated) {
+                        try {
+                            const [mutedMembers] = await db.query(
+                                'SELECT user_id FROM group_muted WHERE group_id = ?',
+                                [conversationId]
+                            );
+                            const mutedIds = new Set(mutedMembers.map(row => Number(row.user_id)));
+                            const notificationController = require('./notificationController');
+                            for (const member of members) {
+                                if (!mutedIds.has(Number(member.user_id))) {
+                                    await notificationController.createNotification(
+                                        member.user_id, 'message', senderId,
+                                        `enviou uma mensagem no grupo "${groups[0].name}".`,
+                                        'group', conversationId, `group_message_${message.id}`,
+                                        { action: 'message', conversation_id: String(conversationId), message_id: message.id, group_id: conversationId }
+                                    );
+                                }
+                            }
+                        } catch (notificationError) {
+                            console.error('Erro ao notificar mensagem de grupo:', notificationError);
+                        }
+                    }
                     for (const member of members) socketHelper.sendToUser(member.user_id, 'new_message', eventPayload);
                 }
 
