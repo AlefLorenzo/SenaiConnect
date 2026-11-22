@@ -594,6 +594,49 @@ describe('Messages Page', () => {
         jest.useFakeTimers();
       }
     }, 15000);
+
+    test('loads older messages when the chat scroll area reaches its top', async () => {
+      jest.useRealTimers();
+      try {
+        messagesService.getHistory.mockResolvedValue({
+          data: [],
+          contact: null,
+          isGroup: false,
+          pagination: { page: 1, limit: 30, total: 60, hasMore: true },
+        });
+
+        renderMessages();
+        await waitFor(() => expect(screen.getByText('Maria Silva')).toBeInTheDocument());
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 1,
+            limit: 30,
+            forceRefresh: true,
+          });
+        });
+
+        const chatBody = document.querySelector('.chat-body');
+        expect(chatBody).toBeInTheDocument();
+        const historyObserverCall = IntersectionObserver.mock.calls
+          .filter(([, options]) => options?.root === chatBody)
+          .at(-1);
+        expect(historyObserverCall).toBeDefined();
+
+        act(() => historyObserverCall[0]([{ isIntersecting: true }]));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 2,
+            limit: 30,
+            forceRefresh: true,
+          });
+        });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
   });
 
   describe('Group Conversations', () => {
