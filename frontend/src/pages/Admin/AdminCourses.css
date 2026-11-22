@@ -1,9 +1,9 @@
-.admin-courses {
+.admin-courses{
     max-width: 1400px;
     margin: 0 auto;
 }
 
-.page-header {
+.admin-courses .page-header{
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -12,18 +12,18 @@
     gap: 16px;
 }
 
-.page-header h1 {
+.admin-courses .page-header h1{
     font-size: 24px;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.page-header p {
+.admin-courses .page-header p{
     color: var(--text-secondary);
     font-size: 14px;
 }
 
-.btn-primary {
+.admin-courses .btn-primary{
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -39,18 +39,18 @@
     text-decoration: none;
 }
 
-.btn-primary:hover {
+.admin-courses .btn-primary:hover{
     background: var(--senai-blue-hover);
 }
 
-.card {
+.admin-courses .card{
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     overflow: hidden;
 }
 
-.card-header {
+.admin-courses .card-header{
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
@@ -60,24 +60,24 @@
     gap: 12px;
 }
 
-.card-title {
+.admin-courses .card-title{
     font-size: 16px;
     font-weight: 600;
     color: var(--text-primary);
 }
 
-.filters {
+.admin-courses .filters{
     display: flex;
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
 }
 
-.search-box {
+.admin-courses .search-box{
     position: relative;
 }
 
-.search-box svg {
+.admin-courses .search-box svg{
     position: absolute;
     left: 12px;
     top: 50%;
@@ -87,7 +87,7 @@
     height: 18px;
 }
 
-.search-box input {
+.admin-courses .search-box input{
     width: 280px;
     padding: 10px 14px 10px 40px;
     border: 1px solid var(--border-color);
@@ -97,13 +97,13 @@
     transition: var(--transition);
 }
 
-.search-box input:focus {
+.admin-courses .search-box input:focus{
     outline: none;
     border-color: var(--senai-blue-primary);
     box-shadow: 0 0 0 3px var(--senai-blue-light);
 }
 
-.filter-select {
+.admin-courses .filter-select{
     padding: 8px 12px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -113,27 +113,27 @@
     cursor: pointer;
 }
 
-.filter-select:focus {
+.admin-courses .filter-select:focus{
     outline: none;
     border-color: var(--senai-blue-primary);
 }
 
-.table-container {
+.admin-courses .table-container{
     overflow-x: auto;
 }
 
-table {
+.admin-courses table{
     width: 100%;
     border-collapse: collapse;
 }
 
-th, td {
+.admin-courses th,.admin-courses td{
     padding: 14px 20px;
     text-align: left;
     font-size: 13px;
 }
 
-th {
+.admin-courses th{
     background: var(--bg-tertiary);
     font-weight: 600;
     color: var(--text-secondary);
@@ -144,31 +144,31 @@ th {
     white-space: nowrap;
 }
 
-td {
+.admin-courses td{
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
 }
 
-tr:last-child td {
+.admin-courses tr:last-child td{
     border-bottom: none;
 }
 
-tr:hover td {
+.admin-courses tr:hover td{
     background: var(--bg-tertiary);
 }
 
-.course-title {
+.admin-courses .course-title{
     font-weight: 500;
     color: var(--text-primary);
 }
 
-.course-author {
+.admin-courses .course-author{
     font-size: 11px;
     color: var(--text-muted);
     margin-top: 2px;
 }
 
-.status-badge {
+.admin-courses .status-badge{
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -179,16 +179,16 @@ tr:hover td {
     text-transform: capitalize;
 }
 
-.status-active { background: #ECFDF5; color: #059669; }
-.status-draft { background: var(--bg-tertiary); color: var(--text-secondary); }
-.status-archived { background: #FEF2F2; color: #DC2626; }
+.admin-courses .status-active{ background: #ECFDF5; color: #059669; }
+.admin-courses .status-draft{ background: var(--bg-tertiary); color: var(--text-secondary); }
+.admin-courses .status-archived{ background: #FEF2F2; color: #DC2626; }
 
-.actions {
+.admin-courses .actions{
     display: flex;
     gap: 6px;
 }
 
-.action-btn {
+.admin-courses .action-btn{
     width: 32px;
     height: 32px;
     border-radius: var(--radius-sm);
@@ -202,30 +202,30 @@ tr:hover td {
     transition: var(--transition);
 }
 
-.action-btn:hover {
+.admin-courses .action-btn:hover{
     background: var(--bg-tertiary);
     color: var(--text-primary);
     border-color: var(--text-muted);
 }
 
-.action-btn.danger:hover {
+.admin-courses .action-btn.danger:hover{
     background: #FEF2F2;
     color: #DC2626;
     border-color: #FECACA;
 }
 
-.action-btn svg {
+.admin-courses .action-btn svg{
     width: 16px;
     height: 16px;
 }
 
-.empty-row {
+.admin-courses .empty-row{
     text-align: center;
     color: var(--text-secondary);
     padding: 40px 20px !important;
 }
 
-.pagination {
+.admin-courses .pagination{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -234,7 +234,7 @@ tr:hover td {
     border-top: 1px solid var(--border-color);
 }
 
-.pagination-btn {
+.admin-courses .pagination-btn{
     width: 36px;
     height: 36px;
     border-radius: var(--radius-md);
@@ -249,36 +249,36 @@ tr:hover td {
     font-size: 13px;
 }
 
-.pagination-btn:hover:not(:disabled) {
+.admin-courses .pagination-btn:hover:not(:disabled){
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
 
-.pagination-btn:disabled {
+.admin-courses .pagination-btn:disabled{
     opacity: 0.5;
     cursor: not-allowed.
 }
 
-.pagination-info {
+.admin-courses .pagination-info{
     font-size: 13px;
     color: var(--text-secondary);
     margin: 0 8px;
 }
 
-.loading-state {
+.admin-courses .loading-state{
     text-align: center;
     padding: 60px 20px;
     color: var(--text-secondary);
 }
 
 @media (max-width: 1024px) {
-    .search-box input { width: 200px; }
+    .admin-courses .search-box input{ width: 200px; }
 }
 
 @media (max-width: 768px) {
-    .page-header { flex-direction: column; align-items: flex-start; }
-    .filter-group { width: 100%; }
-    .filter-select { flex: 1; }
-    th, td { padding: 10px 12px; }
-    .actions { flex-wrap: wrap; }
+    .admin-courses .page-header{ flex-direction: column; align-items: flex-start; }
+    .admin-courses .filter-group{ width: 100%; }
+    .admin-courses .filter-select{ flex: 1; }
+    .admin-courses th,.admin-courses td{ padding: 10px 12px; }
+    .admin-courses .actions{ flex-wrap: wrap; }
 }
