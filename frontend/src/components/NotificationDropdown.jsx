@@ -42,6 +42,7 @@ const NotificationDropdown = () => {
         const destination = resource === 'events' || resource === 'event' ? '/eventos'
             : resource === 'courses' || resource === 'course' ? '/cursos'
             : resource === 'notices' || resource === 'notice' ? '/avisos'
+            : resource === 'posts' || resource === 'post' ? '/'
             : null;
         if (destination) {
             setIsOpen(false);
@@ -65,6 +66,7 @@ const NotificationDropdown = () => {
             case 'message': return '💬';
             case 'admin_publication': return '📢';
             case 'mention': return '📢';
+            case 'admin_publication': return '📣';
             default: return '🔔';
         }
     };
@@ -108,7 +110,7 @@ const NotificationDropdown = () => {
                                     className={`notification-item ${!n.read ? 'unread' : ''}`}
                                     onClick={() => handleNotificationClick(n)}
                                 >
-                                    <div className="notification-icon">{getNotificationIcon(n.type)}</div>
+                                    <div className="notification-icon">{getNotificationIcon(n.activity_type || n.type)}</div>
                                     <div className="notification-body">
                                         <Avatar user={{ avatar: n.source_user_avatar, name: n.source_user_name }} className="notification-avatar" />
                                         <div className="notification-text">
