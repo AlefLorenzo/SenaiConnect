@@ -62,15 +62,27 @@ const Settings = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
+      // api.get() returns the decoded JSON body directly (not an Axios response).
       const response = await api.get('/settings');
-      setSettings((current) => ({ ...current, ...response.data,
-        notifications: { ...current.notifications, ...(response.data.notifications || {}) },
-        privacy: { ...current.privacy, ...(response.data.privacy || {}) },
-        accessibility: { ...current.accessibility, ...(response.data.accessibility || {}) }
+      const loaded = response?.settings && typeof response.settings === 'object'
+        ? response.settings
+        : response;
+      if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) {
+        throw new Error('Resposta inválida do servidor ao carregar configurações.');
+      }
+      setSettings((current) => ({
+        ...current,
+        ...loaded,
+        notifications: { ...current.notifications, ...(loaded.notifications || {}) },
+        privacy: { ...current.privacy, ...(loaded.privacy || {}) },
+        accessibility: { ...current.accessibility, ...(loaded.accessibility || {}) }
       }));
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
-      setMessage({ type: 'error', text: 'Erro ao carregar configurações. Usando padrões.' });
+      const detail = error?.data?.error || error?.message;
+      setMessage({ type: 'error', text: detail
+        ? `Não foi possível carregar suas configurações: ${detail}`
+        : 'Não foi possível carregar suas configurações. Verifique sua conexão e tente novamente.' });
     } finally {
       setLoading(false);
     }
@@ -82,15 +94,15 @@ const Settings = () => {
       setMessage({ type: '', text: '' });
 
       const response = await api.put('/settings', settings);
+      const saved = response?.settings && typeof response.settings === 'object' ? response.settings : settings;
+      setSettings((current) => ({
+        ...current,
+        ...saved,
+        notifications: { ...current.notifications, ...(saved.notifications || {}) },
+        privacy: { ...current.privacy, ...(saved.privacy || {}) },
+        accessibility: { ...current.accessibility, ...(saved.accessibility || {}) }
+      }));
       setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
-
-      // Apply theme immediately
-      if (response.data.settings?.theme) {
-        document.documentElement.setAttribute('data-theme', response.data.settings.theme === 'system'
-          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : response.data.settings.theme
-        );
-      }
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
       setMessage({ type: 'error', text: 'Erro ao salvar configurações. Tente novamente.' });
