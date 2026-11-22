@@ -114,12 +114,12 @@ describe('CreateStory', () => {
   });
 
   test('handles image file selection', () => {
-    const { container } = renderCreateStory();
+    renderCreateStory();
     const fileInput = screen.getByLabelText(/escolher arquivo/i);
     const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
     fireEvent.change(fileInput, { target: { files: [mockFile] } });
     // Should show preview - component uses "Prévia da imagem" as alt text
-    expect(container.querySelector('img[alt="Prévia da imagem"]')).toBeInTheDocument();
+    expect(document.body.querySelector('img[alt="Prévia da imagem"]')).toBeInTheDocument();
   });
 
   test('handles video file selection', () => {
@@ -128,7 +128,7 @@ describe('CreateStory', () => {
     const mockFile = new File(['test'], 'test.mp4', { type: 'video/mp4' });
     fireEvent.change(fileInput, { target: { files: [mockFile] } });
     // Should show video preview - video element doesn't have alt, check for video tag
-    expect(container.querySelector('video')).toBeInTheDocument();
+    expect(document.body.querySelector('video')).toBeInTheDocument();
   });
 
   test('shows drawing tools for image stories', () => {
