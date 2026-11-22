@@ -1964,6 +1964,10 @@ const MessagesSidebar = ({
                           contact.last_message.content || contact.last_message.text || 'Nenhuma mensagem ainda'
                         )}
                       </>
+                    ) : contact.last_message?.type === 'story_reply' ? (
+                      <>
+                        <strong>Story:</strong> {contact.last_message.content || contact.last_message.text || 'Você recebeu uma resposta ao story'}
+                      </>
                     ) : (
                       contact.last_message?.content || contact.last_message?.text || 'Nenhuma mensagem ainda'
                     )}
