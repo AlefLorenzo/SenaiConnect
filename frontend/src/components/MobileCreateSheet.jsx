@@ -185,7 +185,12 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
       bodyOverflow: body.style.overflow,
       htmlOverflow: html.style.overflow,
       htmlOverscrollBehavior: html.style.overscrollBehavior,
+      mainOverflow: document.querySelector('.app-main')?.style.overflow ?? '',
+      mainOverflowY: document.querySelector('.app-main')?.style.overflowY ?? '',
+      mainOverscrollBehavior: document.querySelector('.app-main')?.style.overscrollBehavior ?? '',
     };
+    const appMain = document.querySelector('.app-main');
+    const mainScrollTop = appMain?.scrollTop ?? 0;
 
     previousActiveElement.current = document.activeElement;
     body.style.position = 'fixed';
@@ -196,6 +201,11 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
     body.style.overflow = 'hidden';
     html.style.overflow = 'hidden';
     html.style.overscrollBehavior = 'none';
+    if (appMain) {
+      appMain.style.overflow = 'hidden';
+      appMain.style.overflowY = 'hidden';
+      appMain.style.overscrollBehavior = 'none';
+    }
 
     const focusTimer = window.setTimeout(() => {
       if (sheetRef.current) {
@@ -221,6 +231,12 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
       body.style.overflow = previousStyles.bodyOverflow;
       html.style.overflow = previousStyles.htmlOverflow;
       html.style.overscrollBehavior = previousStyles.htmlOverscrollBehavior;
+      if (appMain) {
+        appMain.style.overflow = previousStyles.mainOverflow;
+        appMain.style.overflowY = previousStyles.mainOverflowY;
+        appMain.style.overscrollBehavior = previousStyles.mainOverscrollBehavior;
+        appMain.scrollTop = mainScrollTop;
+      }
 
       // Restore the exact position the home feed had before opening the sheet.
       window.scrollTo(0, scrollY);
