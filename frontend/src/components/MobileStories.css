@@ -299,6 +299,35 @@
   height: 24px;
 }
 
+/* Small WhatsApp-like plus badge on the current user's active status. */
+.story-add-overlay {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: 2px solid var(--color-surface, #ffffff);
+  border-radius: 50%;
+  background: var(--color-primary, #0084d6);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="dark"] .story-add-overlay {
+  border-color: var(--color-surface-dark, #1a1a1a);
+}
+
+.story-add-overlay:focus-visible {
+  outline: 2px solid var(--color-primary, #0084d6);
+  outline-offset: 2px;
+}
+
 /* Story Count Badge */
 .story-count-badge {
   position: absolute;
