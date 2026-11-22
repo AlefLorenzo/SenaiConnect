@@ -119,6 +119,7 @@ const Messages = () => {
   const [historyPage, setHistoryPage] = useState(1);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyLoadError, setHistoryLoadError] = useState(false);
   const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [isOnline, setIsOnline] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
@@ -335,6 +336,7 @@ const Messages = () => {
     // A new conversation clears this lock before starting its own history request.
     const requestToken = { conversationId: String(contactId), page };
     historyPageRequestRef.current = requestToken;
+    setHistoryLoadError(false);
 
     // Each request gets a generation. Switching or closing a chat invalidates
     // older responses so they cannot repopulate another conversation's screen.
@@ -383,8 +385,9 @@ const Messages = () => {
     } catch (err) {
       if (requestId === historyRequestIdRef.current) {
         console.error('Erro ao buscar histórico:', err);
-        // Keep older-history pagination available after transient network errors.
-        // The observer is reattached when loading ends, allowing the request to retry.
+        // Keep the pagination boundary available and offer an explicit retry.
+        // This avoids a transient network failure looking like the end of history.
+        setHistoryLoadError(true);
       }
     } finally {
       if (historyPageRequestRef.current === requestToken) {
@@ -523,7 +526,7 @@ const Messages = () => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
-        if (first.isIntersecting && hasMoreHistory && !loadingHistory) {
+        if (first.isIntersecting && hasMoreHistory && !loadingHistory && !historyLoadError) {
           loadMoreHistory();
         }
       },
@@ -539,7 +542,7 @@ const Messages = () => {
         observerRef.current.disconnect();
       }
     };
-  }, [hasMoreHistory, loadingHistory, loadMoreHistory]);
+  }, [hasMoreHistory, loadingHistory, historyLoadError, loadMoreHistory]);
 
   // Fetch history when contact changes
   useEffect(() => {
@@ -1426,7 +1429,19 @@ const Messages = () => {
         )}
 
         <div className="chat-body" ref={chatBodyRef}>
-          <div ref={loadMoreRef} className="load-more-trigger" aria-hidden="true">
+          <div ref={loadMoreRef} className="load-more-trigger">
+            {historyLoadError && selectedContact && (
+              <button
+                type="button"
+                className="history-retry-button"
+                onClick={() => {
+                  const append = history.length > 0;
+                  fetchHistory(selectedContact.id, append ? historyPage + 1 : 1, append);
+                }}
+              >
+                Não foi possível carregar. Tentar novamente
+              </button>
+            )}
             {loadingHistory && hasMoreHistory && (
               <div className="load-more-spinner" aria-label="Carregando mensagens anteriores">
                 <Loader2 size={20} className="spinning" color="#0056D2" />
