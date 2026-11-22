@@ -190,17 +190,22 @@ const MessageBubble = ({
 
     const isCurrentUserAdmin = adminIds?.some(id => normalizeUserId(id) === normalizedSenderId) || false;
     if (isSent) {
-      return { name: 'Você', avatar: null, isAdmin: isCurrentUserAdmin };
+      return { name: 'You', avatar: null, isAdmin: isCurrentUserAdmin };
     }
 
     const participant = participants?.find(p =>
       normalizeUserId(p.id ?? p.user_id ?? p.userId) === normalizedSenderId
     );
-    const messageSenderName = message.senderName ?? message.sender_name;
-    const name = (messageSenderName || participant?.name || '').trim();
+    const messageSenderName = String(message.senderName ?? message.sender_name ?? '').trim();
+    const placeholderNames = new Set(['unknown', 'desconhecido', 'you', 'você', 'participant', 'participante']);
+    const usableMessageName = messageSenderName && !placeholderNames.has(messageSenderName.toLowerCase())
+      ? messageSenderName
+      : '';
+    const participantName = String(participant?.name ?? '').trim();
+    const name = usableMessageName || participantName || 'Participant';
 
     return {
-      name: name || 'Desconhecido',
+      name,
       avatar: message.senderAvatar ?? message.sender_avatar ?? participant?.avatar ?? null,
       isAdmin: participant?.isAdmin === true ||
         participant?.role === 'admin' ||
@@ -211,7 +216,7 @@ const MessageBubble = ({
   };
 
   // Show an author label at the start of every sender sequence, including our
-  // own messages ("Você"), just like the grouped message layout in WhatsApp.
+  // own messages ("You"), just like the grouped message layout in WhatsApp.
   const shouldShowSenderHeader = useMemo(() => {
     if (!isGroup) return false;
     if (index === 0) return true;
@@ -464,7 +469,7 @@ const MessageBubble = ({
         </div>
       )}
 
-      {/* Group sender label: own messages are identified as "Você". */}
+      {/* Group sender label: own messages are identified as "You". */}
       {isGroup && shouldShowSenderHeader && (
         <div
           className={`${groupHeaderClasses}${isSent ? ' own' : ''}`}
