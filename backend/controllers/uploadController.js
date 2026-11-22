@@ -17,7 +17,7 @@ const ALLOWED_FOLDERS = new Set(['notices', 'courses', 'events', 'posts', 'avata
 const BUCKET = 'senai-connect-media';
 
 function getStorageConfig() {
-  const url = (process.env.SUPABASE_URL || '').replace(/\\/+$/, '');
+  const url = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     const error = new Error('Armazenamento de mídia não configurado. Defina SUPABASE_URL e SUPABASE_SECRET_KEY no backend.');
@@ -35,13 +35,13 @@ const uploadController = {
         return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
       }
 
-      const matches = file.match(/^data:([A-Za-z0-9.+-]+\\/[A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/=\\r\\n]+)$/);
+      const matches = file.match(/^data:([A-Za-z0-9.+-]+\/[A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/=\r\n]+)$/);
       if (!matches) {
         return res.status(400).json({ error: 'Formato de arquivo inválido.' });
       }
 
       const mimeType = matches[1].toLowerCase();
-      const base64Data = matches[2].replace(/\\s/g, '');
+      const base64Data = matches[2].replace(/\s/g, '');
       const extension = MIME_EXTENSIONS[mimeType];
       if (!extension) {
         return res.status(400).json({ error: `Tipo de arquivo não permitido: ${mimeType}` });
@@ -108,7 +108,7 @@ const uploadController = {
 
 function pathSafeName(value) {
   const original = String(value || 'arquivo');
-  const withoutExtension = original.replace(/\\.[^.]+$/, '');
+  const withoutExtension = original.replace(/\.[^.]+$/, '');
   return withoutExtension.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60) || 'arquivo';
 }
 
