@@ -200,6 +200,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     setShowReplies(false);
     setReplyText('');
     setReplyError('');
+    setIsPaused(false);
 
     // Load reactions for new story
     if (storyId) {
@@ -250,20 +251,20 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
-    if (isPaused) {
+    if (isPaused && !showReplies) {
       setIsPaused(false);
     }
-  }, [isPaused]);
+  }, [isPaused, showReplies]);
 
   const handlePointerLeave = useCallback(() => {
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
-    if (isPaused) {
+    if (isPaused && !showReplies) {
       setIsPaused(false);
     }
-  }, [isPaused]);
+  }, [isPaused, showReplies]);
 
   // Handle reactions
   const handleReact = async (reactionType) => {
@@ -397,12 +398,14 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
                 className="story-action-btn"
                 onClick={() => {
                   setShowReactions(false);
-                  setShowReplies(previous => {
-                    const next = !previous;
-                    setIsPaused(next);
+                  if (showReplies) {
+                    setShowReplies(false);
+                    setIsPaused(false);
+                  } else {
                     setReplyError('');
-                    return next;
-                  });
+                    setShowReplies(true);
+                    setIsPaused(true);
+                  }
                 }}
                 aria-label="Responder"
                 aria-expanded={showReplies}
