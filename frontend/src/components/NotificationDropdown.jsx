@@ -64,7 +64,6 @@ const NotificationDropdown = () => {
             case 'friend_request':
             case 'friend_accepted': return '👤';
             case 'message': return '💬';
-            case 'admin_publication': return '📢';
             case 'mention': return '📢';
             case 'admin_publication': return '📣';
             default: return '🔔';
