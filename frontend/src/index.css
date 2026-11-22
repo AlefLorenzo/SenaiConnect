@@ -1029,3 +1029,49 @@ body,
   color: #8ab8ff;
   border-bottom-color: #8ab8ff;
 }
+
+/* Admin settings surfaces that previously retained light-only fills. */
+[data-theme="dark"] .admin-layout .settings-nav-item.is-active .settings-nav-icon {
+  background: #20395f;
+  color: #a9caff;
+}
+[data-theme="dark"] .admin-layout .settings-switch-track {
+  border-color: #465267;
+  background: #303847;
+}
+[data-theme="dark"] .admin-layout .settings-access-panel {
+  border-color: #355078;
+  background: #192b43;
+}
+[data-theme="dark"] .admin-layout .settings-access-icon {
+  background: #20395f;
+  color: #a9caff;
+}
+[data-theme="dark"] .admin-layout .settings-access-copy h4 {
+  color: #eaf2ff;
+}
+[data-theme="dark"] .admin-layout .settings-access-copy p {
+  color: #bdcce0;
+}
+[data-theme="dark"] .admin-layout .settings-link-button {
+  border-color: #46658d;
+  background: #202b3b;
+  color: #a9caff;
+}
+[data-theme="dark"] .admin-layout .settings-link-button:hover {
+  background: #293b53;
+}
+[data-theme="dark"] .admin-layout .settings-danger-notice {
+  border-color: #765d35;
+  background: #382d1b;
+  color: #ffe2a3;
+}
+[data-theme="dark"] .admin-layout .settings-button--danger {
+  border-color: #81434b;
+  background: #49252a;
+  color: #ffd4d8;
+}
+[data-theme="dark"] .admin-layout .settings-button--danger:hover:not(:disabled) {
+  border-color: #a85b65;
+  background: #5a2d34;
+}
