@@ -36,12 +36,28 @@ const groupController = {
                 (
                     SELECT m.content FROM group_messages m
                     WHERE m.group_id = g.id
-                    ORDER BY m.created_at DESC LIMIT 1
+                    ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                 ) as last_message,
+                (
+                    SELECT m.sender_id FROM group_messages m
+                    WHERE m.group_id = g.id
+                    ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                ) as last_message_sender_id,
+                (
+                    SELECT CASE
+                        WHEN latest.sender_id = ? THEN 'You'
+                        ELSE COALESCE(NULLIF(TRIM(sender.name), ''), 'Participant')
+                    END
+                    FROM group_messages latest
+                    LEFT JOIN users sender ON sender.id = latest.sender_id
+                    WHERE latest.group_id = g.id
+                    ORDER BY latest.created_at DESC, latest.id DESC
+                    LIMIT 1
+                ) as last_message_sender_name,
                 (
                     SELECT m.created_at FROM group_messages m
                     WHERE m.group_id = g.id
-                    ORDER BY m.created_at DESC LIMIT 1
+                    ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                 ) as last_interaction,
                 (
                     SELECT COUNT(*) FROM group_messages m
@@ -58,7 +74,10 @@ const groupController = {
                 WHERE gm.user_id = ?
                 ORDER BY last_interaction DESC, g.name ASC
             `;
-            const [groups] = await db.query(groupQuery, [loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId]);
+            const [groups] = await db.query(groupQuery, [
+                loggedUserId, loggedUserId, loggedUserId,
+                loggedUserId, loggedUserId, loggedUserId
+            ]);
 
             // For each group, fetch participants and admins separately (avoiding JSON_ARRAYAGG)
             const groupIds = groups.map(g => g.id);
@@ -106,23 +125,55 @@ const groupController = {
                 });
             }
 
-            // Parse JSON fields
-            const formattedGroups = groups.map(g => ({
-                ...g,
-                participants: participantsByGroup[g.id] || [],
-                adminIds: adminsByGroup[g.id] || [],
-                isMuted: g.is_muted === 1 || g.is_muted === true,
-                isImportant: g.is_important === 1 || g.is_important === true,
-                last_message: g.last_message ? {
-                    content: g.last_message,
-                    senderName: 'Unknown',
-                    type: 'text',
-                    status: 'read',
-                    createdAt: g.last_interaction
-                } : null,
-                unreadCount: g.unread_count || 0,
-                updatedAt: g.last_interaction || g.created_at
-            }));
+            // Build group previews from the actual last-message author. Keep IDs as
+            // strings because Supabase-backed user IDs may be UUIDs, not integers.
+            const placeholderSenderNames = new Set([
+                'unknown', 'desconhecido', 'participant', 'participante', 'you', 'você'
+            ]);
+            const formattedGroups = groups.map(g => {
+                const participants = participantsByGroup[g.id] || [];
+                const senderId = g.last_message_sender_id == null
+                    ? null
+                    : String(g.last_message_sender_id).trim();
+                const isOwnLastMessage = senderId !== null &&
+                    senderId.toLowerCase() === String(loggedUserId).trim().toLowerCase();
+                const senderParticipant = senderId === null
+                    ? null
+                    : participants.find(member =>
+                        String(member.id ?? member.user_id ?? '').trim().toLowerCase() === senderId.toLowerCase()
+                    );
+                const participantName = String(senderParticipant?.name || '').trim();
+                const queriedSenderName = String(g.last_message_sender_name || '').trim();
+                const senderName = isOwnLastMessage
+                    ? 'You'
+                    : (
+                        participantName && !placeholderSenderNames.has(participantName.toLowerCase())
+                            ? participantName
+                            : (
+                                queriedSenderName && !placeholderSenderNames.has(queriedSenderName.toLowerCase())
+                                    ? queriedSenderName
+                                    : 'Participant'
+                            )
+                    );
+
+                return {
+                    ...g,
+                    participants,
+                    adminIds: adminsByGroup[g.id] || [],
+                    isMuted: g.is_muted === 1 || g.is_muted === true,
+                    isImportant: g.is_important === 1 || g.is_important === true,
+                    last_message: g.last_message ? {
+                        senderId: g.last_message_sender_id,
+                        senderName,
+                        content: g.last_message,
+                        type: 'text',
+                        status: 'read',
+                        createdAt: g.last_interaction
+                    } : null,
+                    unreadCount: g.unread_count || 0,
+                    updatedAt: g.last_interaction || g.created_at
+                };
+            });
 
             res.status(200).json(formattedGroups);
         } catch (error) {
