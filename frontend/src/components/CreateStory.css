@@ -1,15 +1,28 @@
 /* Create Story Modal - Instagram Style */
 .create-story-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: none;
+  max-height: none;
+  box-sizing: border-box;
+  padding:
+    calc(16px + env(safe-area-inset-top, 0px))
+    calc(16px + env(safe-area-inset-right, 0px))
+    calc(16px + env(safe-area-inset-bottom, 0px))
+    calc(16px + env(safe-area-inset-left, 0px));
   background: rgba(0, 0, 0, 0.9);
   z-index: 10000;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   animation: fadeIn 0.2s ease-out forwards;
 }
 
@@ -19,13 +32,19 @@
 }
 
 .create-story-container {
-  width: 100%;
-  max-width: 500px;
-  background: var(--color-bg-card, #ffffff);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  max-height: 90vh;
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
+  width: min(100%, 560px);
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--color-bg-card, #ffffff);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease-out;
 }
 
@@ -41,6 +60,7 @@
 /* Header */
 .create-story-header {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-4);
@@ -109,6 +129,7 @@
 /* Tabs */
 .create-story-tabs {
   display: flex;
+  flex: 0 0 auto;
   border-bottom: 1px solid var(--color-border, #e0e0e0);
   background: var(--color-bg-card, #ffffff);
 }
@@ -161,8 +182,11 @@
 
 /* Content */
 .create-story-content {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -1250,6 +1274,7 @@
 /* Footer */
 .create-story-footer {
   display: flex;
+  flex: 0 0 auto;
   justify-content: space-between;
   padding: var(--space-4);
   border-top: 1px solid var(--color-border);
