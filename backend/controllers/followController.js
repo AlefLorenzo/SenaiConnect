@@ -4,10 +4,17 @@ const { filterUserProfile } = require('../utils/privacyHelper');
 const followController = {
     followUser: async (req, res) => {
         try {
-            const userId = req.user.id;
-            const followedId = req.params.id;
+            const userId = Number(req.user?.id);
+            const followedId = Number(req.params.id);
 
-            if (Number(userId) === Number(followedId)) {
+            // IDs inválidos são rejeitados antes de qualquer consulta ou gravação.
+            if (!Number.isSafeInteger(userId) || userId <= 0
+                || !Number.isSafeInteger(followedId) || followedId <= 0) {
+                return res.status(400).json({ error: 'Identificador de usuário inválido.' });
+            }
+
+            // Auto-seguimento não é permitido, mesmo se o cliente tentar chamar a API diretamente.
+            if (userId === followedId) {
                 return res.status(400).json({ error: 'Você não pode seguir a si mesmo.' });
             }
 
