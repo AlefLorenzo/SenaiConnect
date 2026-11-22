@@ -246,3 +246,17 @@
   padding: 0;
   flex: none;
 }
+
+/* Disclosure pages share a wider workspace for the local sidebar and content. */
+.app-feed-container--disclosure {
+  width: 100%;
+  max-width: 1240px;
+  padding: 20px 24px calc(24px + var(--bottom-nav-height));
+}
+
+@media (max-width: 768px) {
+  .app-feed-container--disclosure {
+    max-width: 100%;
+    padding: 10px 12px calc(72px + env(safe-area-inset-bottom));
+  }
+}
