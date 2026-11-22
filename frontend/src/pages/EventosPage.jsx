@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSocket } from '../hooks/useSocket';
 import './EventosPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -28,12 +29,21 @@ export default function EventosPage() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('Todos');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const { registerEventHandler } = useSocket();
 
   useEffect(() => {
-    const controller = new AbortController();
+    let disposed = false;
+    let activeController = null;
+    let requestSequence = 0;
+
     const loadEvents = async () => {
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      const currentRequest = ++requestSequence;
       setLoading(true);
       setError('');
+
       try {
         const response = await fetch(`${API_URL}/api/events`, {
           headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` },
@@ -41,16 +51,29 @@ export default function EventosPage() {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os eventos.');
-        setEvents(Array.isArray(data) ? data : []);
+        if (!disposed && currentRequest === requestSequence) {
+          setEvents(Array.isArray(data) ? data : []);
+        }
       } catch (err) {
-        if (err.name !== 'AbortError') setError(err.message || 'Erro ao carregar os eventos.');
+        if (!disposed && err.name !== 'AbortError' && currentRequest === requestSequence) {
+          setError(err.message || 'Erro ao carregar os eventos.');
+        }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!disposed && currentRequest === requestSequence) setLoading(false);
       }
     };
+
+    const unsubscribe = registerEventHandler('admin_content_changed', change => {
+      if (change?.resource === 'events') loadEvents();
+    });
+
     loadEvents();
-    return () => controller.abort();
-  }, []);
+    return () => {
+      disposed = true;
+      activeController?.abort();
+      unsubscribe();
+    };
+  }, [registerEventHandler]);
 
   const categories = useMemo(
     () => ['Todos', ...new Set(events.map(event => event.category).filter(Boolean))],
