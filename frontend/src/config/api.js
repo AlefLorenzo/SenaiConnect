@@ -88,6 +88,7 @@ export const ENDPOINTS = {
   // Groups
   GROUPS: {
     BASE: '/api/groups',
+    CONTACTS: '/api/groups/contacts',
     CREATE: '/api/groups',
     MY_GROUPS: '/api/groups/my-groups',
     JOIN: (id) => `/api/groups/${id}/join`,
