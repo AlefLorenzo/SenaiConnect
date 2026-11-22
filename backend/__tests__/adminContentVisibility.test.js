@@ -35,7 +35,7 @@ describe('admin-created content delivery', () => {
     mockDb.query
       .mockResolvedValueOnce([{ insertId: 51 }])
       .mockResolvedValueOnce([[{ id: 51, title: 'Semana de Tecnologia', status: 'ativo', unit: '' }]])
-      .mockResolvedValueOnce([[]]);
+      .mockResolvedValueOnce([[{ id: 12 }]]);
 
     const req = {
       admin: { id: 9 },
@@ -49,7 +49,7 @@ describe('admin-created content delivery', () => {
     expect(socketHelper.broadcast).toHaveBeenCalledWith('admin_content_changed', { resource: 'events' });
     expect(socketHelper.broadcast.mock.calls[0][1]).not.toHaveProperty('title');
     expect(notificationController.createNotification).toHaveBeenCalledWith(
-      expect.anything(), 'admin_publication', 9, 'Novo evento publicado: Semana de Tecnologia',
+      12, 'admin_publication', 9, 'Novo evento publicado: Semana de Tecnologia',
       'event', 51, null, expect.objectContaining({ resource: 'events' })
     );
   });
@@ -72,7 +72,7 @@ describe('admin-created content delivery', () => {
     expect(socketHelper.broadcast).toHaveBeenCalledWith('admin_content_changed', { resource: 'courses' });
     expect(socketHelper.broadcast.mock.calls[0][1]).not.toHaveProperty('title');
     expect(notificationController.createNotification).toHaveBeenCalledWith(
-      expect.anything(), 'admin_publication', 9, 'Novo curso publicado: Desenvolvimento Web',
+      12, 'admin_publication', 9, 'Novo curso publicado: Desenvolvimento Web',
       'course', 62, null, expect.objectContaining({ resource: 'courses' })
     );
   });
