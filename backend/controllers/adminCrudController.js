@@ -2,6 +2,33 @@ const db = require('../db');
 const socketHelper = require('../socketHelper');
 const { logAdminAction } = require('./adminAuthController');
 const { normalizePublicationStatus } = require('../utils/contentVisibility');
+const notificationController = require('./notificationController');
+
+const isPublished = (status) => ['ativo', 'active', 'published'].includes(String(status || '').trim().toLowerCase());
+
+async function notifyAdminPublication(adminId, resource, record) {
+    const unit = String(record.unit || '').trim();
+    const [users] = await db.query(`
+        SELECT id FROM users
+        WHERE id <> ? AND is_blocked = 0 AND deleted_at IS NULL
+          AND (? = '' OR LOWER(TRIM(COALESCE(unit, ''))) = LOWER(TRIM(?)))
+    `, [adminId, unit, unit]);
+
+    const activity = resource === 'events' ? 'Novo evento publicado' : 'Novo curso publicado';
+    const referenceType = resource === 'events' ? 'event' : 'course';
+    for (const user of users) {
+        await notificationController.createNotification(
+            user.id,
+            'admin_publication',
+            adminId,
+            `${activity}: ${record.title}`,
+            referenceType,
+            record.id,
+            null,
+            { resource, title: record.title, unit: unit || null }
+        );
+    }
+}
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────────
 
@@ -81,7 +108,9 @@ const createEvent = async (req, res) => {
         const [rows] = await db.query('SELECT * FROM events WHERE id = ?', [result.insertId]);
         const ev = rows[0];
 
-        // Broadcast em tempo real para todos os usuários conectados
+        if (isPublished(ev.status)) await notifyAdminPublication(admin.id, 'events', ev);
+
+        // Broadcast em tempo real para atualizar as telas dos usuários conectados
         socketHelper.broadcast('admin_content_changed', { resource: 'events' });
 
         await logAdminAction(admin.id, 'EVENT_CREATED', 'event', ev.id, `Criou o evento "${ev.title}"`, null, req);
@@ -99,7 +128,7 @@ const updateEvent = async (req, res) => {
         try { publicationStatus = normalizePublicationStatus(status, 'ativo'); }
         catch { return res.status(400).json({ error: 'Status de publicação inválido.' }); }
 
-        const [existing] = await db.query('SELECT id FROM events WHERE id = ?', [id]);
+        const [existing] = await db.query('SELECT id, status, unit FROM events WHERE id = ?', [id]);
         if (!existing.length) return res.status(404).json({ error: 'Evento não encontrado.' });
 
         await db.query(
@@ -107,6 +136,9 @@ const updateEvent = async (req, res) => {
             [title.trim(), description || '', event_date, event_time || null, location || '', unit || '', category || '', Math.max(0, Number(vacancies) || 0), image_url || null, publicationStatus, id]
         );
         const [rows] = await db.query('SELECT * FROM events WHERE id = ?', [id]);
+        if (!isPublished(existing[0].status) && isPublished(rows[0].status)) {
+            await notifyAdminPublication(admin.id, 'events', rows[0]);
+        }
         socketHelper.broadcast('admin_content_changed', { resource: 'events' });
         await logAdminAction(admin.id, 'EVENT_UPDATED', 'event', parseInt(id), `Editou o evento "${rows[0].title}"`, null, req);
         res.json(rows[0]);
@@ -260,6 +292,7 @@ const createCourse = async (req, res) => {
             [admin.id, title.trim(), description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', Math.max(0, Number(vacancies) || 0), enrollment_info || '', publicationStatus, image_url || null]
         );
         const [rows] = await db.query('SELECT * FROM courses WHERE id = ?', [result.insertId]);
+        if (isPublished(rows[0].status)) await notifyAdminPublication(admin.id, 'courses', rows[0]);
         socketHelper.broadcast('admin_content_changed', { resource: 'courses' });
         await logAdminAction(admin.id, 'COURSE_CREATED', 'course', rows[0].id, `Criou o curso "${rows[0].title}"`, null, req);
         res.status(201).json(rows[0]);
@@ -276,7 +309,7 @@ const updateCourse = async (req, res) => {
         try { publicationStatus = normalizePublicationStatus(status, 'ativo'); }
         catch { return res.status(400).json({ error: 'Status de publicação inválido.' }); }
 
-        const [existing] = await db.query('SELECT id FROM courses WHERE id = ?', [id]);
+        const [existing] = await db.query('SELECT id, status, unit FROM courses WHERE id = ?', [id]);
         if (!existing.length) return res.status(404).json({ error: 'Curso não encontrado.' });
 
         await db.query(
@@ -284,6 +317,9 @@ const updateCourse = async (req, res) => {
             [title.trim(), description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', Math.max(0, Number(vacancies) || 0), enrollment_info || '', publicationStatus, image_url || null, id]
         );
         const [rows] = await db.query('SELECT * FROM courses WHERE id = ?', [id]);
+        if (!isPublished(existing[0].status) && isPublished(rows[0].status)) {
+            await notifyAdminPublication(admin.id, 'courses', rows[0]);
+        }
         socketHelper.broadcast('admin_content_changed', { resource: 'courses' });
         await logAdminAction(admin.id, 'COURSE_UPDATED', 'course', parseInt(id), `Editou o curso "${rows[0].title}"`, null, req);
         res.json(rows[0]);
