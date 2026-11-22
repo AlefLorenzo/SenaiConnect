@@ -454,7 +454,7 @@ const discoveryFeedController = {
             const frequencyCap = Number(creative.frequency_cap || 0);
             if (frequencyCap > 0) {
                 const [[{ recentSpaceImpressions }]] = await db.query(`
-                    SELECT COUNT(*) AS recentSpaceImpressions
+                    SELECT COUNT(*) AS "recentSpaceImpressions"
                     FROM ad_impressions
                     WHERE ad_space_id = ? AND user_id = ?
                       AND viewed_at >= NOW() - INTERVAL '24 hours'
