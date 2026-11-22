@@ -99,9 +99,11 @@ const Home = () => {
   const [storyGroups, setStoryGroups] = useState([]);
   const [stories, setStories] = useState([]);
 
-  // Update the ring immediately after each story is successfully marked as viewed.
+  // Keep the feed's source data and the rendered story list in sync as soon
+  // as the API confirms a view. This prevents a stale group snapshot from
+  // restoring the green/unviewed ring after the viewer closes.
   const handleStoryViewed = useCallback((storyId) => {
-    setStories((currentGroups) => currentGroups.map((group) => {
+    const markViewed = (currentGroups) => currentGroups.map((group) => {
       const updatedStories = (group.stories || []).map((story) =>
         String(story.id) === String(storyId) ? { ...story, viewed: true } : story
       );
@@ -111,7 +113,10 @@ const Home = () => {
         stories: updatedStories,
         hasUnviewed: updatedStories.some((story) => story.viewed !== true),
       };
-    }));
+    });
+
+    setStoryGroups(markViewed);
+    setStories(markViewed);
   }, []);
 
   // Transform storyGroups into story groups for MobileStories (one item per user)
