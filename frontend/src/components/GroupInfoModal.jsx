@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Users, ShieldCheck, UserPlus, MoreVertical, Pencil, Check, Search,
+  X, ShieldCheck, UserPlus, MoreVertical, Pencil, Search,
   Bell, BellOff, LogOut, Trash2, UserMinus, Shield, ShieldOff, Loader2,
-  Image as ImageIcon, Save, AlertTriangle
+  Save, AlertTriangle
 } from 'lucide-react';
 import Avatar from './Avatar';
 import messagesService from '../services/messagesService';
