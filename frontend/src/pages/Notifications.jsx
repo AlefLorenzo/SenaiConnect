@@ -103,6 +103,29 @@ const Notifications = () => {
       storyNotifications: true,
     });
     const [savingPreferences, setSavingPreferences] = useState(false);
+    const [browserPermission, setBrowserPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
+    const [requestingPermission, setRequestingPermission] = useState(false);
+
+    const enableBrowserNotifications = async () => {
+        if (!('Notification' in window)) { setBrowserPermission('unsupported'); return; }
+        setRequestingPermission(true);
+        try {
+            const permission = await Notification.requestPermission();
+            setBrowserPermission(permission);
+            if (permission === 'granted') {
+                const registration = await navigator.serviceWorker?.ready;
+                if (registration) await registration.showNotification('SENAI Connect', {
+                    body: 'Notificações ativadas! Você será avisado quando houver novas atividades.',
+                    icon: '/favicon.svg', badge: '/favicon.svg', tag: 'senai-connect-enabled'
+                });
+            }
+        } catch (error) { console.error('Não foi possível ativar notificações:', error); }
+        finally { setRequestingPermission(false); }
+    };
+
+    useEffect(() => {
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(error => console.error('Falha ao registrar service worker:', error));
+    }, []);
 
     // Update allNotifications when notifications from socket change
     useEffect(() => {
@@ -301,6 +324,21 @@ const Notifications = () => {
                     </button>
                 </div>
             </div>
+
+            <section className="browser-notification-permission" aria-label="Notificações do navegador">
+                <div>
+                    <strong>Notificações no dispositivo</strong>
+                    <p>{browserPermission === 'granted'
+                        ? 'Ativadas neste navegador. Você receberá alertas quando o site estiver em segundo plano.'
+                        : browserPermission === 'denied'
+                            ? 'Bloqueadas pelo navegador. Altere a permissão nas configurações do site.'
+                            : browserPermission === 'unsupported'
+                                ? 'Este navegador não oferece suporte a notificações.'
+                                : 'Ative para receber alertas de mensagens, curtidas, novos seguidores e outras atividades.'}</p>
+                </div>
+                {browserPermission === 'default' && <button type="button" onClick={enableBrowserNotifications} disabled={requestingPermission}><BellRing size={17} /> {requestingPermission ? 'Ativando…' : 'Ativar notificações'}</button>}
+                {browserPermission === 'granted' && <span className="browser-notification-status">Ativadas</span>}
+            </section>
 
             {/* Category filters */}
             <div className="notification-category-filters" role="group" aria-label="Filtrar avisos">
