@@ -6,6 +6,7 @@ import { Image, Paperclip, Smile, Video, X, Plus } from 'lucide-react';
 import Post from '../components/Post';
 import StoryViewer from '../components/StoryViewer';
 import CreateStory from '../components/CreateStory';
+import CreatePostModal from '../components/CreatePostModal';
 import MobileStories from '../components/MobileStories';
 import Avatar from '../components/Avatar';
 import storiesService from '../services/storiesService';
@@ -27,6 +28,7 @@ const Home = () => {
   const [postImagePreview, setPostImagePreview] = useState(null);
   const [inputPlaceholder, setInputPlaceholder] = useState('No que você está pensando?');
   const [showCreateStory, setShowCreateStory] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
   const creatingPostRef = useRef(false);
@@ -46,8 +48,8 @@ const Home = () => {
         post: 'O que você quer compartilhar?',
       };
       setInputPlaceholder(placeholders[createType] || placeholders.post);
-      // Focus the input to show it's ready for the specific type
-      inputRef.current?.focus();
+      // Open a dedicated composer instead of scrolling the Home feed to its inline input.
+      setShowCreatePost(true);
     }
   }, []);
 
@@ -78,7 +80,7 @@ const Home = () => {
           post: 'O que você quer compartilhar?',
         };
         setInputPlaceholder(placeholders[type] || placeholders.post);
-        inputRef.current?.focus();
+        setShowCreatePost(true);
       }
     };
 
@@ -253,6 +255,7 @@ const Home = () => {
       setNewPostContent('');
       setPostImage(null);
       setPostImagePreview(null);
+      setShowCreatePost(false);
     } catch (error) {
       alert('Erro ao publicar post.');
     } finally {
@@ -363,6 +366,23 @@ const Home = () => {
           </button>
         )}
       </div>
+
+      {/* Publication composer is rendered in a body portal to avoid page clipping/scroll shifts. */}
+      {user && (
+        <CreatePostModal
+          isOpen={showCreatePost}
+          onClose={() => setShowCreatePost(false)}
+          user={user}
+          content={newPostContent}
+          onContentChange={setNewPostContent}
+          placeholder={inputPlaceholder}
+          imagePreview={postImagePreview}
+          onRemoveImage={() => { setPostImage(null); setPostImagePreview(null); }}
+          onImageSelect={handleImageSelect}
+          onSubmit={handleCreatePost}
+          isSubmitting={loading}
+        />
+      )}
 
       {/* Create Story Modal */}
       {user && (
