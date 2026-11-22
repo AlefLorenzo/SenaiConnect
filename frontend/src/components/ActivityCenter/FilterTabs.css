@@ -1,9 +1,9 @@
 /* Filter Tabs - Filter Navigation Styles */
 
 .filter-tabs {
-  position: sticky;
-  top: 60px; /* Below header */
-  z-index: 9;
+  position: relative;
+  top: auto;
+  z-index: 1;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   padding: var(--space-2) 0;
@@ -70,7 +70,9 @@
 }
 
 .filter-tabs__icon {
-  font-size: var(--text-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
   flex-shrink: 0;
 }
@@ -113,7 +115,6 @@
 /* Responsive */
 @media (max-width: 480px) {
   .filter-tabs {
-    top: 56px;
     margin: 0 calc(var(--space-2) * -1);
     padding-left: var(--space-2);
     padding-right: var(--space-2);
