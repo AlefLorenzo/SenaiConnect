@@ -921,3 +921,56 @@ body,
 [data-theme="dark"] :focus-visible {
   outline-color: #8ab8ff;
 }
+
+
+/* Authentication is part of the product theme too (the brand panel remains blue). */
+[data-theme="dark"] .auth-container,
+[data-theme="dark"] .login-page {
+  background: #111318;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .auth-form-panel {
+  background: #111318;
+}
+[data-theme="dark"] .auth-card {
+  background: #1b1f27;
+  border-color: #394354;
+  color: #f1f5f9;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .38);
+}
+[data-theme="dark"] .auth-mobile-brand { color: #eaf2ff; }
+[data-theme="dark"] .auth-header h2,
+[data-theme="dark"] .auth-form .form-group label {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .auth-header p { color: #c1cad6; }
+[data-theme="dark"] .auth-form .form-group input {
+  background: #151922;
+  border-color: #465267;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .auth-form .form-group input:focus {
+  background: #1b1f27;
+  border-color: #78aaff;
+}
+[data-theme="dark"] .auth-form .form-group input::placeholder { color: #9aa7b7; }
+[data-theme="dark"] .auth-form-kicker,
+[data-theme="dark"] .auth-forgot-link { color: #8ab8ff; }
+[data-theme="dark"] .auth-forgot-link:hover { color: #c3dcff; }
+[data-theme="dark"] .auth-card a:not(.auth-forgot-link) { color: #8ab8ff; }
+[data-theme="dark"] .auth-error,
+[data-theme="dark"] .auth-success {
+  border-color: #465267;
+}
+[data-theme="dark"] .group-info-feedback.error {
+  background: #48252a;
+  color: #ffc4c9;
+}
+[data-theme="dark"] .group-info-feedback.success {
+  background: #173b2a;
+  color: #a8efc2;
+}
+[data-theme="dark"] .business-story-viewer,
+[data-theme="dark"] .story-viewer-business {
+  color: #f1f5f9;
+}
