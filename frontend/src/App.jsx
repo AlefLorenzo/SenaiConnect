@@ -1,9 +1,11 @@
-import React, { useContext, Suspense, lazy } from 'react';
+import React, { useContext, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from './context/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import Auth from './pages/Auth/Auth';
 import AppLayout from './components/AppLayout';
+import api from './services/api';
+import { applyTheme, getStoredTheme, isExplicitTheme, persistTheme } from './utils/theme';
 import './App.css';
 
 // Lazy-loaded pages for code splitting
@@ -90,6 +92,41 @@ const AdminRoutes = () => (
 
 function App() {
   const { user, loading, isAdmin } = useContext(AuthContext);
+
+  // Restore the authenticated user's saved appearance globally, not only when
+  // the Settings page is opened. A manual local preference wins immediately.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    let active = true;
+    const localTheme = getStoredTheme();
+    if (localTheme) applyTheme(localTheme);
+
+    api.get('/api/settings')
+      .then((response) => {
+        if (!active) return;
+        const loaded = response?.settings && typeof response.settings === 'object'
+          ? response.settings
+          : response;
+        const storedTheme = getStoredTheme();
+        const serverTheme = isExplicitTheme(loaded?.theme) ? loaded.theme : null;
+        const resolvedTheme = storedTheme || serverTheme || 'light';
+
+        if (!storedTheme && serverTheme) {
+          persistTheme(serverTheme);
+        } else {
+          applyTheme(resolvedTheme);
+        }
+      })
+      .catch((error) => {
+        console.warn('Não foi possível restaurar o tema salvo:', error);
+        if (active) applyTheme(getStoredTheme() || 'light');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   if (loading) {
     return <div style={{display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center'}}>Carregando sistema...</div>;
