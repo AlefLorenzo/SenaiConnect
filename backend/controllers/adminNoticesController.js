@@ -437,16 +437,16 @@ async function sendNoticeNotifications(notice, recipientsJson) {
         } else if (recipients.type === 'courses' && values.length > 0) {
             [users] = await db.query(
                 `SELECT id FROM users
-                 WHERE course IN (${values.map(() => '?').join(',')})
+                 WHERE LOWER(TRIM(COALESCE(course, ''))) IN (${values.map(() => '?').join(',')})
                    AND is_blocked = 0 AND deleted_at IS NULL`,
-                values
+                values.map(value => value.toLowerCase())
             );
         } else if (recipients.type === 'units' && values.length > 0) {
             [users] = await db.query(
                 `SELECT id FROM users
-                 WHERE unit IN (${values.map(() => '?').join(',')})
+                 WHERE LOWER(TRIM(COALESCE(unit, ''))) IN (${values.map(() => '?').join(',')})
                    AND is_blocked = 0 AND deleted_at IS NULL`,
-                values
+                values.map(value => value.toLowerCase())
             );
         } else if (recipients.type === 'admins') {
             [users] = await db.query('SELECT id FROM users WHERE admin_role IS NOT NULL AND is_blocked = 0 AND deleted_at IS NULL');
