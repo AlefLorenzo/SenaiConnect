@@ -40,11 +40,34 @@ const Settings = () => {
     loadSettings();
   }, []);
 
+  // Apply persisted appearance/accessibility preferences across the application.
+  useEffect(() => {
+    const root = document.documentElement;
+    const applyTheme = () => {
+      const theme = settings.theme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : settings.theme;
+      root.setAttribute('data-theme', theme || 'light');
+      root.classList.toggle('accessibility-reduced-motion', Boolean(settings.accessibility?.reducedMotion));
+      root.classList.toggle('accessibility-high-contrast', Boolean(settings.accessibility?.highContrast));
+      root.dataset.fontSize = settings.accessibility?.fontSize || 'medium';
+    };
+    applyTheme();
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    if (settings.theme !== 'system') return undefined;
+    media.addEventListener?.('change', applyTheme);
+    return () => media.removeEventListener?.('change', applyTheme);
+  }, [settings.theme, settings.accessibility?.reducedMotion, settings.accessibility?.highContrast, settings.accessibility?.fontSize]);
+
   const loadSettings = async () => {
     try {
       setLoading(true);
       const response = await api.get('/settings');
-      setSettings(response.data);
+      setSettings((current) => ({ ...current, ...response.data,
+        notifications: { ...current.notifications, ...(response.data.notifications || {}) },
+        privacy: { ...current.privacy, ...(response.data.privacy || {}) },
+        accessibility: { ...current.accessibility, ...(response.data.accessibility || {}) }
+      }));
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
       setMessage({ type: 'error', text: 'Erro ao carregar configurações. Usando padrões.' });
@@ -62,10 +85,10 @@ const Settings = () => {
       setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
 
       // Apply theme immediately
-      if (response.data.theme) {
-        document.documentElement.setAttribute('data-theme', response.data.theme === 'system'
+      if (response.data.settings?.theme) {
+        document.documentElement.setAttribute('data-theme', response.data.settings.theme === 'system'
           ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : response.data.theme
+          : response.data.settings.theme
         );
       }
     } catch (error) {
