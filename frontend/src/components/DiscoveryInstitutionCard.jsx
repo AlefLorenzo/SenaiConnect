@@ -15,6 +15,7 @@ export default function DiscoveryInstitutionCard({ item }) {
     const internal = Boolean(destination && destination.startsWith('/'));
     const isEvent = item.institution_type === 'event';
     const isNotice = item.institution_type === 'notice';
+    const imageUrl = item.attachment_url || item.image_url || item.cover_image_url || null;
  
     return (
         <article className="discovery-institution-card">
@@ -22,9 +23,18 @@ export default function DiscoveryInstitutionCard({ item }) {
                 {isNotice ? <Bell size={15} /> : isEvent ? <CalendarDays size={15} /> : <GraduationCap size={15} />}
                 <span>{isNotice ? 'Aviso institucional' : isEvent ? 'Evento institucional' : 'Oportunidade de formação'}</span>
             </div>
-            {item.attachment_url && (
+            {imageUrl && (
                 <div className="discovery-institution-media">
-                    <img src={item.attachment_url} alt={item.title || ''} loading="lazy" />
+                    <img
+                        src={imageUrl}
+                        alt={item.title || ''}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(event) => {
+                            event.currentTarget.hidden = true;
+                            event.currentTarget.parentElement.classList.add('has-image-error');
+                        }}
+                    />
                 </div>
             )}
             <div className="discovery-institution-content">
