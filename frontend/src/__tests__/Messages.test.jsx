@@ -110,6 +110,7 @@ jest.mock('../context/AuthContext.jsx', () => {
 // Mock lucide-react icons - include all icons used by MessagesSidebar and MessageBubble
 jest.mock('lucide-react', () => ({
   Send: jest.fn(() => <span data-testid="send-icon" />),
+  Plus: jest.fn(() => <span data-testid="plus-icon" />),
   SendIcon: jest.fn(() => <span data-testid="send-icon" />), // Send as SendIcon
   MoreVertical: jest.fn(() => <span data-testid="more-icon" />),
   Search: jest.fn(() => <span data-testid="search-icon" />),
