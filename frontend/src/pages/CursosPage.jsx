@@ -1,254 +1,172 @@
-import React, { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './CursosPage.css';
 
-const cursos = [
-  {
-    id: 1,
-    titulo: 'Desenvolvimento Web Full Stack',
-    descricao: 'Do zero ao deploy: HTML, CSS, JavaScript, React, Node.js e bancos de dados. Aprenda a criar aplicações web modernas e profissionais.',
-    instrutor: 'Prof. Ricardo Alves',
-    avatar: 'https://i.pravatar.cc/48?img=11',
-    duracao: '120h',
-    modulos: 12,
-    nivel: 'Iniciante',
-    categoria: 'Tecnologia',
-    alunos: 847,
-    avaliacao: 4.9,
-    preco: 'Gratuito',
-    imagem: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=600&q=80',
-    tags: ['HTML', 'CSS', 'React', 'Node.js'],
-    progresso: 0,
-  },
-  {
-    id: 2,
-    titulo: 'Automação Industrial com CLP',
-    descricao: 'Programação de Controladores Lógicos Programáveis (CLP) com foco na automação de processos industriais. Inclui simulações práticas.',
-    instrutor: 'Prof. Marcos Fernandes',
-    avatar: 'https://i.pravatar.cc/48?img=12',
-    duracao: '80h',
-    modulos: 8,
-    nivel: 'Intermediário',
-    categoria: 'Automação',
-    alunos: 520,
-    avaliacao: 4.7,
-    preco: 'Gratuito',
-    imagem: 'https://images.unsplash.com/photo-1565043666747-69f6646db940?w=600&q=80',
-    tags: ['CLP', 'SCADA', 'Automação'],
-    progresso: 0,
-  },
-  {
-    id: 3,
-    titulo: 'Design Gráfico & Identidade Visual',
-    descricao: 'Princípios do design, tipografia, teoria das cores, criação de logotipos e identidade visual completa usando ferramentas profissionais.',
-    instrutor: 'Profa. Fernanda Costa',
-    avatar: 'https://i.pravatar.cc/48?img=5',
-    duracao: '60h',
-    modulos: 6,
-    nivel: 'Iniciante',
-    categoria: 'Design',
-    alunos: 1203,
-    avaliacao: 4.8,
-    preco: 'Gratuito',
-    imagem: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&q=80',
-    tags: ['Photoshop', 'Illustrator', 'Branding'],
-    progresso: 0,
-  },
-  {
-    id: 4,
-    titulo: 'Segurança do Trabalho NR-35',
-    descricao: 'Norma Regulamentadora 35 – Trabalho em Altura. Conteúdo teórico e prático para certificação e atuação segura em campo.',
-    instrutor: 'Prof. Eduardo Lima',
-    avatar: 'https://i.pravatar.cc/48?img=15',
-    duracao: '40h',
-    modulos: 5,
-    nivel: 'Iniciante',
-    categoria: 'Segurança',
-    alunos: 2100,
-    avaliacao: 4.6,
-    preco: 'Gratuito',
-    imagem: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=600&q=80',
-    tags: ['NR-35', 'EPI', 'Altura'],
-    progresso: 0,
-  },
-  {
-    id: 5,
-    titulo: 'Inteligência Artificial Aplicada',
-    descricao: 'Machine learning, redes neurais e aplicações práticas de IA na indústria. Python e frameworks modernos como TensorFlow e scikit-learn.',
-    instrutor: 'Prof. Ana Ribeiro',
-    avatar: 'https://i.pravatar.cc/48?img=9',
-    duracao: '100h',
-    modulos: 10,
-    nivel: 'Avançado',
-    categoria: 'Tecnologia',
-    alunos: 430,
-    avaliacao: 4.9,
-    preco: 'Gratuito',
-    imagem: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=600&q=80',
-    tags: ['Python', 'ML', 'TensorFlow'],
-    progresso: 0,
-  },
-  {
-    id: 6,
-    titulo: 'Gestão de Projetos – Ágil & Scrum',
-    descricao: 'Metodologias ágeis, Scrum, Kanban e OKRs. Gerencie equipes e projetos com eficiência e entregue valor de forma contínua.',
-    instrutor: 'Prof. Bruno Souza',
-    avatar: 'https://i.pravatar.cc/48?img=7',
-    duracao: '50h',
-    modulos: 7,
-    nivel: 'Intermediário',
-    categoria: 'Gestão',
-    alunos: 980,
-    avaliacao: 4.7,
-    preco: 'Gratuito',
-    imagem: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&q=80',
-    tags: ['Scrum', 'Kanban', 'Agile'],
-    progresso: 0,
-  },
-];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const nivelColor = { Iniciante: '#22c55e', Intermediário: '#f59e0b', Avançado: '#ef4444' };
-const categoriaIcons = { Tecnologia: '💻', Automação: '⚙️', Design: '🎨', Segurança: '🦺', Gestão: '📊' };
-
-function Stars({ rating }) {
-  return (
-    <span className="stars">
-      {'★'.repeat(Math.floor(rating))}{'☆'.repeat(5 - Math.floor(rating))}
-      <span className="rating-num"> {rating}</span>
-    </span>
-  );
-}
+const parseSkills = (value) => {
+  if (Array.isArray(value)) return value;
+  return String(value || '').split(/[\n,;]+/).map(item => item.trim()).filter(Boolean);
+};
 
 export default function CursosPage() {
-  const [inscritos, setInscritos] = useState({});
-  const [progressos, setProgressos] = useState({});
-  const [filtro, setFiltro] = useState('Todos');
-  const [busca, setBusca] = useState('');
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('Todos');
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
-  const categorias = ['Todos', ...new Set(cursos.map((c) => c.categoria))];
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadCourses = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`${API_URL}/api/courses`, {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` },
+          signal: controller.signal
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os cursos.');
+        setCourses(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (err.name !== 'AbortError') setError(err.message || 'Erro ao carregar os cursos.');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    loadCourses();
+    return () => controller.abort();
+  }, []);
 
-  const filtrados = cursos.filter((c) => {
-    const passaFiltro = filtro === 'Todos' || c.categoria === filtro;
-    const passaBusca = c.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-      c.tags.some((t) => t.toLowerCase().includes(busca.toLowerCase()));
-    return passaFiltro && passaBusca;
-  });
+  const categories = useMemo(
+    () => ['Todos', ...new Set(courses.map(course => course.area).filter(Boolean))],
+    [courses]
+  );
 
-  const handleMatricula = (id) => {
-    setInscritos((prev) => ({ ...prev, [id]: !prev[id] }));
-    if (!inscritos[id]) setProgressos((prev) => ({ ...prev, [id]: 0 }));
-  };
+  const filteredCourses = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return courses.filter(course => {
+      const skills = parseSkills(course.skills);
+      const matchesCategory = filter === 'Todos' || course.area === filter;
+      const searchable = [course.title, course.description, course.area, course.unit, ...skills]
+        .filter(Boolean).join(' ').toLowerCase();
+      return matchesCategory && (!normalizedSearch || searchable.includes(normalizedSearch));
+    });
+  }, [courses, filter, search]);
 
-  const avancarProgresso = (e, id) => {
-    e.stopPropagation();
-    setProgressos((prev) => ({ ...prev, [id]: Math.min((prev[id] || 0) + 10, 100) }));
-  };
+  const enrolledCount = courses.reduce((total, course) => total + Number(course.enrolled_count || 0), 0);
 
   return (
     <div className="cursos-page">
-      {/* Hero */}
       <div className="cursos-hero">
         <div className="cursos-hero-text">
           <span className="cursos-badge">🎓 Plataforma de Cursos</span>
           <h1>Aprenda com os Melhores</h1>
-          <p>Cursos gratuitos desenvolvidos por especialistas do SENAI para alavancar sua carreira.</p>
+          <p>Cursos e formações publicados pela administração para sua unidade.</p>
           <div className="cursos-search">
             <span className="search-icon">🔍</span>
             <input
-              type="text"
+              type="search"
               placeholder="Buscar cursos ou tecnologias..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              aria-label="Buscar cursos"
             />
           </div>
         </div>
         <div className="cursos-hero-stats">
-          <div className="c-stat"><strong>{cursos.length}</strong><span>Cursos</span></div>
-          <div className="c-stat"><strong>{cursos.reduce((a, c) => a + c.alunos, 0).toLocaleString()}</strong><span>Alunos</span></div>
-          <div className="c-stat"><strong>{Object.values(inscritos).filter(Boolean).length}</strong><span>Matriculados</span></div>
+          <div className="c-stat"><strong>{courses.length}</strong><span>Cursos publicados</span></div>
+          <div className="c-stat"><strong>{enrolledCount.toLocaleString('pt-BR')}</strong><span>Matrículas registradas</span></div>
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="cursos-filtros">
-        {categorias.map((cat) => (
+        {categories.map(category => (
           <button
-            key={cat}
-            className={`filtro-btn-c ${filtro === cat ? 'active' : ''}`}
-            onClick={() => setFiltro(cat)}
+            key={category}
+            type="button"
+            className={`filtro-btn-c ${filter === category ? 'active' : ''}`}
+            onClick={() => setFilter(category)}
           >
-            {categoriaIcons[cat] || '📚'} {cat}
+            {category}
           </button>
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="cursos-grid">
-        {filtrados.map((curso) => {
-          const estaMatriculado = inscritos[curso.id];
-          const prog = progressos[curso.id] || 0;
+      {loading && <div className="card" style={{ padding: 32, textAlign: 'center' }}>Carregando cursos publicados…</div>}
+      {error && <div className="card" role="alert" style={{ padding: 24, color: 'var(--color-error, #b91c1c)' }}>{error}</div>}
 
-          return (
-            <div key={curso.id} className="curso-card">
-              <div className="curso-img-wrapper">
-                <img src={curso.imagem} alt={curso.titulo} />
-                <span className="curso-nivel" style={{ background: nivelColor[curso.nivel] }}>{curso.nivel}</span>
-                <span className="curso-cat-icon">{categoriaIcons[curso.categoria]}</span>
-              </div>
-
-              <div className="curso-body">
-                <h3>{curso.titulo}</h3>
-                <p className="curso-desc">{curso.descricao}</p>
-
-                <div className="curso-instrutor">
-                  <img src={curso.avatar} alt={curso.instrutor} />
-                  <span>{curso.instrutor}</span>
+      {!loading && !error && (
+        <div className="cursos-grid">
+          {filteredCourses.map(course => {
+            const skills = parseSkills(course.skills);
+            return (
+              <article key={course.id} className="curso-card">
+                <div className="curso-img-wrapper">
+                  {course.image_url ? (
+                    <img src={course.image_url} alt={course.title} loading="lazy" />
+                  ) : (
+                    <div className="curso-image-placeholder" aria-hidden="true">🎓</div>
+                  )}
+                  {course.modality && <span className="curso-nivel">{course.modality}</span>}
+                  {course.area && <span className="curso-cat-icon">{course.area}</span>}
                 </div>
 
-                <div className="curso-tags">
-                  {curso.tags.map((t) => <span key={t} className="tag-c">{t}</span>)}
-                </div>
-
-                <div className="curso-meta">
-                  <span>⏱ {curso.duracao}</span>
-                  <span>📚 {curso.modulos} módulos</span>
-                  <span>👥 {curso.alunos.toLocaleString()}</span>
-                </div>
-
-                <div className="curso-avaliacao">
-                  <Stars rating={curso.avaliacao} />
-                </div>
-
-                {estaMatriculado && (
-                  <div className="curso-progresso">
-                    <div className="progresso-bar">
-                      <div className="progresso-fill" style={{ width: `${prog}%` }} />
-                    </div>
-                    <div className="progresso-info">
-                      <span>{prog}% concluído</span>
-                      {prog < 100 && (
-                        <button className="continuar-btn" onClick={(e) => avancarProgresso(e, curso.id)}>
-                          Continuar ▶
-                        </button>
-                      )}
-                      {prog === 100 && <span className="concluido-badge">🏆 Concluído!</span>}
-                    </div>
+                <div className="curso-body">
+                  <h3>{course.title}</h3>
+                  {course.description && <p className="curso-desc">{course.description}</p>}
+                  <div className="curso-instrutor">
+                    <span>{course.author_name ? `Publicado por ${course.author_name}` : 'Conteúdo institucional SENAI'}</span>
                   </div>
-                )}
-              </div>
+                  {skills.length > 0 && (
+                    <div className="curso-tags">
+                      {skills.map(skill => <span key={skill} className="tag-c">{skill}</span>)}
+                    </div>
+                  )}
+                  <div className="curso-meta">
+                    {course.duration && <span>⏱ {course.duration}</span>}
+                    {course.period && <span>🗓 {course.period}</span>}
+                    {course.vacancies > 0 && <span>👥 {course.vacancies} vagas</span>}
+                    {course.unit && <span>📍 {course.unit}</span>}
+                  </div>
+                  {course.enrollment_info && <p className="curso-desc">{course.enrollment_info}</p>}
+                </div>
 
-              <div className="curso-footer">
-                <span className="curso-preco">{curso.preco}</span>
-                <button
-                  className={`matricula-btn ${estaMatriculado ? 'cancelar' : ''}`}
-                  onClick={() => handleMatricula(curso.id)}
-                >
-                  {estaMatriculado ? 'Cancelar Matrícula' : 'Matricular-se'}
-                </button>
-              </div>
+                <div className="curso-footer">
+                  <span className="curso-preco">{course.vacancies > 0 ? `${course.vacancies} vagas` : 'Consulte a unidade'}</span>
+                  <button type="button" className="matricula-btn" onClick={() => setSelectedCourse(course)}>
+                    Ver detalhes
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+          {filteredCourses.length === 0 && (
+            <div className="card" style={{ gridColumn: '1 / -1', padding: 36, textAlign: 'center' }}>
+              {courses.length === 0 ? 'Ainda não há cursos publicados para sua unidade.' : 'Nenhum curso corresponde à busca.'}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </div>
+      )}
+
+      {selectedCourse && (
+        <div className="eventos-modal-overlay" role="presentation" onClick={() => setSelectedCourse(null)}>
+          <section className="eventos-modal" role="dialog" aria-modal="true" aria-label={selectedCourse.title} onClick={event => event.stopPropagation()}>
+            <button type="button" className="modal-close" aria-label="Fechar detalhes" onClick={() => setSelectedCourse(null)}>×</button>
+            {selectedCourse.image_url && <img src={selectedCourse.image_url} alt="" className="modal-img" />}
+            <div className="modal-body">
+              <h2>{selectedCourse.title}</h2>
+              <p className="modal-desc">{selectedCourse.description || 'Curso publicado pela administração.'}</p>
+              {selectedCourse.unit && <p><strong>Unidade:</strong> {selectedCourse.unit}</p>}
+              {selectedCourse.duration && <p><strong>Duração:</strong> {selectedCourse.duration}</p>}
+              {selectedCourse.modality && <p><strong>Modalidade:</strong> {selectedCourse.modality}</p>}
+              {selectedCourse.enrollment_info && <p>{selectedCourse.enrollment_info}</p>}
+              <p>Para informações de inscrição, consulte a unidade responsável.</p>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
