@@ -455,12 +455,12 @@ describe('E2E Privacy Verification - 3 Account Matrix', () => {
         stories: [{ id: 'notify-1', media_url: 'notify.jpg', media_type: 'image', text_content: 'Notify test', created_at: new Date().toISOString(), privacy: 'public' }],
       };
 
-      const { unmount } = renderStoryViewer(testAccounts.bob, [publicStory]);
+      const { unmount } = renderStoryViewer({ ...testAccounts.bob, id: 202 }, [publicStory]);
 
       fireEvent.click(screen.getByLabelText('Responder'));
-      const textarea = screen.getByPlaceholderText('Escreva uma resposta...');
+      const textarea = screen.getByPlaceholderText('Escreva uma mensagem...');
       fireEvent.change(textarea, { target: { value: 'Nice story!' } });
-      fireEvent.click(screen.getByText('Enviar'));
+      fireEvent.click(screen.getByText('Enviar mensagem'));
 
       await waitFor(() => {
         expect(storiesService.replyToStory).toHaveBeenCalledWith('notify-1', 'Nice story!');
@@ -495,7 +495,7 @@ describe('E2E Privacy Verification - 3 Account Matrix', () => {
         stories: [{ id: 'notify-3', media_url: 'notify3.jpg', media_type: 'image', text_content: 'Close notify', created_at: new Date().toISOString(), privacy: 'close_friends' }],
       };
 
-      const { unmount } = renderStoryViewer(testAccounts.eve, [closeStory]);
+      const { unmount } = renderStoryViewer({ ...testAccounts.eve, id: 205 }, [closeStory]);
 
       fireEvent.click(screen.getByLabelText('Responder'));
       const textarea = screen.getByPlaceholderText('Escreva uma resposta...');
