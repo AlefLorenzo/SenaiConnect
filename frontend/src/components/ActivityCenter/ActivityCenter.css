@@ -10,6 +10,7 @@
   margin: 0 auto;
   padding: 0 var(--space-4);
   overflow: visible;
+  box-sizing: border-box;
   background: var(--bg-card);
   color: var(--text-primary);
 }
@@ -56,11 +57,15 @@
 }
 
 .activity-center__sticky-shell {
+  position: -webkit-sticky;
   position: sticky;
+  align-self: stretch;
   top: 0;
   z-index: 30;
   background: var(--bg-card);
   isolation: isolate;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .activity-center__content {
