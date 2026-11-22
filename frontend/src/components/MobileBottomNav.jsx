@@ -1,4 +1,4 @@
-import { Home, Search, Plus, Heart, User, MessageCircle, Bell, X } from 'lucide-react';
+import { Home, Search, Plus, Heart, User, MessageCircle, Compass, X } from 'lucide-react';
 import { useContext, useState, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
@@ -16,7 +16,7 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const navItems = [
-    { path: '/notifications', icon: Bell, label: 'Avisos', testId: 'nav-notifications', index: 0 },
+    { path: '/divulgacao', icon: Compass, label: 'Descobrir', testId: 'nav-discover', index: 0 },
     { path: '/', icon: Home, label: 'Início', testId: 'nav-home', index: 1 },
     { path: '/explore', icon: Search, label: 'Explorar', testId: 'nav-explore', index: 2 },
     { path: '/create', icon: Plus, label: 'Criar', isCreate: true, testId: 'nav-create', index: 3 },
@@ -123,7 +123,7 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
                 {(() => {
                   const count = item.path === '/messages'
                     ? unreadMessagesCount
-                    : item.path === '/notifications'
+                    : item.path === '/activity'
                       ? unreadCount
                       : 0;
                   return count > 0 ? (
