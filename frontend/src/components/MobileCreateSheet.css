@@ -3,6 +3,9 @@
 
 .mobile-create-sheet-overlay {
   position: fixed;
+  /* This overlay must span the viewport; generic dialog sizing is excluded globally. */
+  max-width: none;
+  max-height: none;
   inset: 0;
   /* Let the fixed insets define the exact viewport width. A separate 100%
      width plus horizontal safe-area padding was shrinking the usable sheet. */
