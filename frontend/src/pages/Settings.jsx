@@ -149,7 +149,7 @@ const Settings = () => {
       </div>
 
       {message.text && (
-        <div className="card animate-fade-in" style={{
+        <div className={`card animate-fade-in settings-feedback-message settings-feedback-message--${message.type}`} style={{
           padding: '12px 20px',
           background: message.type === 'success' ? '#E8F5E9' : '#FFEBEE',
           borderLeft: `4px solid ${message.type === 'success' ? '#4CAF50' : '#F44336'}`,
