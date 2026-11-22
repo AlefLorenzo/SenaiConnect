@@ -980,3 +980,62 @@ html.story-viewer-open .app-main {
     display: none;
   }
 }
+
+
+.story-reply-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.story-reply-heading small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.story-reply-error {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 107, 107, 0.45);
+  border-radius: 9px;
+  color: #ffd2d2;
+  background: rgba(125, 20, 20, 0.3);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.story-replies-panel {
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+.reply-form textarea:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.reply-send-btn {
+  min-width: 132px;
+  min-height: 40px;
+  padding: 9px 16px;
+}
+
+@media (max-width: 480px) {
+  .story-replies-panel {
+    padding: 14px 12px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .reply-form textarea {
+    min-height: 68px;
+    max-height: 112px;
+    font-size: 16px;
+  }
+
+  .reply-send-btn {
+    min-height: 42px;
+    min-width: 128px;
+  }
+}
