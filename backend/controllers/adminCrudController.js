@@ -82,7 +82,7 @@ const createEvent = async (req, res) => {
         const ev = rows[0];
 
         // Broadcast em tempo real para todos os usuários conectados
-        socketHelper.broadcast('admin_content_changed', { resource: 'events', id: Number(ev.id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'events' });
 
         await logAdminAction(admin.id, 'EVENT_CREATED', 'event', ev.id, `Criou o evento "${ev.title}"`, null, req);
         res.status(201).json(ev);
@@ -107,7 +107,7 @@ const updateEvent = async (req, res) => {
             [title.trim(), description || '', event_date, event_time || null, location || '', unit || '', category || '', Math.max(0, Number(vacancies) || 0), image_url || null, publicationStatus, id]
         );
         const [rows] = await db.query('SELECT * FROM events WHERE id = ?', [id]);
-        socketHelper.broadcast('admin_content_changed', { resource: 'events', id: Number(id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'events' });
         await logAdminAction(admin.id, 'EVENT_UPDATED', 'event', parseInt(id), `Editou o evento "${rows[0].title}"`, null, req);
         res.json(rows[0]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar evento' }); }
@@ -119,7 +119,7 @@ const deleteEvent = async (req, res) => {
         const { id } = req.params;
         const [rows] = await db.query('SELECT title FROM events WHERE id = ?', [id]);
         await db.query('DELETE FROM events WHERE id = ?', [id]);
-        socketHelper.broadcast('admin_content_changed', { resource: 'events', id: Number(id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'events' });
         await logAdminAction(admin.id, 'EVENT_DELETED', 'event', parseInt(id), `Apagou o evento "${rows[0]?.title}"`, null, req);
         res.json({ message: 'Evento apagado' });
     } catch (err) { res.status(500).json({ error: 'Erro ao apagar evento' }); }
@@ -260,7 +260,7 @@ const createCourse = async (req, res) => {
             [admin.id, title.trim(), description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', Math.max(0, Number(vacancies) || 0), enrollment_info || '', publicationStatus, image_url || null]
         );
         const [rows] = await db.query('SELECT * FROM courses WHERE id = ?', [result.insertId]);
-        socketHelper.broadcast('admin_content_changed', { resource: 'courses', id: Number(rows[0].id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'courses' });
         await logAdminAction(admin.id, 'COURSE_CREATED', 'course', rows[0].id, `Criou o curso "${rows[0].title}"`, null, req);
         res.status(201).json(rows[0]);
     } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao criar curso' }); }
@@ -284,7 +284,7 @@ const updateCourse = async (req, res) => {
             [title.trim(), description || '', unit || '', area || '', duration || '', modality || 'Presencial', period || '', skills || '', Math.max(0, Number(vacancies) || 0), enrollment_info || '', publicationStatus, image_url || null, id]
         );
         const [rows] = await db.query('SELECT * FROM courses WHERE id = ?', [id]);
-        socketHelper.broadcast('admin_content_changed', { resource: 'courses', id: Number(id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'courses' });
         await logAdminAction(admin.id, 'COURSE_UPDATED', 'course', parseInt(id), `Editou o curso "${rows[0].title}"`, null, req);
         res.json(rows[0]);
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar curso' }); }
@@ -296,7 +296,7 @@ const deleteCourse = async (req, res) => {
         const { id } = req.params;
         const [rows] = await db.query('SELECT title FROM courses WHERE id = ?', [id]);
         await db.query('DELETE FROM courses WHERE id = ?', [id]);
-        socketHelper.broadcast('admin_content_changed', { resource: 'courses', id: Number(id) });
+        socketHelper.broadcast('admin_content_changed', { resource: 'courses' });
         await logAdminAction(admin.id, 'COURSE_DELETED', 'course', parseInt(id), `Apagou o curso "${rows[0]?.title}"`, null, req);
         res.json({ message: 'Curso apagado' });
     } catch (err) { res.status(500).json({ error: 'Erro ao apagar curso' }); }
