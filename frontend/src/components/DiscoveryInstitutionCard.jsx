@@ -15,11 +15,7 @@ export default function DiscoveryInstitutionCard({ item }) {
     const internal = Boolean(destination && destination.startsWith('/'));
     const isEvent = item.institution_type === 'event';
     const isNotice = item.institution_type === 'notice';
-    const DestinationLink = internal ? Link : 'a';
-    const destinationProps = internal
-        ? { to: destination }
-        : { href: destination || undefined, target: '_blank', rel: 'noopener noreferrer' };
-
+ 
     return (
         <article className="discovery-institution-card">
             <div className="discovery-institution-label">
@@ -43,9 +39,15 @@ export default function DiscoveryInstitutionCard({ item }) {
                     )}
                 </div>
                 {destination && (
-                    <DestinationLink {...destinationProps} className="discovery-institution-link">
-                        {item.link_label || (isNotice ? 'Ler comunicado' : isEvent ? 'Ver evento' : 'Conhecer curso')}
-                    </DestinationLink>
+                    internal ? (
+                        <Link to={destination} className="discovery-institution-link">
+                            {item.link_label || (isNotice ? 'Ler comunicado' : isEvent ? 'Ver evento' : 'Conhecer curso')}
+                        </Link>
+                    ) : (
+                        <a href={destination} target="_blank" rel="noopener noreferrer" className="discovery-institution-link">
+                            {item.link_label || (isNotice ? 'Ler comunicado' : isEvent ? 'Ver evento' : 'Conhecer curso')}
+                        </a>
+                    )
                 )}
             </div>
         </article>
