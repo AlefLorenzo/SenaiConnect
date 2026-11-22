@@ -63,7 +63,7 @@ const Settings = () => {
     try {
       setLoading(true);
       // api.get() returns the decoded JSON body directly (not an Axios response).
-      const response = await api.get('/settings');
+      const response = await api.get('/api/settings');
       const loaded = response?.settings && typeof response.settings === 'object'
         ? response.settings
         : response;
@@ -93,7 +93,7 @@ const Settings = () => {
       setSaving(true);
       setMessage({ type: '', text: '' });
 
-      const response = await api.put('/settings', settings);
+      const response = await api.put('/api/settings', settings);
       const saved = response?.settings && typeof response.settings === 'object' ? response.settings : settings;
       setSettings((current) => ({
         ...current,
