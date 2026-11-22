@@ -106,7 +106,8 @@ const AdminCourseForm = () => {
   };
 
   const uploadImage = async () => {
-    if (!imageFile || !imagePreview.startsWith('data:')) return form.image_url;
+    if (!imageFile) return form.image_url;
+    if (!imagePreview.startsWith('data:')) throw new Error('A imagem ainda está sendo processada. Tente novamente.');
     const response = await fetch(`${API_URL}/api/upload`, {
       method: 'POST',
       headers: {
