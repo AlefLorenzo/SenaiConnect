@@ -7,26 +7,31 @@ const notificationController = require('./notificationController');
 const isPublished = (status) => ['ativo', 'active', 'published'].includes(String(status || '').trim().toLowerCase());
 
 async function notifyAdminPublication(adminId, resource, record) {
-    const unit = String(record.unit || '').trim();
-    const [users] = await db.query(`
-        SELECT id FROM users
-        WHERE id <> ? AND is_blocked = 0 AND deleted_at IS NULL
-          AND (? = '' OR LOWER(TRIM(COALESCE(unit, ''))) = LOWER(TRIM(?)))
-    `, [adminId, unit, unit]);
+    try {
+        const unit = String(record.unit || '').trim();
+        const [users] = await db.query(`
+            SELECT id FROM users
+            WHERE id <> ? AND is_blocked = 0 AND deleted_at IS NULL
+              AND (? = '' OR LOWER(TRIM(COALESCE(unit, ''))) = LOWER(TRIM(?)))
+        `, [adminId, unit, unit]);
 
-    const activity = resource === 'events' ? 'Novo evento publicado' : 'Novo curso publicado';
-    const referenceType = resource === 'events' ? 'event' : 'course';
-    for (const user of users) {
-        await notificationController.createNotification(
-            user.id,
-            'admin_publication',
-            adminId,
-            `${activity}: ${record.title}`,
-            referenceType,
-            record.id,
-            null,
-            { resource, title: record.title, unit: unit || null }
-        );
+        const activity = resource === 'events' ? 'Novo evento publicado' : 'Novo curso publicado';
+        const referenceType = resource === 'events' ? 'event' : 'course';
+        for (const user of users) {
+            await notificationController.createNotification(
+                user.id,
+                'admin_publication',
+                adminId,
+                `${activity}: ${record.title}`,
+                referenceType,
+                record.id,
+                null,
+                { resource, title: record.title, unit: unit || null }
+            );
+        }
+    } catch (error) {
+        // A falha na entrega de notificações não pode desfazer uma publicação já salva.
+        console.error('Erro ao notificar publicação administrativa:', error);
     }
 }
 
