@@ -140,6 +140,7 @@ const Messages = () => {
   const sendingMessageRef = useRef(false);
   const syncInFlightRef = useRef(false);
   const historyRequestIdRef = useRef(0);
+  const historyPageRequestRef = useRef(null);
   const activeConversationIdRef = useRef(null);
   const conversationsRef = useRef(conversations);
 
@@ -328,7 +329,12 @@ const Messages = () => {
   }, [urlConversationId]);
 
   const fetchHistory = useCallback(async (contactId, page = 1, append = false) => {
-    if (!contactId) return;
+    if (!contactId || historyPageRequestRef.current) return;
+
+    // Prevent duplicate observer callbacks from requesting the same page twice.
+    // A new conversation clears this lock before starting its own history request.
+    const requestToken = { conversationId: String(contactId), page };
+    historyPageRequestRef.current = requestToken;
 
     // Each request gets a generation. Switching or closing a chat invalidates
     // older responses so they cannot repopulate another conversation's screen.
@@ -370,15 +376,20 @@ const Messages = () => {
         data.forEach(msg => messageIdsRef.current.add(String(msg.id)));
         setHistory(data);
       }
-      setHasMoreHistory(result.pagination?.hasMore || data.length >= 30);
+      const serverHasMore = result.pagination?.hasMore;
+      setHasMoreHistory(serverHasMore == null ? data.length >= 30 : Boolean(serverHasMore));
       setHistoryPage(page);
       fetchConversations();
     } catch (err) {
       if (requestId === historyRequestIdRef.current) {
         console.error('Erro ao buscar histórico:', err);
-        setHasMoreHistory(false);
+        // Keep older-history pagination available after transient network errors.
+        // The observer is reattached when loading ends, allowing the request to retry.
       }
     } finally {
+      if (historyPageRequestRef.current === requestToken) {
+        historyPageRequestRef.current = null;
+      }
       if (requestId === historyRequestIdRef.current) {
         setLoadingHistory(false);
       }
@@ -504,6 +515,11 @@ const Messages = () => {
       observerRef.current.disconnect();
     }
 
+    // The chat has its own overflow-y scroll area, so the observer must use
+    // that element as its root instead of the browser viewport.
+    const scrollContainer = chatBodyRef.current;
+    if (!scrollContainer || !loadMoreRef.current) return undefined;
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
@@ -511,7 +527,7 @@ const Messages = () => {
           loadMoreHistory();
         }
       },
-      { rootMargin: '100px', threshold: 0.1 }
+      { root: scrollContainer, rootMargin: '100px', threshold: 0.1 }
     );
 
     if (loadMoreRef.current) {
@@ -527,6 +543,8 @@ const Messages = () => {
 
   // Fetch history when contact changes
   useEffect(() => {
+    // Invalidate the previous request lock when switching or closing chats.
+    historyPageRequestRef.current = null;
     if (selectedContact) {
       activeConversationIdRef.current = String(selectedContact.id);
       messageIdsRef.current.clear();
