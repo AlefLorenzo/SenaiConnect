@@ -285,8 +285,17 @@ const discoveryFeedController = {
                       AND b.status = 'approved'
                       AND a.is_active = TRUE
                       AND a.location IN (?)
+                      AND (
+                          COALESCE(a.frequency_cap, 0) <= 0
+                          OR (
+                              SELECT COUNT(*) FROM ad_impressions ai
+                              WHERE ai.ad_space_id = a.id
+                                AND ai.user_id = ?
+                                AND ai.viewed_at >= NOW() - INTERVAL '24 hours'
+                          ) < a.frequency_cap
+                      )
                 `;
-                const campaignParams = [ALLOWED_AD_LOCATIONS];
+                const campaignParams = [ALLOWED_AD_LOCATIONS, userId];
                 if (search) {
                     campaignWhere += ' AND (cc.title LIKE ? OR cc.description LIKE ? OR b.company_name LIKE ?)';
                     campaignParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
@@ -298,7 +307,7 @@ const discoveryFeedController = {
                         bc.id AS campaign_id, bc.name AS campaign_name, bc.target_audience,
                         bc.start_date, bc.end_date, bc.created_at,
                         b.id AS business_id, b.company_name, b.logo_url, b.slug AS business_slug,
-                        a.id AS ad_space_id, a.frequency_cap
+                        a.id AS ad_space_id, a.frequency_cap, a.max_ads
                     FROM campaign_creatives cc
                     JOIN business_campaigns bc ON bc.id = cc.campaign_id
                     JOIN businesses b ON b.id = bc.business_id
@@ -306,9 +315,9 @@ const discoveryFeedController = {
                     ${campaignWhere}
                     ORDER BY bc.created_at DESC
                     LIMIT ?
-                `, [...campaignParams, take]);
+                `, [...campaignParams, take * ALLOWED_AD_LOCATIONS.length]);
 
-                campaignAds = rows
+                const eligibleAds = rows
                     .filter(ad => matchesAudience(ad.target_audience, viewer))
                     .map(ad => ({
                         ...ad,
@@ -325,6 +334,15 @@ const discoveryFeedController = {
                         attachment_type: 'image'
                     }))
                     .filter(ad => ad.external_link);
+
+                const adsPerSpace = new Map();
+                campaignAds = eligibleAds.filter(ad => {
+                    const maxAds = Math.max(1, Number(ad.max_ads) || 1);
+                    const current = adsPerSpace.get(ad.ad_space_id) || 0;
+                    if (current >= maxAds) return false;
+                    adsPerSpace.set(ad.ad_space_id, current + 1);
+                    return true;
+                });
             }
 
             const organicItems = [...businessPosts, ...notices, ...events, ...courses];
@@ -404,7 +422,7 @@ const discoveryFeedController = {
             }
 
             const [rows] = await db.query(`
-                SELECT cc.id, cc.campaign_id, bc.business_id, cc.ad_space_id, bc.target_audience
+                SELECT cc.id, cc.campaign_id, bc.business_id, cc.ad_space_id, bc.target_audience, a.frequency_cap
                 FROM campaign_creatives cc
                 JOIN business_campaigns bc ON bc.id = cc.campaign_id
                 JOIN businesses b ON b.id = bc.business_id
@@ -432,6 +450,19 @@ const discoveryFeedController = {
                 LIMIT 1
             `, [creativeId, userId]);
             if (existing.length) return res.json({ tracked: false, impression_id: existing[0].id });
+
+            const frequencyCap = Number(creative.frequency_cap || 0);
+            if (frequencyCap > 0) {
+                const [[{ recentSpaceImpressions }]] = await db.query(`
+                    SELECT COUNT(*) AS recentSpaceImpressions
+                    FROM ad_impressions
+                    WHERE ad_space_id = ? AND user_id = ?
+                      AND viewed_at >= NOW() - INTERVAL '24 hours'
+                `, [creative.ad_space_id, userId]);
+                if (Number(recentSpaceImpressions || 0) >= frequencyCap) {
+                    return res.status(429).json({ error: 'Limite de visualização deste espaço atingido.' });
+                }
+            }
 
             const [inserted] = await db.query(`
                 INSERT INTO ad_impressions (creative_id, campaign_id, business_id, ad_space_id, user_id)
