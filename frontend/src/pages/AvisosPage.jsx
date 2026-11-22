@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSocket } from '../hooks/useSocket';
 import './AvisosPage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -46,8 +47,9 @@ export default function AvisosPage() {
   const [lidos, setLidos] = useState({});
   const [expandido, setExpandido] = useState(null);
   const [filtro, setFiltro] = useState('Todos');
+  const { registerEventHandler } = useSocket();
 
-  const loadNotices = async (signal) => {
+  const loadNotices = useCallback(async (signal) => {
     setLoading(true);
     setError('');
     try {
@@ -65,13 +67,26 @@ export default function AvisosPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    loadNotices(controller.signal);
-    return () => controller.abort();
-  }, []);
+    let activeController = null;
+    const refreshNotices = () => {
+      activeController?.abort();
+      activeController = new AbortController();
+      loadNotices(activeController.signal);
+    };
+
+    const unsubscribe = registerEventHandler('admin_content_changed', change => {
+      if (change?.resource === 'notices') refreshNotices();
+    });
+
+    refreshNotices();
+    return () => {
+      activeController?.abort();
+      unsubscribe();
+    };
+  }, [loadNotices, registerEventHandler]);
 
   const categorias = useMemo(
     () => ['Todos', ...new Set(avisos.map(aviso => aviso.categoria).filter(Boolean))],
