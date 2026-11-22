@@ -162,6 +162,81 @@ const deleteEvent = async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Erro ao apagar evento' }); }
 };
 
+const listEventRegistrations = async (req, res) => {
+    try {
+        const eventId = Number.parseInt(req.params.id, 10);
+        const [events] = await db.query(
+            'SELECT id, title, vacancies FROM events WHERE id = ?', [eventId]
+        );
+        if (!events.length) return res.status(404).json({ error: 'Evento não encontrado.' });
+        const [registrations] = await db.query(
+            `SELECT er.event_id, er.user_id, er.registration_name, er.team_name,
+                    er.participation_type, er.shift, er.course, er.notes, er.created_at,
+                    u.name AS account_name, u.email, u.avatar, u.unit
+             FROM event_registrations er
+             LEFT JOIN users u ON u.id = er.user_id
+             WHERE er.event_id = ?
+             ORDER BY er.created_at DESC`,
+            [eventId]
+        );
+        res.json({
+            event: events[0],
+            registrations,
+            enrolled_count: registrations.length,
+            available_vacancies: Number(events[0].vacancies) > 0
+                ? Math.max(Number(events[0].vacancies) - registrations.length, 0)
+                : null
+        });
+    } catch (err) {
+        console.error('Erro ao listar inscritos do evento:', err);
+        res.status(500).json({ error: 'Não foi possível carregar os inscritos.' });
+    }
+};
+
+const sendEventMessage = async (req, res) => {
+    try {
+        const admin = req.admin;
+        const eventId = Number.parseInt(req.params.id, 10);
+        const message = String(req.body?.message || '').trim();
+        const audience = req.body?.audience === 'unit' ? 'unit' : 'registered';
+        if (!message) return res.status(400).json({ error: 'Escreva uma mensagem antes de enviar.' });
+        if (message.length > 1000) return res.status(400).json({ error: 'A mensagem deve ter até 1000 caracteres.' });
+        const [events] = await db.query('SELECT id, title, unit FROM events WHERE id = ?', [eventId]);
+        if (!events.length) return res.status(404).json({ error: 'Evento não encontrado.' });
+
+        let recipients;
+        if (audience === 'unit') {
+            const [users] = await db.query(
+                `SELECT id FROM users
+                 WHERE id <> ? AND is_blocked = FALSE AND deleted_at IS NULL
+                   AND (? = '' OR LOWER(TRIM(COALESCE(unit, ''))) = LOWER(TRIM(?)))`,
+                [admin.id, String(events[0].unit || ''), String(events[0].unit || '')]
+            );
+            recipients = users;
+        } else {
+            const [users] = await db.query(
+                'SELECT user_id AS id FROM event_registrations WHERE event_id = ?', [eventId]
+            );
+            recipients = users;
+        }
+
+        const notificationController = require('./notificationController');
+        const content = `Sobre o evento "${events[0].title}": ${message}`;
+        for (const recipient of recipients) {
+            await notificationController.createNotification(
+                recipient.id, 'event_reminder', admin.id, content, 'event', eventId,
+                null, { event_id: eventId, event_title: events[0].title }
+            );
+        }
+        await logAdminAction(admin.id, 'EVENT_MESSAGE_SENT', 'event', eventId,
+            `Enviou mensagem do evento "${events[0].title}" para ${recipients.length} usuário(s)`, null, req);
+        res.json({ sent: recipients.length, message: 'Mensagem enviada.' });
+    } catch (err) {
+        console.error('Erro ao enviar mensagem do evento:', err);
+        res.status(500).json({ error: 'Não foi possível enviar a mensagem.' });
+    }
+};
+
 // ─── NOTICES ──────────────────────────────────────────────────────────────────
 
 const listNotices = async (req, res) => {
@@ -389,7 +464,7 @@ const blockUser = async (req, res) => {
 };
 
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, deleteEvent,
+    listEvents, getEvent, createEvent, updateEvent, deleteEvent, listEventRegistrations, sendEventMessage,
     listNotices, createNotice, updateNotice, deleteNotice,
     listCourses, getCourse, createCourse, updateCourse, deleteCourse,
     listUsers, blockUser
