@@ -38,8 +38,10 @@ const settingsController = {
                 privacy: { ...defaults.privacy, ...parseObject(stored.privacy) },
                 accessibility: { ...defaults.accessibility, ...parseObject(stored.accessibility), ...accessibility }
             };
-            result.privacy.profileVisibility = user.privacy_showProfile || result.privacy.profileVisibility;
-            result.privacy.showEmail = user.privacy_showEmail === 1 || user.privacy_showEmail === true;
+            const storedProfileVisibility = user.privacy_showprofile ?? user.privacy_showProfile;
+            const storedShowEmail = user.privacy_showemail ?? user.privacy_showEmail;
+            result.privacy.profileVisibility = storedProfileVisibility || result.privacy.profileVisibility;
+            result.privacy.showEmail = storedShowEmail === 1 || storedShowEmail === true;
             res.status(200).json(result);
         } catch (error) {
             console.error('Erro ao buscar configurações:', error);
