@@ -448,8 +448,12 @@ const messageController = {
         try {
             const loggedUserId = req.user.id;
             const { id } = req.params;
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 50;
+            const requestedPage = Number.parseInt(req.query.page, 10);
+            const requestedLimit = Number.parseInt(req.query.limit, 10);
+            const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+            const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+                ? Math.min(requestedLimit, 100)
+                : 50;
             const offset = (page - 1) * limit;
 
             // Check if it's a group conversation
@@ -474,7 +478,7 @@ const messageController = {
                     FROM group_messages gm
                     JOIN users u ON u.id = gm.sender_id
                     WHERE gm.group_id = ?
-                    ORDER BY gm.created_at DESC
+                    ORDER BY gm.created_at DESC, gm.id DESC
                     LIMIT ? OFFSET ?
                 `, [id, limit, offset]);
 
@@ -534,7 +538,7 @@ const messageController = {
                     SELECT * FROM messages
                     WHERE (sender_id = ? AND receiver_id = ?)
                        OR (sender_id = ? AND receiver_id = ?)
-                    ORDER BY created_at DESC
+                    ORDER BY created_at DESC, id DESC
                     LIMIT ? OFFSET ?
                 `, [loggedUserId, peerId, peerId, loggedUserId, limit, offset]);
 
