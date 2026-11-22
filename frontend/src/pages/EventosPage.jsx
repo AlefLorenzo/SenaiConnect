@@ -1,209 +1,160 @@
-import React, { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './EventosPage.css';
 
-const eventos = [
-  {
-    id: 1,
-    titulo: 'Hackathon SENAI 2025',
-    descricao:
-      'Maratona de inovação com foco em soluções sustentáveis para a indústria 4.0. Equipes de até 5 pessoas competem por prêmios e reconhecimento.',
-    data: '2025-07-15',
-    hora: '08:00',
-    local: 'Auditório Principal – SENAI São Paulo',
-    categoria: 'Competição',
-    vagas: 120,
-    vagasRestantes: 34,
-    imagem: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&q=80',
-    organizador: 'Equipe SENAI Digital',
-    tags: ['Tecnologia', 'Inovação', 'Prêmios'],
-  },
-  {
-    id: 2,
-    titulo: 'Semana da Indústria 4.0',
-    descricao:
-      'Palestras, workshops e demonstrações ao vivo de automação, robótica, IoT e inteligência artificial aplicados ao setor industrial.',
-    data: '2025-08-05',
-    hora: '09:00',
-    local: 'Pavilhão B – SENAI Campinas',
-    categoria: 'Palestra',
-    vagas: 300,
-    vagasRestantes: 155,
-    imagem: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=600&q=80',
-    organizador: 'Diretoria de Inovação',
-    tags: ['Indústria 4.0', 'IoT', 'Robótica'],
-  },
-  {
-    id: 3,
-    titulo: 'Workshop: Design UX/UI',
-    descricao:
-      'Aprenda na prática as principais metodologias de design centrado no usuário. Ferramentas como Figma e Adobe XD serão utilizadas.',
-    data: '2025-07-28',
-    hora: '14:00',
-    local: 'Lab. de Informática 3 – SENAI São Paulo',
-    categoria: 'Workshop',
-    vagas: 30,
-    vagasRestantes: 8,
-    imagem: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&q=80',
-    organizador: 'Prof. Carla Mendes',
-    tags: ['Design', 'UX', 'Figma'],
-  },
-  {
-    id: 4,
-    titulo: 'Feira de Profissões SENAI',
-    descricao:
-      'Conheça as áreas de atuação disponíveis, converse com profissionais do mercado e descubra qual curso combina com o seu perfil.',
-    data: '2025-09-10',
-    hora: '10:00',
-    local: 'Campus SENAI Santo André',
-    categoria: 'Feira',
-    vagas: 500,
-    vagasRestantes: 320,
-    imagem: 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=600&q=80',
-    organizador: 'Coordenadoria Geral',
-    tags: ['Carreiras', 'Mercado', 'Networking'],
-  },
-];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const categoriaColors = {
-  Competição: '#ef4444',
-  Palestra: '#3b82f6',
-  Workshop: '#8b5cf6',
-  Feira: '#f59e0b',
+const formatDate = (value) => {
+  if (!value) return { day: '--', month: '', full: 'Data a confirmar' };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { day: '--', month: '', full: 'Data a confirmar' };
+  return {
+    day: date.toLocaleDateString('pt-BR', { day: '2-digit' }),
+    month: date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+    full: date.toLocaleDateString('pt-BR', { dateStyle: 'full' })
+  };
 };
 
-function formatDate(dateStr) {
-  const [y, m, d] = dateStr.split('-');
-  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  return { day: d, month: months[parseInt(m) - 1], year: y };
-}
+const categoryColor = {
+  competição: '#ef4444',
+  palestra: '#3b82f6',
+  workshop: '#8b5cf6',
+  feira: '#f59e0b',
+  curso: '#0d8abc'
+};
 
 export default function EventosPage() {
-  const [inscrito, setInscrito] = useState({});
-  const [modal, setModal] = useState(null);
-  const [filtro, setFiltro] = useState('Todos');
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('Todos');
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const categorias = ['Todos', ...new Set(eventos.map((e) => e.categoria))];
-  const filtrados = filtro === 'Todos' ? eventos : eventos.filter((e) => e.categoria === filtro);
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadEvents = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`${API_URL}/api/events`, {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` },
+          signal: controller.signal
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os eventos.');
+        setEvents(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (err.name !== 'AbortError') setError(err.message || 'Erro ao carregar os eventos.');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    loadEvents();
+    return () => controller.abort();
+  }, []);
 
-  const handleInscricao = (id) => {
-    setInscrito((prev) => ({ ...prev, [id]: !prev[id] }));
-    if (modal?.id === id) setModal(null);
-  };
+  const categories = useMemo(
+    () => ['Todos', ...new Set(events.map(event => event.category).filter(Boolean))],
+    [events]
+  );
+  const filteredEvents = filter === 'Todos' ? events : events.filter(event => event.category === filter);
+  const registeredCount = events.reduce((sum, event) => sum + Number(event.enrolled_count || 0), 0);
 
   return (
     <div className="eventos-page">
-      {/* Hero */}
       <div className="eventos-hero">
         <div className="eventos-hero-content">
           <span className="eventos-badge">📅 Agenda SENAI</span>
           <h1>Eventos & Atividades</h1>
-          <p>Participe de hackathons, workshops, palestras e muito mais. Expanda seu conhecimento e rede de contatos.</p>
+          <p>Eventos e atividades publicados pela administração para sua unidade.</p>
         </div>
         <div className="eventos-stats">
-          <div className="stat-item"><strong>{eventos.length}</strong><span>Eventos</span></div>
-          <div className="stat-item"><strong>{eventos.reduce((acc, e) => acc + (e.vagas - e.vagasRestantes), 0)}</strong><span>Inscritos</span></div>
-          <div className="stat-item"><strong>{Object.keys(inscrito).length}</strong><span>Suas Inscrições</span></div>
+          <div className="stat-item"><strong>{events.length}</strong><span>Eventos publicados</span></div>
+          <div className="stat-item"><strong>{registeredCount.toLocaleString('pt-BR')}</strong><span>Inscrições registradas</span></div>
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="eventos-filtros">
-        {categorias.map((cat) => (
+        {categories.map(category => (
           <button
-            key={cat}
-            className={`filtro-btn ${filtro === cat ? 'active' : ''}`}
-            onClick={() => setFiltro(cat)}
+            key={category}
+            type="button"
+            className={`filtro-btn ${filter === category ? 'active' : ''}`}
+            onClick={() => setFilter(category)}
           >
-            {cat}
+            {category}
           </button>
         ))}
       </div>
 
-      {/* Cards */}
-      <div className="eventos-grid">
-        {filtrados.map((evento) => {
-          const { day, month } = formatDate(evento.data);
-          const ocupacao = Math.round(((evento.vagas - evento.vagasRestantes) / evento.vagas) * 100);
-          const estaInscrito = inscrito[evento.id];
+      {loading && <div className="card" style={{ padding: 32, textAlign: 'center' }}>Carregando eventos publicados…</div>}
+      {error && <div className="card" role="alert" style={{ padding: 24, color: 'var(--color-error, #b91c1c)' }}>{error}</div>}
 
-          return (
-            <div key={evento.id} className="evento-card" onClick={() => setModal(evento)}>
-              <div className="evento-img-wrapper">
-                <img src={evento.imagem} alt={evento.titulo} />
-                <span
-                  className="evento-categoria"
-                  style={{ background: categoriaColors[evento.categoria] }}
-                >
-                  {evento.categoria}
-                </span>
-                {estaInscrito && <span className="evento-inscrito-badge">✓ Inscrito</span>}
-              </div>
-
-              <div className="evento-body">
-                <div className="evento-date-block">
-                  <span className="ev-day">{day}</span>
-                  <span className="ev-month">{month}</span>
+      {!loading && !error && (
+        <div className="eventos-grid">
+          {filteredEvents.map(event => {
+            const date = formatDate(event.event_date);
+            const enrolled = Number(event.enrolled_count || 0);
+            const vacancies = Number(event.vacancies || 0);
+            const categoryKey = String(event.category || '').toLowerCase();
+            return (
+              <article key={event.id} className="evento-card">
+                <div className="evento-img-wrapper">
+                  {event.image_url ? (
+                    <img src={event.image_url} alt={event.title} loading="lazy" />
+                  ) : (
+                    <div className="evento-image-placeholder" aria-hidden="true">📅</div>
+                  )}
+                  {event.category && (
+                    <span className="evento-categoria" style={{ background: categoryColor[categoryKey] || '#64748b' }}>
+                      {event.category}
+                    </span>
+                  )}
                 </div>
-                <div className="evento-info">
-                  <h3>{evento.titulo}</h3>
-                  <p className="evento-local">📍 {evento.local}</p>
-                  <p className="evento-hora">🕐 {evento.hora}h</p>
-                  <div className="evento-tags">
-                    {evento.tags.map((t) => <span key={t} className="tag">{t}</span>)}
+                <div className="evento-body">
+                  <div className="evento-date-block">
+                    <span className="ev-day">{date.day}</span>
+                    <span className="ev-month">{date.month}</span>
                   </div>
-                  <div className="evento-vagas">
-                    <div className="vagas-bar">
-                      <div className="vagas-fill" style={{ width: `${ocupacao}%` }} />
-                    </div>
-                    <span>{evento.vagasRestantes} vagas restantes</span>
+                  <div className="evento-info">
+                    <h3>{event.title}</h3>
+                    {event.location && <p className="evento-local">📍 {event.location}</p>}
+                    {event.event_time && <p className="evento-hora">🕐 {event.event_time}</p>}
+                    {event.unit && <p className="evento-local">Unidade: {event.unit}</p>}
+                    {vacancies > 0 && <div className="evento-vagas"><span>{Math.max(vacancies - enrolled, 0)} de {vacancies} vagas disponíveis</span></div>}
                   </div>
                 </div>
-              </div>
-
-              <button
-                className={`evento-btn ${estaInscrito ? 'cancelar' : 'inscrever'}`}
-                onClick={(e) => { e.stopPropagation(); handleInscricao(evento.id); }}
-              >
-                {estaInscrito ? 'Cancelar Inscrição' : 'Inscrever-se'}
-              </button>
+                <button type="button" className="evento-btn inscrever" onClick={() => setSelectedEvent(event)}>
+                  Ver detalhes
+                </button>
+              </article>
+            );
+          })}
+          {filteredEvents.length === 0 && (
+            <div className="card" style={{ gridColumn: '1 / -1', padding: 36, textAlign: 'center' }}>
+              {events.length === 0 ? 'Ainda não há eventos publicados para sua unidade.' : 'Nenhum evento nesta categoria.'}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* Modal */}
-      {modal && (
-        <div className="eventos-modal-overlay" onClick={() => setModal(null)}>
-          <div className="eventos-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setModal(null)}>✕</button>
-            <img src={modal.imagem} alt={modal.titulo} className="modal-img" />
+      {selectedEvent && (
+        <div className="eventos-modal-overlay" role="presentation" onClick={() => setSelectedEvent(null)}>
+          <section className="eventos-modal" role="dialog" aria-modal="true" aria-label={selectedEvent.title} onClick={event => event.stopPropagation()}>
+            <button type="button" className="modal-close" aria-label="Fechar detalhes" onClick={() => setSelectedEvent(null)}>×</button>
+            {selectedEvent.image_url && <img src={selectedEvent.image_url} alt="" className="modal-img" />}
             <div className="modal-body">
-              <span
-                className="evento-categoria"
-                style={{ background: categoriaColors[modal.categoria], position: 'static', marginBottom: 12 }}
-              >
-                {modal.categoria}
-              </span>
-              <h2>{modal.titulo}</h2>
-              <p className="modal-desc">{modal.descricao}</p>
+              <h2>{selectedEvent.title}</h2>
+              <p className="modal-desc">{selectedEvent.description || 'Evento publicado pela administração.'}</p>
               <div className="modal-details">
-                <div><strong>📅 Data:</strong> {modal.data.split('-').reverse().join('/')} às {modal.hora}h</div>
-                <div><strong>📍 Local:</strong> {modal.local}</div>
-                <div><strong>👤 Organizador:</strong> {modal.organizador}</div>
-                <div><strong>🎟 Vagas:</strong> {modal.vagasRestantes} de {modal.vagas} disponíveis</div>
+                <div><strong>Data:</strong> {formatDate(selectedEvent.event_date).full}</div>
+                {selectedEvent.event_time && <div><strong>Horário:</strong> {selectedEvent.event_time}</div>}
+                {selectedEvent.location && <div><strong>Local:</strong> {selectedEvent.location}</div>}
+                {selectedEvent.unit && <div><strong>Unidade:</strong> {selectedEvent.unit}</div>}
+                {selectedEvent.author_name && <div><strong>Organizador:</strong> {selectedEvent.author_name}</div>}
+                {Number(selectedEvent.vacancies) > 0 && <div><strong>Vagas:</strong> {Math.max(Number(selectedEvent.vacancies) - Number(selectedEvent.enrolled_count || 0), 0)} de {selectedEvent.vacancies} disponíveis</div>}
               </div>
-              <div className="evento-tags" style={{ marginTop: 16 }}>
-                {modal.tags.map((t) => <span key={t} className="tag">{t}</span>)}
-              </div>
-              <button
-                className={`evento-btn ${inscrito[modal.id] ? 'cancelar' : 'inscrever'}`}
-                style={{ width: '100%', marginTop: 24 }}
-                onClick={() => handleInscricao(modal.id)}
-              >
-                {inscrito[modal.id] ? 'Cancelar Inscrição' : 'Confirmar Inscrição'}
-              </button>
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>
