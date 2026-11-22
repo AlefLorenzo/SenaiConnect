@@ -1,6 +1,6 @@
 import React from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Bell, CalendarDays, BookOpen } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { Building2, Bell, CalendarDays, BookOpen } from 'lucide-react';
 import './DivulgacaoNavigation.css';
 
 const items = [
@@ -11,10 +11,6 @@ const items = [
 ];
 
 export default function DivulgacaoNavigation({ children }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const isHome = location.pathname === '/divulgacao';
-
   return (
     <div className="divulgacao-workspace">
       <aside className="divulgacao-navigation" aria-label="Navegação da área de divulgação">
@@ -37,17 +33,6 @@ export default function DivulgacaoNavigation({ children }) {
             </NavLink>
           ))}
         </nav>
-
-        {!isHome && (
-          <button
-            type="button"
-            className="divulgacao-back-button"
-            onClick={() => navigate('/divulgacao')}
-          >
-            <ArrowLeft size={18} />
-            <span>Voltar para divulgação</span>
-          </button>
-        )}
       </aside>
 
       <section className="divulgacao-workspace-content">
