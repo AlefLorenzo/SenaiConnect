@@ -60,14 +60,44 @@ const postController = {
                 LIMIT 1
             `, [result.insertId]);
 
-            res.status(201).json(createdRows[0] || {
+            const createdPost = createdRows[0] || {
                 id: result.insertId,
                 user_id: userId,
                 content: content || '',
                 attachment_url: attachment_url || null,
                 attachment_type: attachment_type || null,
                 attachment_name: attachment_name || null
-            });
+            };
+
+            // Publicações feitas por contas administrativas geram aviso no centro
+            // de notificações para todos os usuários ativos (sem expor conteúdo via socket).
+            const isAdminAuthor = Boolean(req.user.admin_role) ||
+                ['admin', 'administrator', 'administrador', 'super_admin'].includes(String(req.user.role || '').toLowerCase());
+            if (isAdminAuthor) {
+                try {
+                    const [recipients] = await db.query(
+                        'SELECT id FROM users WHERE id <> ? AND is_blocked = 0 AND deleted_at IS NULL AND admin_role IS NULL',
+                        [userId]
+                    );
+                    const notificationController = require('./notificationController');
+                    for (const recipient of recipients) {
+                        await notificationController.createNotification(
+                            recipient.id,
+                            'admin_publication',
+                            userId,
+                            'Nova publicação institucional no mural.',
+                            'post',
+                            createdPost.id,
+                            null,
+                            { resource: 'posts', title: 'Nova publicação institucional' }
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Erro ao notificar publicação administrativa:', notificationError);
+                }
+            }
+
+            res.status(201).json(createdPost);
         } catch (error) {
             console.error('Erro ao criar post:', error);
             res.status(500).json({ error: 'Erro ao criar post' });
