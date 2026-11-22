@@ -322,22 +322,44 @@ describe('StoryViewer', () => {
     expect(screen.getByRole('img', { name: '😂' })).toBeInTheDocument();
   });
 
+  test('does not allow replying to the current user\'s own story', () => {
+    const ownerGroups = [{
+      user_id: '1',
+      user_name: 'Current User',
+      user_avatar: 'current-avatar.jpg',
+      stories: [{
+        id: '1',
+        media_url: 'my-story.jpg',
+        media_type: 'image',
+        text_content: 'My story',
+        created_at: new Date().toISOString(),
+        views_count: 0,
+        background_color: null,
+      }],
+    }];
+
+    renderStoryViewer({ storyGroups: ownerGroups });
+
+    expect(screen.queryByLabelText('Responder')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Responder em particular' })).not.toBeInTheDocument();
+  });
+
   test('opens replies panel on message button click', () => {
     renderStoryViewer();
     fireEvent.click(screen.getByLabelText('Responder'));
-    expect(screen.getByText('Responder')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Escreva uma resposta...')).toBeInTheDocument();
+    expect(screen.getByText('Responder em particular')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Escreva uma mensagem...')).toBeInTheDocument();
   });
 
   test('submits reply on form submit', async () => {
     const onReply = jest.fn();
     renderStoryViewer({ onReply });
     fireEvent.click(screen.getByLabelText('Responder'));
-    const textarea = screen.getByPlaceholderText('Escreva uma resposta...');
+    const textarea = screen.getByPlaceholderText('Escreva uma mensagem...');
     fireEvent.change(textarea, { target: { value: 'Test reply' } });
-    fireEvent.click(screen.getByText('Enviar'));
+    fireEvent.click(screen.getByText('Enviar mensagem'));
     await waitFor(() => {
-      expect(onReply).toHaveBeenCalledWith('1', 'Test reply');
+      expect(onReply).toHaveBeenCalledWith('1', 'Test reply', { id: 1 });
       expect(storiesService.replyToStory).toHaveBeenCalledWith('1', 'Test reply');
     });
   });
