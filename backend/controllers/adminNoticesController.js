@@ -15,11 +15,17 @@ const adminNoticesController = {
                 ORDER BY value ASC
             `);
             const [units] = await db.query(`
-                SELECT DISTINCT TRIM(unit) AS value
-                FROM users
-                WHERE COALESCE(TRIM(unit), '') <> ''
-                  AND is_blocked = 0
-                  AND deleted_at IS NULL
+                SELECT value FROM (
+                    SELECT TRIM(name) AS value
+                    FROM units
+                    WHERE is_active = 1 AND COALESCE(TRIM(name), '') <> ''
+                    UNION
+                    SELECT TRIM(unit) AS value
+                    FROM users
+                    WHERE COALESCE(TRIM(unit), '') <> ''
+                      AND is_blocked = 0
+                      AND deleted_at IS NULL
+                ) available_units
                 ORDER BY value ASC
             `);
             res.json({
@@ -443,9 +449,10 @@ async function sendNoticeNotifications(notice, recipientsJson) {
             );
         } else if (recipients.type === 'units' && values.length > 0) {
             [users] = await db.query(
-                `SELECT id FROM users
-                 WHERE LOWER(TRIM(COALESCE(unit, ''))) IN (${values.map(() => '?').join(',')})
-                   AND is_blocked = 0 AND deleted_at IS NULL`,
+                `SELECT users.id FROM users
+                 LEFT JOIN units unit ON unit.id = users.unit_id
+                 WHERE LOWER(TRIM(COALESCE(NULLIF(users.unit, ''), unit.name, ''))) IN (${values.map(() => '?').join(',')})
+                   AND users.is_blocked = 0 AND users.deleted_at IS NULL`,
                 values.map(value => value.toLowerCase())
             );
         } else if (recipients.type === 'admins') {
