@@ -97,8 +97,11 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  font-size: var(--text-lg);
   flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  width: 36px;
+  height: 36px;
 }
 
 .activity-item__body {
@@ -332,7 +335,8 @@
   .activity-item__icon {
     width: 28px;
     height: 28px;
-    font-size: var(--text-base);
+    width: 30px;
+    height: 30px;
   }
 
   .activity-item__content {
