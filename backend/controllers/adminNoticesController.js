@@ -355,7 +355,7 @@ const adminNoticesController = {
             await logAdminAction(admin.id, publish ? 'NOTICE_PUBLISHED' : 'NOTICE_UNPUBLISHED', 'notice', parseInt(id), `${publish ? 'Publicou' : 'Despublicou'} o aviso "${updated[0].title}"`, null, req);
 
             // Enviar notificações se publicado
-            if (publish && updated[0].send_notification) {
+            if (publish && notice.status !== 'published' && updated[0].send_notification) {
                 await sendNoticeNotifications(updated[0], updated[0].recipients);
             }
 
