@@ -2035,32 +2035,40 @@ const ConversationHeader = ({
             <ArrowLeft size={24} />
           </button>
         )}
-        <Avatar user={contact} style={{ width: '40px', height: '40px' }} />
-        <div className="chat-user-info">
-          <h3>{isGroup ? contact.name : (otherParticipant?.name || contact.name)}</h3>
-          <span className="contact-status">
-            {isGroup ? (
-              <>
-                <span className={`status-dot ${onlineCount > 0 ? 'online' : ''}`} aria-hidden="true"></span>
-                <span>{totalParticipants} {totalParticipants === 1 ? 'membro' : 'membros'}</span>
-                {admins.length > 0 && (
-                  <>
-                    <span className="admin-separator" aria-hidden="true">·</span>
-                    <span className="admin-badge">
-                      <Shield size={10} aria-hidden="true" />
-                      {admins.length} admin{admins.length > 1 ? 's' : ''}
-                    </span>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <span className={`status-dot ${participantOnline ? 'online' : ''}`} aria-hidden="true"></span>
-                <span>{participantOnline ? 'Online' : 'Offline'}</span>
-              </>
-            )}
-          </span>
-        </div>
+        <button
+          type="button"
+          className="chat-group-info-trigger"
+          onClick={onGroupInfo}
+          disabled={!isGroup}
+          aria-label={isGroup ? 'Abrir informações do grupo' : undefined}
+        >
+          <Avatar user={contact} style={{ width: '40px', height: '40px' }} />
+          <div className="chat-user-info">
+            <h3>{isGroup ? contact.name : (otherParticipant?.name || contact.name)}</h3>
+            <span className="contact-status">
+              {isGroup ? (
+                <>
+                  <span className={`status-dot ${onlineCount > 0 ? 'online' : ''}`} aria-hidden="true"></span>
+                  <span>{totalParticipants} {totalParticipants === 1 ? 'membro' : 'membros'}</span>
+                  {admins.length > 0 && (
+                    <>
+                      <span className="admin-separator" aria-hidden="true">·</span>
+                      <span className="admin-badge">
+                        <Shield size={10} aria-hidden="true" />
+                        {admins.length} admin{admins.length > 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className={`status-dot ${participantOnline ? 'online' : ''}`} aria-hidden="true"></span>
+                  <span>{participantOnline ? 'Online' : 'Offline'}</span>
+                </>
+              )}
+            </span>
+          </div>
+        </button>
       </div>
       <div className="chat-actions">
         <button
