@@ -1194,14 +1194,34 @@ const messageController = {
                 return res.status(404).json({ error: 'Usuário não é membro do grupo.' });
             }
 
+            if (typeof isAdmin !== 'boolean') {
+                return res.status(400).json({ error: 'O status de administrador é inválido.' });
+            }
+
             if (isAdmin) {
                 await db.query(
                     'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE assigned_by = ?',
                     [id, userId, loggedUserId, loggedUserId]
                 );
+                await db.query(
+                    "UPDATE group_members SET role = 'admin' WHERE group_id = ? AND user_id = ?",
+                    [id, userId]
+                );
             } else {
+                // Do not allow the last administrator to leave the group without an administrator.
+                const [otherAdmins] = await db.query(
+                    'SELECT admin_id FROM group_admins WHERE group_id = ? AND admin_id <> ?',
+                    [id, userId]
+                );
+                if (otherAdmins.length === 0) {
+                    return res.status(400).json({ error: 'Promova outro participante antes de remover o último administrador.' });
+                }
                 await db.query(
                     'DELETE FROM group_admins WHERE group_id = ? AND admin_id = ?',
+                    [id, userId]
+                );
+                await db.query(
+                    "UPDATE group_members SET role = 'member' WHERE group_id = ? AND user_id = ?",
                     [id, userId]
                 );
             }
