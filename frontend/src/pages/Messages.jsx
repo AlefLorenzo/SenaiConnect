@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useContext, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import {
   Search, Send, Phone, Video, MoreVertical, MessageSquare,
   ArrowLeft, Paperclip, X,
   Users, Inbox, Send as SendIcon, Image, FileText, X as XIcon,
-  Smile, Mic, Loader2, Shield, X as CloseIcon, Check, CheckCheck, AlertCircle, WifiOff
+  Smile, Mic, Loader2, Shield, X as CloseIcon, Check, CheckCheck, AlertCircle, WifiOff, Plus
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
@@ -82,6 +83,142 @@ const validateFile = (file, type) => {
 // Generate a unique temporary ID for optimistic messages
 const generateTempId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+
+const GroupCreationModal = ({
+  open, name, setName, description, setDescription,
+  search, setSearch, contacts, selectedIds, loadingContacts,
+  creating, error, onToggleContact, onClose, onSubmit
+}) => {
+  if (!open) return null;
+
+  const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR');
+  const filteredContacts = contacts.filter(contact => (
+    (contact.name || '').toLocaleLowerCase('pt-BR').includes(normalizedSearch)
+  ));
+
+  return createPortal(
+    <div
+      className="group-create-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="group-create-modal" role="dialog" aria-modal="true" aria-labelledby="group-create-title">
+        <header className="group-create-header">
+          <div>
+            <h2 id="group-create-title">Criar grupo</h2>
+            <p>Escolha pessoas com quem você já conversou, segue ou que seguem você.</p>
+          </div>
+          <button type="button" className="group-create-close" onClick={onClose} aria-label="Fechar">
+            <X size={20} />
+          </button>
+        </header>
+
+        <form onSubmit={onSubmit} className="group-create-form">
+          <label className="group-create-field">
+            <span>Nome do grupo</span>
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Ex.: Projeto de Robótica"
+              maxLength={80}
+              required
+            />
+          </label>
+
+          <label className="group-create-field">
+            <span>Descrição <small>(opcional)</small></span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Sobre o que é este grupo?"
+              maxLength={300}
+              rows={2}
+            />
+          </label>
+
+          <div className="group-create-contacts-heading">
+            <div>
+              <strong>Adicionar participantes</strong>
+              <span>{selectedIds.length} selecionado(s)</span>
+            </div>
+            <span>{contacts.length} contato(s) disponível(is)</span>
+          </div>
+
+          <div className="group-create-search">
+            <Search size={17} />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar pessoas..."
+              aria-label="Buscar participantes"
+            />
+          </div>
+
+          <div className="group-create-contact-list">
+            {loadingContacts ? (
+              <div className="group-create-empty">
+                <Loader2 size={22} className="spin" />
+                <span>Carregando contatos...</span>
+              </div>
+            ) : filteredContacts.length > 0 ? (
+              filteredContacts.map(contact => {
+                const isSelected = selectedIds.some(id => String(id) === String(contact.id));
+                const relationLabels = [];
+                if (contact.has_conversation) relationLabels.push('Já conversaram');
+                if (contact.is_following) relationLabels.push('Você segue');
+                if (contact.follows_you) relationLabels.push('Segue você');
+
+                return (
+                  <label key={contact.id} className={'group-create-contact' + (isSelected ? ' selected' : '')}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleContact(contact.id)}
+                    />
+                    <Avatar user={contact} className="group-create-avatar" />
+                    <span className="group-create-contact-info">
+                      <strong>{contact.name || 'Usuário'}</strong>
+                      <small>{relationLabels.join(' · ') || 'Contato disponível'}</small>
+                    </span>
+                    <span className="group-create-check" aria-hidden="true">
+                      {isSelected ? <Check size={16} /> : null}
+                    </span>
+                  </label>
+                );
+              })
+            ) : (
+              <div className="group-create-empty">
+                <Users size={26} />
+                <span>{contacts.length ? 'Nenhuma pessoa encontrada para esta busca.' : 'Nenhum contato elegível ainda.'}</span>
+                {!contacts.length && <small>Converse com alguém ou siga/receba um seguidor para poder adicioná-lo.</small>}
+              </div>
+            )}
+          </div>
+
+          {error && <p className="group-create-error" role="alert">{error}</p>}
+
+          <footer className="group-create-footer">
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={creating}>Cancelar</button>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={creating || loadingContacts || !name.trim() || selectedIds.length === 0}
+            >
+              {creating ? <><Loader2 size={16} className="spin" /> Criando...</> : <><Users size={16} /> Criar grupo</>}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>,
+    document.body
+  );
+};
+
 const Messages = () => {
   const { user } = useContext(AuthContext);
   const {
@@ -110,6 +247,15 @@ const Messages = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [conversations, setConversations] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [isGroupCreatorOpen, setIsGroupCreatorOpen] = useState(false);
+  const [groupCreatorName, setGroupCreatorName] = useState('');
+  const [groupCreatorDescription, setGroupCreatorDescription] = useState('');
+  const [groupContactSearch, setGroupContactSearch] = useState('');
+  const [eligibleGroupContacts, setEligibleGroupContacts] = useState([]);
+  const [selectedGroupContactIds, setSelectedGroupContactIds] = useState([]);
+  const [loadingGroupContacts, setLoadingGroupContacts] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupCreatorError, setGroupCreatorError] = useState('');
   const [selectedContact, setSelectedContact] = useState(null);
   const [history, setHistory] = useState([]);
   const [messageText, setMessageText] = useState('');
@@ -283,6 +429,94 @@ const Messages = () => {
       console.error('Erro ao buscar grupos:', err);
     }
   }, []);
+
+  const openGroupCreator = useCallback(async () => {
+    setIsGroupCreatorOpen(true);
+    setGroupCreatorName('');
+    setGroupCreatorDescription('');
+    setGroupContactSearch('');
+    setSelectedGroupContactIds([]);
+    setGroupCreatorError('');
+    setLoadingGroupContacts(true);
+
+    try {
+      const result = await messagesService.getGroupContacts();
+      const contacts = result?.data || result?.contacts || result;
+      setEligibleGroupContacts(Array.isArray(contacts) ? contacts : []);
+    } catch (error) {
+      console.error('Erro ao carregar contatos elegíveis:', error);
+      setEligibleGroupContacts([]);
+      setGroupCreatorError(error.message || 'Não foi possível carregar seus contatos.');
+    } finally {
+      setLoadingGroupContacts(false);
+    }
+  }, []);
+
+  const toggleGroupContact = useCallback((contactId) => {
+    const id = Number(contactId);
+    setSelectedGroupContactIds(previous => (
+      previous.includes(id)
+        ? previous.filter(selectedId => selectedId !== id)
+        : [...previous, id]
+    ));
+    setGroupCreatorError('');
+  }, []);
+
+  const handleCreateChatGroup = useCallback(async (event) => {
+    event.preventDefault();
+    if (creatingGroup) return;
+
+    const name = groupCreatorName.trim();
+    if (!name) {
+      setGroupCreatorError('Informe um nome para o grupo.');
+      return;
+    }
+    if (selectedGroupContactIds.length === 0) {
+      setGroupCreatorError('Selecione pelo menos uma pessoa para criar o grupo.');
+      return;
+    }
+
+    setCreatingGroup(true);
+    setGroupCreatorError('');
+    try {
+      const result = await messagesService.createGroup({
+        name,
+        description: groupCreatorDescription.trim(),
+        participants: selectedGroupContactIds,
+      });
+      const groupId = result?.id ?? result?.group?.id ?? result?.data?.id;
+      if (!groupId) throw new Error('O grupo foi criado, mas o servidor não retornou seu identificador.');
+
+      const conversation = await messagesService.getConversation(groupId, true);
+      await Promise.all([fetchGroups(), fetchConversations()]);
+
+      const newGroupConversation = {
+        ...conversation,
+        id: String(conversation.id ?? groupId),
+        isGroup: true,
+        participants: conversation.participants || [],
+      };
+
+      setIsGroupCreatorOpen(false);
+      setActiveTab('groups');
+      setSearchTerm('');
+      handleSelectContact(newGroupConversation);
+      setShowMobileChat(true);
+    } catch (error) {
+      console.error('Erro ao criar grupo de conversa:', error);
+      setGroupCreatorError(error.message || 'Não foi possível criar o grupo. Tente novamente.');
+    } finally {
+      setCreatingGroup(false);
+    }
+  }, [
+    creatingGroup,
+    groupCreatorName,
+    groupCreatorDescription,
+    selectedGroupContactIds,
+    fetchGroups,
+    fetchConversations,
+    handleSelectContact,
+  ]);
 
   useEffect(() => {
     // Clear cache to force fresh fetch with fixed transformConversations
@@ -1349,11 +1583,29 @@ const Messages = () => {
             showMobileChat={showMobileChat}
             setShowMobileChat={setShowMobileChat}
             isConnected={isConnected}
+            onCreateGroup={openGroupCreator}
           />
         </aside>
         <div className="messages-chat">
           <ChatEmptyState activeTab={activeTab} />
         </div>
+        <GroupCreationModal
+          open={isGroupCreatorOpen}
+          name={groupCreatorName}
+          setName={setGroupCreatorName}
+          description={groupCreatorDescription}
+          setDescription={setGroupCreatorDescription}
+          search={groupContactSearch}
+          setSearch={setGroupContactSearch}
+          contacts={eligibleGroupContacts}
+          selectedIds={selectedGroupContactIds}
+          loadingContacts={loadingGroupContacts}
+          creating={creatingGroup}
+          error={groupCreatorError}
+          onToggleContact={toggleGroupContact}
+          onClose={() => setIsGroupCreatorOpen(false)}
+          onSubmit={handleCreateChatGroup}
+        />
       </div>
     );
   }
@@ -1379,6 +1631,7 @@ const Messages = () => {
           showMobileChat={showMobileChat}
           setShowMobileChat={setShowMobileChat}
           isConnected={isConnected}
+          onCreateGroup={openGroupCreator}
         />
       </aside>
 
@@ -1532,6 +1785,23 @@ const Messages = () => {
           emojiPickerRef={emojiPickerRef}
         />
       </div>
+      <GroupCreationModal
+        open={isGroupCreatorOpen}
+        name={groupCreatorName}
+        setName={setGroupCreatorName}
+        description={groupCreatorDescription}
+        setDescription={setGroupCreatorDescription}
+        search={groupContactSearch}
+        setSearch={setGroupContactSearch}
+        contacts={eligibleGroupContacts}
+        selectedIds={selectedGroupContactIds}
+        loadingContacts={loadingGroupContacts}
+        creating={creatingGroup}
+        error={groupCreatorError}
+        onToggleContact={toggleGroupContact}
+        onClose={() => setIsGroupCreatorOpen(false)}
+        onSubmit={handleCreateChatGroup}
+      />
     </div>
   );
 };
@@ -1543,7 +1813,7 @@ const MessagesSidebar = ({
   currentContacts, getContactName, getContactAvatar,
   getContactUnread, getOtherParticipant,
   onSelectContact, selectedContactId, isMobile, setShowMobileChat,
-  isConnected
+  isConnected, onCreateGroup
 }) => (
   <div className="messages-sidebar">
     <div className="messages-header">
@@ -1551,9 +1821,21 @@ const MessagesSidebar = ({
         <h2>Mensagens</h2>
       </div>
       <div className="header-right">
-        <button className="icon-btn-transparent" aria-label="Nova mensagem">
-          <SendIcon size={24} color="#0056D2" />
-        </button>
+        {activeTab === 'groups' ? (
+          <button
+            className="icon-btn-transparent"
+            type="button"
+            aria-label="Criar grupo"
+            title="Criar grupo"
+            onClick={onCreateGroup}
+          >
+            <Plus size={24} color="#0056D2" />
+          </button>
+        ) : (
+          <button className="icon-btn-transparent" aria-label="Nova mensagem">
+            <SendIcon size={24} color="#0056D2" />
+          </button>
+        )}
         <button className="icon-btn-transparent" aria-label="Mais opções">
           <MoreVertical size={24} color="#65676B" />
         </button>
