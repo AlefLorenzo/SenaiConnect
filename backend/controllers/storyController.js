@@ -583,15 +583,16 @@ const storyController = {
                 [id, userId, content]
             );
             const replyId = replyResult.insertId;
+            const clientMessageId = `story_reply_${replyId}`;
 
             // The current messaging system stores individual messages by sender/receiver,
-            // not by a separate conversations.id. Use the same schema and canonical chat ID.
+            // not by a separate conversations.id. Use its idempotency field as well.
             const [messageResult] = await connection.execute(
                 `INSERT INTO messages
-                    (sender_id, receiver_id, content, status, message_type)
-                 VALUES (?, ?, ?, 'enviada', 'story_reply')
+                    (sender_id, receiver_id, content, status, message_type, client_message_id)
+                 VALUES (?, ?, ?, 'enviada', 'story_reply', ?)
                  RETURNING id`,
-                [userId, ownerId, content]
+                [userId, ownerId, content, clientMessageId]
             );
             const messageId = messageResult.insertId;
 
@@ -650,6 +651,8 @@ const storyController = {
 
             const messagePayload = {
                 id: messageId,
+                clientMessageId,
+                client_message_id: clientMessageId,
                 conversationId,
                 conversation_id: conversationId,
                 senderId: userId,
