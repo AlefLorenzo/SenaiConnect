@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { storiesService } from '../services/storiesService';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext';
 import StoryViewer from '../components/StoryViewer';
 
