@@ -88,6 +88,7 @@ router.get('/audit/export', adminAuditController.exportLogs);
 // EVENTOS
 // ============================================
 router.get('/events', adminCrudController.listEvents);
+router.get('/events/:id', adminCrudController.getEvent);
 router.post('/events', adminCrudController.createEvent);
 router.put('/events/:id', adminCrudController.updateEvent);
 router.delete('/events/:id', adminCrudController.deleteEvent);
@@ -96,6 +97,7 @@ router.delete('/events/:id', adminCrudController.deleteEvent);
 // CURSOS
 // ============================================
 router.get('/courses', adminCrudController.listCourses);
+router.get('/courses/:id', adminCrudController.getCourse);
 router.post('/courses', adminCrudController.createCourse);
 router.put('/courses/:id', adminCrudController.updateCourse);
 router.delete('/courses/:id', adminCrudController.deleteCourse);
