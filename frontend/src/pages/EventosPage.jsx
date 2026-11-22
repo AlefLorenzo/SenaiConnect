@@ -123,7 +123,7 @@ export default function EventosPage() {
               <article key={event.id} className="evento-card">
                 <div className="evento-img-wrapper">
                   {event.image_url ? (
-                    <img src={event.image_url} alt={event.title} loading="lazy" />
+                    <img src={event.image_url} alt={event.title} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true; e.currentTarget.parentElement.classList.add('has-image-error'); }} />
                   ) : (
                     <div className="evento-image-placeholder" aria-hidden="true">📅</div>
                   )}
@@ -164,7 +164,7 @@ export default function EventosPage() {
         <div className="eventos-modal-overlay" role="presentation" onClick={() => setSelectedEvent(null)}>
           <section className="eventos-modal" role="dialog" aria-modal="true" aria-label={selectedEvent.title} onClick={event => event.stopPropagation()}>
             <button type="button" className="modal-close" aria-label="Fechar detalhes" onClick={() => setSelectedEvent(null)}>×</button>
-            {selectedEvent.image_url && <img src={selectedEvent.image_url} alt="" className="modal-img" />}
+            {selectedEvent.image_url && <img src={selectedEvent.image_url} alt="" className="modal-img" onError={(e) => { e.currentTarget.hidden = true; }} />}
             <div className="modal-body">
               <h2>{selectedEvent.title}</h2>
               <p className="modal-desc">{selectedEvent.description || 'Evento publicado pela administração.'}</p>
