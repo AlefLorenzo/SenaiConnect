@@ -1418,3 +1418,52 @@
     transition: none;
   }
 }
+
+/* Câmera nativa: a permissão é solicitada pelo navegador em cada aparelho. */
+.device-camera-preview {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #080808;
+}
+.device-camera-preview video {
+  display: block;
+  width: 100%;
+  max-height: min(62vh, 620px);
+  object-fit: contain;
+}
+.device-camera-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 18px;
+  padding: 14px;
+  background: #111;
+}
+.device-camera-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255,255,255,.12);
+  cursor: pointer;
+}
+.device-camera-actions .device-camera-capture {
+  width: 58px;
+  height: 58px;
+  border: 4px solid #fff;
+  background: var(--senai-blue-primary, #0056D2);
+}
+.device-camera-error {
+  max-width: 440px;
+  margin: 12px auto 0;
+  color: #dc2626;
+  font-size: 13px;
+  text-align: center;
+}
