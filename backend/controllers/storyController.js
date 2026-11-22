@@ -471,116 +471,239 @@ const storyController = {
         }
     },
 
-    // Reply to story
+    // Reply to a visible, active story. A reply is a normal private DM
+    // linked to the original story so the chat can render its WhatsApp-style quote.
     reply: async (req, res) => {
+        let connection;
+        let transactionStarted = false;
+
         try {
             const { id } = req.params;
-            const userId = req.user.id;
-            const { content } = req.body;
+            const userId = Number(req.user.id);
+            const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
 
-            if (!content || !content.trim()) {
+            if (!Number.isSafeInteger(userId) || userId <= 0) {
+                return res.status(401).json({ error: 'Sessão inválida. Entre novamente.' });
+            }
+            if (!/^\d+$/.test(String(id))) {
+                return res.status(400).json({ error: 'Identificador de story inválido.' });
+            }
+            if (!content) {
                 return res.status(400).json({ error: 'A resposta não pode estar vazia.' });
             }
-
-            const connection = await db.getConnection();
-            try {
-                await connection.beginTransaction();
-
-                // Create reply
-                const [result] = await connection.execute(
-                    'INSERT INTO story_replies (story_id, user_id, content) VALUES (?, ?, ?)',
-                    [id, userId, content.trim()]
-                );
-
-                // Update reply count on story
-                await connection.execute(
-                    'UPDATE stories SET reply_count = COALESCE(reply_count, 0) + 1 WHERE id = ?',
-                    [id]
-                );
-
-                // Get story owner for notification and message integration
-                const [story] = await connection.execute('SELECT user_id FROM stories WHERE id = ?', [id]);
-                let messageId = null;
-
-                if (story.length > 0 && story[0].user_id !== userId) {
-                    // Create a message in the conversation for reply integration
-                    const [convCheck] = await connection.execute(
-                        `SELECT id FROM conversations WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)`,
-                        [userId, story[0].user_id, story[0].user_id, userId]
-                    );
-
-                    let conversationId;
-                    if (convCheck.length > 0) {
-                        conversationId = convCheck[0].id;
-                    } else {
-                        const [newConv] = await connection.execute(
-                            'INSERT INTO conversations (user1_id, user2_id) VALUES (?, ?)',
-                            [Math.min(userId, story[0].user_id), Math.max(userId, story[0].user_id)]
-                        );
-                        conversationId = newConv.insertId;
-                    }
-
-                    // Create message for the reply
-                    const [msgResult] = await connection.execute(
-                        `INSERT INTO messages (conversation_id, sender_id, content, message_type) VALUES (?, ?, ?, 'story_reply')`,
-                        [conversationId, userId, content.trim()]
-                    );
-                    messageId = msgResult.insertId;
-
-                    // Update reply with message_id
-                    await connection.execute(
-                        'UPDATE story_replies SET message_id = ? WHERE id = ?',
-                        [messageId, result.insertId]
-                    );
-
-                    // Notify story owner
-                    const [replier] = await connection.execute('SELECT name FROM users WHERE id = ?', [userId]);
-                    socketHelper.sendToUser(story[0].user_id, 'story_reply', {
-                        storyId: parseInt(id),
-                        replyId: result.insertId,
-                        content: content.trim(),
-                        fromUserId: userId,
-                        fromUserName: replier[0]?.name || 'Alguém',
-                        messageId
-                    });
-
-                    // Create Activity Center notification
-                    const notificationController = require('./notificationController');
-                    await notificationController.createNotification(
-                        story[0].user_id,
-                        'story_reply',
-                        userId,
-                        'respondeu à sua história.',
-                        'story',
-                        parseInt(id),
-                        `story_${id}_reply`,
-                        { action: 'reply', story_id: parseInt(id), reply_id: result.insertId, message_id: messageId }
-                    );
-
-                    // Emit new message for real-time chat
-                    socketHelper.sendToUser(story[0].user_id, 'new_message', {
-                        id: messageId,
-                        conversation_id: conversationId,
-                        sender_id: userId,
-                        content: content.trim(),
-                        message_type: 'story_reply',
-                        story_id: parseInt(id),
-                        created_at: new Date().toISOString()
-                    });
-                }
-
-                await connection.commit();
-
-                res.status(201).json({ id: result.insertId, messageId });
-            } catch (error) {
-                await connection.rollback();
-                throw error;
-            } finally {
-                connection.release();
+            if (content.length > 500) {
+                return res.status(400).json({ error: 'A resposta pode ter no máximo 500 caracteres.' });
             }
+
+            connection = await db.getConnection();
+            await connection.beginTransaction();
+            transactionStarted = true;
+
+            const [storyRows] = await connection.execute(
+                `SELECT s.id, s.user_id, s.media_url, s.media_type, s.text_content,
+                        s.background_color, s.created_at, s.expires_at, u.name AS owner_name
+                 FROM stories s
+                 JOIN users u ON u.id = s.user_id
+                 WHERE s.id = ?`,
+                [id]
+            );
+
+            if (!storyRows.length) {
+                await connection.rollback();
+                transactionStarted = false;
+                return res.status(404).json({ error: 'Story não encontrado.' });
+            }
+
+            const story = storyRows[0];
+            if (story.expires_at && new Date(story.expires_at).getTime() <= Date.now()) {
+                await connection.rollback();
+                transactionStarted = false;
+                return res.status(410).json({ error: 'Este story expirou e não aceita mais respostas.' });
+            }
+
+            if (Number(story.user_id) === userId) {
+                await connection.rollback();
+                transactionStarted = false;
+                return res.status(400).json({ error: 'Você não pode responder ao seu próprio story.' });
+            }
+
+            // Reuse the same profile/story visibility rules as the stories feed.
+            const [visibleStories] = await connection.execute(
+                `SELECT s.id
+                 FROM stories s
+                 JOIN users u ON u.id = s.user_id
+                 WHERE s.id = ?
+                   AND ${buildPrivacyWhereClause(userId, 'u')}
+                   AND (
+                       s.user_id = ?
+                       OR EXISTS (
+                           SELECT 1
+                           FROM story_privacy_exceptions spe
+                           WHERE spe.story_id = s.id
+                             AND spe.user_id = ?
+                             AND spe.exception_type = 'include'
+                       )
+                       OR (
+                           (
+                               s.privacy = 'public'
+                               OR (
+                                   s.privacy = 'followers'
+                                   AND EXISTS (
+                                       SELECT 1 FROM follows
+                                       WHERE follower_id = ?
+                                         AND followed_id = s.user_id
+                                   )
+                               )
+                           )
+                           AND NOT EXISTS (
+                               SELECT 1
+                               FROM story_privacy_exceptions spe
+                               WHERE spe.story_id = s.id
+                                 AND spe.user_id = ?
+                                 AND spe.exception_type = 'exclude'
+                           )
+                       )
+                   )`,
+                [id, userId, userId, userId, userId]
+            );
+
+            if (!visibleStories.length) {
+                await connection.rollback();
+                transactionStarted = false;
+                return res.status(404).json({ error: 'Este story não está disponível para você.' });
+            }
+
+            const ownerId = Number(story.user_id);
+            const conversationId = [userId, ownerId]
+                .sort((a, b) => a - b)
+                .join('_');
+
+            const [replyResult] = await connection.execute(
+                'INSERT INTO story_replies (story_id, user_id, content) VALUES (?, ?, ?) RETURNING id',
+                [id, userId, content]
+            );
+            const replyId = replyResult.insertId;
+
+            // The current messaging system stores individual messages by sender/receiver,
+            // not by a separate conversations.id. Use the same schema and canonical chat ID.
+            const [messageResult] = await connection.execute(
+                `INSERT INTO messages
+                    (sender_id, receiver_id, content, status, message_type)
+                 VALUES (?, ?, ?, 'enviada', 'story_reply')
+                 RETURNING id`,
+                [userId, ownerId, content]
+            );
+            const messageId = messageResult.insertId;
+
+            await connection.execute(
+                'UPDATE story_replies SET message_id = ? WHERE id = ?',
+                [messageId, replyId]
+            );
+            await connection.execute(
+                'UPDATE stories SET reply_count = COALESCE(reply_count, 0) + 1 WHERE id = ?',
+                [id]
+            );
+
+            const [senderRows] = await connection.execute(
+                'SELECT id, name, avatar FROM users WHERE id = ?',
+                [userId]
+            );
+            const sender = senderRows[0] || { id: userId, name: req.user.name || 'Você', avatar: null };
+
+            const [messageRows] = await connection.execute(
+                'SELECT id, created_at, status FROM messages WHERE id = ?',
+                [messageId]
+            );
+            const createdAt = messageRows[0]?.created_at || new Date().toISOString();
+            const status = messageRows[0]?.status || 'enviada';
+            const storyReply = {
+                storyId: Number(story.id),
+                ownerId,
+                ownerName: story.owner_name,
+                mediaUrl: story.media_url || null,
+                mediaType: story.media_type || null,
+                textContent: story.text_content || '',
+                backgroundColor: story.background_color || null,
+                createdAt: story.created_at,
+            };
+
+            await connection.commit();
+            transactionStarted = false;
+
+            // The private message is already persisted. Notification failures must not
+            // undo a successful story reply or make the client retry and duplicate it.
+            try {
+                const notificationController = require('./notificationController');
+                await notificationController.createNotification(
+                    ownerId,
+                    'story_reply',
+                    userId,
+                    'respondeu à sua história.',
+                    'story',
+                    Number(id),
+                    `story_${id}_reply_${replyId}`,
+                    { action: 'reply', story_id: Number(id), reply_id: replyId, message_id: messageId }
+                );
+            } catch (notificationError) {
+                console.warn('Falha ao criar notificação de resposta ao story:', notificationError.message);
+            }
+
+            const messagePayload = {
+                id: messageId,
+                conversationId,
+                conversation_id: conversationId,
+                senderId: userId,
+                sender_id: userId,
+                receiverId: ownerId,
+                receiver_id: ownerId,
+                senderName: sender.name,
+                sender_name: sender.name,
+                senderAvatar: sender.avatar,
+                sender_avatar: sender.avatar,
+                content,
+                type: 'story_reply',
+                message_type: 'story_reply',
+                status,
+                createdAt,
+                created_at: createdAt,
+                storyReply,
+                story_reply: storyReply,
+            };
+
+            try {
+                socketHelper.sendToUser(ownerId, 'story_reply', {
+                    storyId: Number(id),
+                    replyId,
+                    content,
+                    fromUserId: userId,
+                    fromUserName: sender.name,
+                    messageId,
+                    conversationId,
+                });
+                socketHelper.sendToUser(ownerId, 'new_message', messagePayload);
+            } catch (socketError) {
+                console.warn('Falha ao emitir resposta de story em tempo real:', socketError.message);
+            }
+
+            return res.status(201).json({
+                id: replyId,
+                replyId,
+                messageId,
+                conversationId,
+                message: messagePayload,
+            });
         } catch (error) {
+            if (connection && transactionStarted) {
+                try {
+                    await connection.rollback();
+                } catch (rollbackError) {
+                    console.error('Erro ao reverter resposta de story:', rollbackError);
+                }
+            }
             console.error('Erro ao responder ao story:', error);
-            res.status(500).json({ error: 'Erro ao responder ao story.' });
+            return res.status(500).json({ error: 'Não foi possível enviar sua resposta. Tente novamente.' });
+        } finally {
+            connection?.release();
         }
     },
 
