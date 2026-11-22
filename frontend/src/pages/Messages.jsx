@@ -493,7 +493,7 @@ const Messages = () => {
 
     const intervalId = window.setInterval(() => {
       syncLatestMessages();
-    }, 20000);
+    }, 60000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') syncLatestMessages();
