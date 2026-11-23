@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { acquireModalScrollLock } from '../utils/modalScrollLock.js';
-import { X, Image, Video, Send, AtSign, Smile, MoreHorizontal, PenTool, Crop, Lock, Users, UserMinus, UserPlus, MessageSquare, Heart, Camera, RefreshCw } from 'lucide-react';
+import { X, Image, Video, Send, AtSign, Smile, Ellipsis, Pen, Crop, Lock, Users, UserRoundMinus, UserRoundPlus, MessageSquare, Heart, Camera, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { storiesService } from '../services/storiesService';
 import './CreateStory.css';
@@ -600,7 +600,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
             )}
             {mediaFile && (
               <button className="header-tool-btn" onClick={addTextOverlay} aria-label="Adicionar texto">
-                <PenTool size={22} />
+                <Pen size={22} />
               </button>
             )}
             {mediaFile && (
