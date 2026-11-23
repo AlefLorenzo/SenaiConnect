@@ -47,11 +47,20 @@ export const Lock = createMockIcon('Lock');
 export const UserMinus = createMockIcon('UserMinus');
 export const UserPlus = createMockIcon('UserPlus');
 
+
+export const Ellipsis = createMockIcon('Ellipsis');
+export const Pen = createMockIcon('Pen');
+export const UserRoundMinus = createMockIcon('UserRoundMinus');
+export const UserRoundPlus = createMockIcon('UserRoundPlus');
+export const Camera = createMockIcon('Camera');
+export const RefreshCw = createMockIcon('RefreshCw');
+
 // Default export for any other icons
 const icons = {
   Plus, X, ChevronLeft, ChevronRight, Pause, Play, MessageSquare, Heart,
   MoreVertical, Eye, Users, Flag, Delete, Copy, Image, Paperclip, Smile,
   Video, Send, AtSign, MoreHorizontal, PenTool, Crop, Lock, UserMinus, UserPlus,
+  Ellipsis, Pen, UserRoundMinus, UserRoundPlus, Camera, RefreshCw,
 };
 
 export default icons;
