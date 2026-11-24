@@ -101,6 +101,7 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
                   <span className="create-button-inner" aria-hidden="true">
                     <Icon size={24} strokeWidth={2.5} />
                   </span>
+                  <span className="mobile-nav-label">{item.label}</span>
                 </button>
               );
             }
@@ -120,6 +121,7 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
                   className="nav-icon"
                   aria-hidden="true"
                 />
+                <span className="mobile-nav-label">{item.label}</span>
                 {(() => {
                   const count = item.path === '/messages'
                     ? unreadMessagesCount
