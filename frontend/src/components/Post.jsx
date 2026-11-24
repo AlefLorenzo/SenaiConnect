@@ -246,7 +246,7 @@ const Post = ({ post, onDeleted }) => {
         
         {post.attachment_url && (
           isImageUrl(post.attachment_url) ? (
-            <img src={post.attachment_url} alt="Anexo do post" style={{ width: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-md)', backgroundColor: '#000', marginTop: '12px' }} />
+            <img src={post.attachment_url} alt="Anexo do post" style={{ width: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-md)', backgroundColor: 'transparent', marginTop: '12px' }} />
           ) : (
             <div className="post-attachment-doc">
               <div className="doc-icon">
