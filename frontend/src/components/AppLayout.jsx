@@ -9,6 +9,7 @@ import { BellRing, X } from 'lucide-react';
 import './AppLayout.css';
 import './DesktopResponsive.css';
 import './DesktopScrollFix.css';
+import './MobileSectionsResponsive.css';
 
 const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
