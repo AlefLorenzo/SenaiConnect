@@ -1,0 +1,154 @@
+/* SENAI Connect — desktop workspace
+   Mantém a navegação móvel intacta e oferece uma estrutura real para telas grandes. */
+@media (min-width: 769px) {
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .app-main {
+    width: calc(100% - 232px);
+    margin-left: 232px;
+    min-width: 0;
+    min-height: 100dvh;
+    padding-bottom: 0;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .app-feed-container {
+    width: 100%;
+    max-width: 1360px;
+    min-width: 0;
+    margin: 0 auto;
+    padding: 28px clamp(24px, 3vw, 48px) 36px;
+    box-sizing: border-box;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .home-container {
+    width: 100%;
+    max-width: 800px;
+    margin-inline: auto;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .app-feed-container--disclosure {
+    max-width: 1480px;
+    padding: 28px clamp(24px, 3vw, 48px) 36px;
+  }
+
+  /* Navegação lateral fixa, com rótulos visíveis e área de clique confortável. */
+  .app-layout .mobile-bottom-nav {
+    display: flex;
+    inset: 0 auto 0 0;
+    width: 232px;
+    height: 100dvh;
+    padding: 24px 14px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    border-top: 0;
+    border-right: 1px solid var(--color-border, #e0e0e0);
+    box-shadow: 2px 0 14px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+  }
+
+  [data-theme="dark"] .app-layout .mobile-bottom-nav {
+    border-right-color: var(--color-border-dark, #333);
+    box-shadow: 2px 0 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .app-layout .mobile-bottom-nav-inner {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .app-layout .mobile-nav-item {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    height: auto;
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    border-radius: 11px;
+    color: var(--color-text-secondary, #666);
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+
+  .app-layout .mobile-nav-item:hover {
+    background: var(--color-hover, rgba(0, 0, 0, 0.05));
+  }
+
+  .app-layout .mobile-nav-item.active {
+    color: var(--color-primary, #0056d2);
+    background: rgba(0, 86, 210, 0.09);
+  }
+
+  .app-layout .mobile-nav-item .nav-icon {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+  }
+
+  .app-layout .mobile-nav-label {
+    display: inline;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+
+  .app-layout .mobile-nav-item .active-indicator {
+    display: none;
+  }
+
+  .app-layout .mobile-nav-create {
+    width: 100%;
+    height: auto;
+    min-height: 52px;
+    margin: 8px 0;
+    padding: 5px 14px;
+    gap: 14px;
+    background: transparent;
+  }
+
+  .app-layout .mobile-nav-create .create-button-inner {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    box-shadow: 0 3px 10px rgba(0, 86, 210, 0.22);
+  }
+
+  .app-layout .mobile-nav-badge {
+    top: 7px;
+    left: 31px;
+  }
+
+  /* Rotas empresariais e onboarding têm navegação própria. */
+  .app-layout--no-global-nav .app-main {
+    width: 100%;
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+
+  .app-layout--no-global-nav .app-feed-container {
+    width: 100%;
+    max-width: 1480px;
+    margin-inline: auto;
+    padding: 28px clamp(24px, 3vw, 48px) 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-layout .mobile-nav-label {
+    display: none;
+  }
+}
