@@ -136,7 +136,7 @@ const AppLayout = ({ children }) => {
         </main>
 
         {/* Hide the global navigation while a story is open, like WhatsApp */}
-        {showBottomNav && !isStoryViewerOpen && user && (
+        {showBottomNav && !isStoryViewerOpen && (
           <MobileBottomNav
             onCreatePost={handleCreatePost}
             onCreateStory={() => {
