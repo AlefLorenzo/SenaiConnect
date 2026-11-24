@@ -7,6 +7,7 @@ import MobileBottomNav from './MobileBottomNav';
 import DivulgacaoNavigation from './DivulgacaoNavigation';
 import { BellRing, X } from 'lucide-react';
 import './AppLayout.css';
+import './DesktopResponsive.css';
 
 const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -108,7 +109,7 @@ const AppLayout = ({ children }) => {
 
   return (
     <StoryViewerContext.Provider value={{ setStoryViewerOpen: setIsStoryViewerOpen }}>
-      <div className={"app-layout " + (isAdminRoute ? "app-layout--admin" : "")}>
+      <div className={"app-layout " + (isAdminRoute ? "app-layout--admin" : "") + (!showBottomNav && !isAdminRoute ? " app-layout--no-global-nav" : "")}>
         {user && showNotificationPrompt && (
           <aside className="notification-permission-banner" role="dialog" aria-label="Ativar notificações">
             <div className="notification-permission-banner__icon"><BellRing size={22} /></div>
