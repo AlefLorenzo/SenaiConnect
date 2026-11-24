@@ -8,6 +8,7 @@ import DivulgacaoNavigation from './DivulgacaoNavigation';
 import { BellRing, X } from 'lucide-react';
 import './AppLayout.css';
 import './DesktopResponsive.css';
+import './DesktopScrollFix.css';
 
 const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
