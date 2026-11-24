@@ -110,7 +110,7 @@
   --sidebar-width: 280px;
   --right-panel-width: 320px;
   --header-height: 60px;
-  --bottom-nav-height: 88px; /* Matches mobile-bottom-nav height */
+  --bottom-nav-height: 64px; /* Matches mobile-bottom-nav height */
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -308,4 +308,770 @@ input, textarea {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Unified mobile layout layer — applied after page styles to remove conflicting breakpoints. */
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 320px;
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+    overscroll-behavior-y: none;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  .app-layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-main {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-feed-container {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 10px 12px calc(76px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+  }
+
+  .app-feed-container > *,
+  .home-container,
+  .profile-container,
+  .explore-container,
+  .groups-page,
+  .group-detail-view,
+  .notifications-page,
+  .activity-center,
+  .settings-container,
+  .settings-page-wrapper {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .home-container {
+    gap: 10px;
+  }
+
+  .create-post-section,
+  .feed-container,
+  .stories-section,
+  .explore-section,
+  .notifications-page-list {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .card {
+    max-width: 100%;
+    margin-bottom: 10px;
+    border-radius: 12px;
+  }
+
+  .profile-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .profile-header.card,
+  .profile-stats.card,
+  .profile-highlights.card,
+  .profile-tabs.card {
+    margin-bottom: 0;
+  }
+
+  .profile-header.card {
+    overflow: hidden;
+  }
+
+  .profile-info-section {
+    padding: 12px !important;
+  }
+
+  .profile-top-row,
+  .profile-actions {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .profile-stats.card {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 12px 6px;
+  }
+
+  .profile-stats .stat-item {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .profile-stats .stat-item strong,
+  .profile-stats .stat-item span {
+    overflow-wrap: anywhere;
+  }
+
+  .profile-tabs.card {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .profile-tabs.card::-webkit-scrollbar {
+    display: none;
+  }
+
+  .profile-tabs .tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .explore-search-form {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .explore-search-input {
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .explore-search-btn {
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding-inline: 12px;
+  }
+
+  .explore-people-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .group-detail-view,
+  .groups-page,
+  .activity-center,
+  .notifications-page {
+    padding-inline: 0;
+  }
+
+  .activity-center__header,
+  .notifications-page-header {
+    padding: 12px;
+  }
+
+  .activity-center__content,
+  .notifications-page-list {
+    min-width: 0;
+  }
+
+  .settings-container {
+    gap: 10px !important;
+  }
+
+  .settings-container > .card {
+    padding: 14px !important;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    inset: auto 0 0;
+    display: flex;
+    width: 100%;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    min-height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    z-index: 1000;
+  }
+
+  .mobile-bottom-nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    max-width: 100%;
+    height: 60px;
+    min-height: 60px;
+    margin: 0;
+    padding: 0 4px;
+    gap: 0;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    height: 100%;
+    padding: 4px 2px;
+  }
+
+  .mobile-nav-item .nav-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-nav-create {
+    flex: 1 1 0;
+    width: auto;
+    height: 100%;
+    min-height: 44px;
+    margin: 0;
+  }
+
+  .mobile-nav-create .create-button-inner {
+    width: 42px;
+    height: 42px;
+  }
+
+  .mobile-nav-create .create-button-inner svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  input,
+  textarea,
+  select {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .modal,
+  .modal-content,
+  /* Full-viewport creation overlays own their viewport sizing. */
+  [role="dialog"]:not(.mobile-create-sheet-overlay):not(.create-story-overlay):not(.create-post-dialog) {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-feed-container {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .profile-stats.card {
+    padding: 10px 4px;
+    gap: 2px;
+  }
+
+  .profile-stats .stat-item {
+    font-size: 12px;
+  }
+
+  .profile-stats .stat-item strong {
+    font-size: 18px;
+  }
+
+  .mobile-nav-item .nav-icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .mobile-nav-create .create-button-inner {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app-feed-container {
+    max-width: 720px;
+    padding-inline: 16px;
+  }
+}
+
+/* Final viewport guard: only components designed for horizontal carousels may pan sideways. */
+html,
+body,
+#root,
+.app-layout,
+.app-main,
+.app-feed-container {
+  max-width: 100%;
+  min-width: 0;
+}
+
+html,
+body,
+#root {
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .app-layout,
+  .app-main,
+  .app-feed-container {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+
+  .app-main {
+    overflow-x: hidden;
+  }
+
+  .app-feed-container {
+    flex-basis: auto;
+    flex-shrink: 1;
+    align-items: stretch;
+  }
+
+  .app-feed-container > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Keep image media responsive without resizing the post card beyond the viewport. */
+  .home-container,
+  .home-container > *,
+  .feed-container,
+  .feed-container > *,
+  .post-card,
+  .create-post-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .home-container,
+  .feed-container {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+
+
+/* ==========================================================
+   SENAI CONNECT — Dark theme consistency and accessibility
+   Shared tokens + admin surfaces + native controls
+   ========================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-main: #111318;
+  --bg-card: #1b1f27;
+  --bg-tertiary: #242a35;
+  --bg-tertiary-hover: #303847;
+  --text-primary: #f1f5f9;
+  --text-secondary: #c1cad6;
+  --text-tertiary: #9aa7b7;
+  --text-inverse: #111318;
+  --border-color: #394354;
+  --hover-overlay: rgba(226, 232, 240, .09);
+  --senai-blue-light: #18345f;
+  --color-primary-light: #18345f;
+  --color-bg-card: #1b1f27;
+  --color-bg-card-dark: #1b1f27;
+  --color-bg-tertiary: #242a35;
+  --color-bg-tertiary-dark: #303847;
+  --color-border: #394354;
+  --color-border-dark: #394354;
+}
+
+[data-theme="dark"] body,
+[data-theme="dark"] #root {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  color-scheme: dark;
+  color: var(--text-primary);
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+[data-theme="dark"] input:disabled,
+[data-theme="dark"] textarea:disabled,
+[data-theme="dark"] select:disabled,
+[data-theme="dark"] button:disabled {
+  opacity: .58;
+}
+
+[data-theme="dark"] option {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+
+[data-theme="dark"] ::selection {
+  color: #fff;
+  background: #2459a6;
+}
+
+[data-theme="dark"] .admin-layout {
+  --senai-blue-dark: #9bbcff;
+  --senai-blue-primary: #78aaff;
+  --senai-blue-light: #20395f;
+  --senai-blue-hover: #9bbcff;
+  --senai-orange-light: #3a2919;
+  --bg-primary: #111318;
+  --bg-secondary: #1b1f27;
+  --bg-tertiary: #242a35;
+  --text-primary: #f1f5f9;
+  --text-secondary: #c1cad6;
+  --text-muted: #9aa7b7;
+  --border-color: #394354;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .admin-layout .admin-brand span,
+[data-theme="dark"] .admin-layout .admin-page-header h2,
+[data-theme="dark"] .admin-layout .admin-name,
+[data-theme="dark"] .admin-layout .page-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .admin-layout .admin-table-container,
+[data-theme="dark"] .admin-layout .admin-modal,
+[data-theme="dark"] .admin-layout .admin-sidebar,
+[data-theme="dark"] .admin-layout .admin-topbar,
+[data-theme="dark"] .admin-layout .settings-heading-meta,
+[data-theme="dark"] .admin-layout .settings-summary-item,
+[data-theme="dark"] .admin-layout .settings-sidebar,
+[data-theme="dark"] .admin-layout .settings-card,
+[data-theme="dark"] .admin-layout .settings-actions,
+[data-theme="dark"] .admin-layout .settings-loading,
+[data-theme="dark"] .admin-layout .settings-error-state,
+[data-theme="dark"] .admin-layout .settings-feedback {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-layout .admin-table th {
+  background: #242a35;
+  color: #c1cad6;
+}
+
+[data-theme="dark"] .admin-layout .admin-table td {
+  color: #e2e8f0;
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .admin-layout .admin-table tr:hover td {
+  background: #293140;
+}
+
+[data-theme="dark"] .admin-layout .admin-btn.secondary,
+[data-theme="dark"] .admin-layout .settings-button--secondary {
+  background: #303847;
+  color: #eaf0f8;
+  border-color: #4a5669;
+}
+
+[data-theme="dark"] .admin-layout .admin-form-group label,
+[data-theme="dark"] .admin-layout .settings-heading-copy h1,
+[data-theme="dark"] .admin-layout .settings-panel-heading h2,
+[data-theme="dark"] .admin-layout .settings-card-heading,
+[data-theme="dark"] .admin-layout .setting-info strong {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .admin-layout .admin-form-group input,
+[data-theme="dark"] .admin-layout .admin-form-group textarea,
+[data-theme="dark"] .admin-layout .admin-form-group select,
+[data-theme="dark"] .admin-layout .settings-input,
+[data-theme="dark"] .admin-layout .settings-select {
+  background: #151922;
+  color: #f1f5f9;
+  border-color: #465267;
+}
+
+[data-theme="dark"] .admin-layout .settings-feedback--success {
+  background: #143323;
+  border-color: #286443;
+  color: #b8f1cd;
+}
+[data-theme="dark"] .admin-layout .settings-feedback--error {
+  background: #3b2024;
+  border-color: #754047;
+  color: #ffc4c9;
+}
+[data-theme="dark"] .admin-layout .settings-feedback--info {
+  background: #192f4d;
+  border-color: #355d8e;
+  color: #c6e0ff;
+}
+[data-theme="dark"] .admin-layout .settings-summary-item--state .settings-summary-icon {
+  color: #8ee0ad;
+  background: #173b2a;
+}
+[data-theme="dark"] .admin-layout .settings-summary-item--state.is-dirty .settings-summary-icon {
+  color: #ffd27a;
+  background: #463512;
+}
+[data-theme="dark"] .admin-layout .settings-button--danger {
+  background: #49252a;
+  border-color: #81434b;
+  color: #ffd4d8;
+}
+[data-theme="dark"] .admin-layout .settings-actions {
+  background: rgba(27, 31, 39, .96);
+}
+[data-theme="dark"] .admin-layout .admin-modal-overlay {
+  background: rgba(0, 0, 0, .72);
+}
+[data-theme="dark"] .admin-layout .admin-empty,
+[data-theme="dark"] .admin-layout .settings-heading-copy p,
+[data-theme="dark"] .admin-layout .settings-summary-item small,
+[data-theme="dark"] .admin-layout .settings-loading > span:last-child {
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .admin-layout .admin-badge.ativo { background: #173b2a; color: #a8efc2; }
+[data-theme="dark"] .admin-layout .admin-badge.inativo { background: #48252a; color: #ffc4c9; }
+[data-theme="dark"] .admin-layout .admin-badge.alta { background: #453713; color: #ffdf91; }
+[data-theme="dark"] .admin-layout .admin-badge.urgente { background: #47243a; color: #ffc0e2; }
+[data-theme="dark"] .admin-layout .admin-badge.normal { background: #242b52; color: #c9ceff; }
+
+[data-theme="dark"] :focus-visible {
+  outline-color: #8ab8ff;
+}
+
+
+/* Authentication is part of the product theme too (the brand panel remains blue). */
+[data-theme="dark"] .auth-container,
+[data-theme="dark"] .login-page {
+  background: #111318;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .auth-form-panel {
+  background: #111318;
+}
+[data-theme="dark"] .auth-card {
+  background: #1b1f27;
+  border-color: #394354;
+  color: #f1f5f9;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .38);
+}
+[data-theme="dark"] .auth-mobile-brand { color: #eaf2ff; }
+[data-theme="dark"] .auth-header h2,
+[data-theme="dark"] .auth-form .form-group label {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .auth-header p { color: #c1cad6; }
+[data-theme="dark"] .auth-form .form-group input {
+  background: #151922;
+  border-color: #465267;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .auth-form .form-group input:focus {
+  background: #1b1f27;
+  border-color: #78aaff;
+}
+[data-theme="dark"] .auth-form .form-group input::placeholder { color: #9aa7b7; }
+[data-theme="dark"] .auth-form-kicker,
+[data-theme="dark"] .auth-forgot-link { color: #8ab8ff; }
+[data-theme="dark"] .auth-forgot-link:hover { color: #c3dcff; }
+[data-theme="dark"] .auth-card a:not(.auth-forgot-link) { color: #8ab8ff; }
+[data-theme="dark"] .auth-error,
+[data-theme="dark"] .auth-success {
+  border-color: #465267;
+}
+[data-theme="dark"] .group-info-feedback.error {
+  background: #48252a;
+  color: #ffc4c9;
+}
+[data-theme="dark"] .group-info-feedback.success {
+  background: #173b2a;
+  color: #a8efc2;
+}
+[data-theme="dark"] .business-story-viewer,
+[data-theme="dark"] .story-viewer-business {
+  color: #f1f5f9;
+}
+
+
+/* Settings page feedback uses inline colors in light mode; override them safely in dark mode. */
+[data-theme="dark"] .settings-feedback-message {
+  background: #1b1f27 !important;
+  border-left-color: #465267 !important;
+  color: #eaf0f8 !important;
+}
+[data-theme="dark"] .settings-feedback-message--success {
+  background: #143323 !important;
+  border-left-color: #3b9b65 !important;
+  color: #b8f1cd !important;
+}
+[data-theme="dark"] .settings-feedback-message--error {
+  background: #3b2024 !important;
+  border-left-color: #b85a64 !important;
+  color: #ffc4c9 !important;
+}
+
+/* Theme token compatibility layer.
+   Older feature styles use these aliases; define them centrally so they
+   resolve in both color schemes instead of silently becoming transparent. */
+:root {
+  --color-bg-main: var(--bg-main);
+  --color-bg-main-dark: #111318;
+  --color-bg-chat: #f0f2f5;
+  --color-bg-chat-dark: #151922;
+  --color-bg-input: #f0f2f5;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #f5d98a;
+  --color-warning-text: #7a5200;
+}
+
+[data-theme="dark"] {
+  --color-bg-main: var(--bg-main);
+  --color-bg-main-dark: #111318;
+  --color-bg-chat: #181d26;
+  --color-bg-chat-dark: #151922;
+  --color-bg-input: #151922;
+  --color-warning-bg: #3a2d12;
+  --color-warning-border: #765d22;
+  --color-warning-text: #ffe2a3;
+}
+
+/* Keep common hover surfaces within the active theme. */
+[data-theme="dark"] .create-post-input:hover,
+[data-theme="dark"] .btn-secondary:hover,
+[data-theme="dark"] .member-actions-dropdown .dropdown-item.danger:hover {
+  background-color: var(--bg-tertiary-hover);
+}
+
+[data-theme="dark"] .messages-tabs .tab-btn.active {
+  color: #8ab8ff;
+  border-bottom-color: #8ab8ff;
+}
+
+/* Admin settings surfaces that previously retained light-only fills. */
+[data-theme="dark"] .admin-layout .settings-nav-item.is-active .settings-nav-icon {
+  background: #20395f;
+  color: #a9caff;
+}
+[data-theme="dark"] .admin-layout .settings-switch-track {
+  border-color: #465267;
+  background: #303847;
+}
+[data-theme="dark"] .admin-layout .settings-access-panel {
+  border-color: #355078;
+  background: #192b43;
+}
+[data-theme="dark"] .admin-layout .settings-access-icon {
+  background: #20395f;
+  color: #a9caff;
+}
+[data-theme="dark"] .admin-layout .settings-access-copy h4 {
+  color: #eaf2ff;
+}
+[data-theme="dark"] .admin-layout .settings-access-copy p {
+  color: #bdcce0;
+}
+[data-theme="dark"] .admin-layout .settings-link-button {
+  border-color: #46658d;
+  background: #202b3b;
+  color: #a9caff;
+}
+[data-theme="dark"] .admin-layout .settings-link-button:hover {
+  background: #293b53;
+}
+[data-theme="dark"] .admin-layout .settings-danger-notice {
+  border-color: #765d35;
+  background: #382d1b;
+  color: #ffe2a3;
+}
+[data-theme="dark"] .admin-layout .settings-button--danger {
+  border-color: #81434b;
+  background: #49252a;
+  color: #ffd4d8;
+}
+[data-theme="dark"] .admin-layout .settings-button--danger:hover:not(:disabled) {
+  border-color: #a85b65;
+  background: #5a2d34;
 }

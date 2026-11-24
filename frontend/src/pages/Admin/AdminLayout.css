@@ -1,5 +1,5 @@
-/* Admin Layout Styles */
-:root {
+
+.admin-layout{
     --senai-blue-dark: #003366;
     --senai-blue-primary: #0066CC;
     --senai-blue-light: #E8F0FE;
@@ -25,14 +25,14 @@
     --header-height: 64px;
 }
 
-.admin-layout {
+.admin-layout{
     display: flex;
     min-height: 100vh;
     background: var(--bg-primary);
 }
 
-/* Sidebar */
-.admin-sidebar {
+
+.admin-layout .admin-sidebar{
     width: var(--sidebar-width);
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
@@ -47,11 +47,11 @@
     overflow-y: auto;
 }
 
-.admin-sidebar.collapsed {
+.admin-layout .admin-sidebar.collapsed{
     width: var(--sidebar-collapsed);
 }
 
-.admin-brand {
+.admin-layout .admin-brand{
     padding: 20px 16px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
@@ -60,7 +60,7 @@
     min-height: var(--header-height);
 }
 
-.admin-brand svg {
+.admin-layout .admin-brand svg{
     width: 36px;
     height: 36px;
     background: linear-gradient(135deg, var(--senai-blue-primary), var(--senai-blue-dark));
@@ -70,7 +70,7 @@
     flex-shrink: 0;
 }
 
-.admin-brand span {
+.admin-layout .admin-brand span{
     font-size: 16px;
     font-weight: 700;
     color: var(--senai-blue-dark);
@@ -79,19 +79,19 @@
     transition: var(--transition);
 }
 
-.admin-sidebar.collapsed .admin-brand span {
+.admin-layout .admin-sidebar.collapsed .admin-brand span{
     opacity: 0;
     width: 0;
     overflow: hidden;
 }
 
-.admin-nav {
+.admin-layout .admin-nav{
     flex: 1;
     padding: 16px;
     overflow-y: auto;
 }
 
-.admin-nav-title {
+.admin-layout .admin-nav-title{
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -104,7 +104,7 @@
     transition: var(--transition);
 }
 
-.admin-sidebar.collapsed .admin-nav-title {
+.admin-layout .admin-sidebar.collapsed .admin-nav-title{
     opacity: 0;
     height: 0;
     margin: 0;
@@ -112,7 +112,7 @@
     overflow: hidden;
 }
 
-.admin-nav-item {
+.admin-layout .admin-nav-item{
     display: flex;
     align-items: center;
     gap: 12px;
@@ -126,17 +126,17 @@
     position: relative;
 }
 
-.admin-nav-item:hover {
+.admin-layout .admin-nav-item:hover{
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
 
-.admin-nav-item.active {
+.admin-layout .admin-nav-item.active{
     background: var(--senai-blue-light);
     color: var(--senai-blue-primary);
 }
 
-.admin-nav-item.active::before {
+.admin-layout .admin-nav-item.active::before{
     content: '';
     position: absolute;
     left: 0;
@@ -148,7 +148,7 @@
     border-radius: 0 3px 3px 0;
 }
 
-.admin-nav-icon {
+.admin-layout .admin-nav-icon{
     width: 20px;
     height: 20px;
     flex-shrink: 0;
@@ -157,19 +157,19 @@
     justify-content: center;
 }
 
-.admin-nav-label {
+.admin-layout .admin-nav-label{
     white-space: nowrap;
     opacity: 1;
     transition: var(--transition);
 }
 
-.admin-sidebar.collapsed .admin-nav-label {
+.admin-layout .admin-sidebar.collapsed .admin-nav-label{
     opacity: 0;
     width: 0;
     overflow: hidden;
 }
 
-.admin-nav-badge {
+.admin-layout .admin-nav-badge{
     margin-left: auto;
     background: var(--senai-orange);
     color: white;
@@ -181,16 +181,16 @@
     text-align: center;
 }
 
-.admin-sidebar.collapsed .admin-nav-badge {
+.admin-layout .admin-sidebar.collapsed .admin-nav-badge{
     display: none;
 }
 
-.admin-sidebar-footer {
+.admin-layout .admin-sidebar-footer{
     padding: 16px;
     border-top: 1px solid var(--border-color);
 }
 
-.admin-user {
+.admin-layout .admin-user{
     display: flex;
     align-items: center;
     gap: 10px;
@@ -199,7 +199,7 @@
     background: var(--bg-tertiary);
 }
 
-.admin-avatar {
+.admin-layout .admin-avatar{
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -213,12 +213,12 @@
     flex-shrink: 0;
 }
 
-.admin-info {
+.admin-layout .admin-info{
     flex: 1;
     min-width: 0;
 }
 
-.admin-name {
+.admin-layout .admin-name{
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
@@ -227,19 +227,19 @@
     text-overflow: ellipsis;
 }
 
-.admin-role {
+.admin-layout .admin-role{
     font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
 
-.admin-sidebar.collapsed .admin-info {
+.admin-layout .admin-sidebar.collapsed .admin-info{
     display: none;
 }
 
-/* Main Content */
-.admin-main {
+
+.admin-layout .admin-main{
     flex: 1;
     margin-left: var(--sidebar-width);
     min-height: 100vh;
@@ -248,12 +248,12 @@
     flex-direction: column;
 }
 
-.admin-sidebar.collapsed ~ .admin-main {
+.admin-layout .admin-sidebar.collapsed ~ .admin-main{
     margin-left: var(--sidebar-collapsed);
 }
 
-/* Topbar */
-.admin-topbar {
+
+.admin-layout .admin-topbar{
     height: var(--header-height);
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
@@ -266,13 +266,13 @@
     z-index: 50;
 }
 
-.admin-topbar-left {
+.admin-layout .admin-topbar-left{
     display: flex;
     align-items: center;
     gap: 16px;
 }
 
-.menu-toggle {
+.admin-layout .menu-toggle{
     width: 40px;
     height: 40px;
     border-radius: var(--radius-md);
@@ -286,24 +286,24 @@
     transition: var(--transition);
 }
 
-.menu-toggle:hover {
+.admin-layout .menu-toggle:hover{
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
 
-.page-title {
+.admin-layout .page-title{
     font-size: 20px;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.admin-topbar-right {
+.admin-layout .admin-topbar-right{
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.admin-topbar-btn {
+.admin-layout .admin-topbar-btn{
     width: 40px;
     height: 40px;
     border-radius: var(--radius-md);
@@ -318,12 +318,12 @@
     position: relative;
 }
 
-.admin-topbar-btn:hover {
+.admin-layout .admin-topbar-btn:hover{
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
 
-.notification-dot {
+.admin-layout .notification-dot{
     position: absolute;
     top: 8px;
     right: 8px;
@@ -334,19 +334,19 @@
     border: 2px solid var(--bg-secondary);
 }
 
-.admin-profile-info {
+.admin-layout .admin-profile-info{
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.admin-name {
+.admin-layout .admin-name{
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
 }
 
-.admin-role-badge {
+.admin-layout .admin-role-badge{
     background: var(--senai-blue-light);
     color: var(--senai-blue-primary);
     font-size: 11px;
@@ -356,7 +356,7 @@
     text-transform: capitalize;
 }
 
-.admin-logout-btn {
+.admin-layout .admin-logout-btn{
     display: flex;
     align-items: center;
     gap: 8px;
@@ -371,39 +371,39 @@
     transition: var(--transition);
 }
 
-.admin-logout-btn:hover {
+.admin-layout .admin-logout-btn:hover{
     background: var(--bg-tertiary);
     color: var(--text-primary);
     border-color: var(--text-muted);
 }
 
-/* Content Area */
-.admin-content-area {
+
+.admin-layout .admin-content-area{
     flex: 1;
     padding: 24px;
     overflow-y: auto;
 }
 
-/* Mobile */
+
 @media (max-width: 768px) {
-    .admin-sidebar {
+    .admin-layout .admin-sidebar{
         transform: translateX(-100%);
     }
-    .admin-sidebar.open {
+    .admin-layout .admin-sidebar.open{
         transform: translateX(0);
     }
-    .admin-main {
+    .admin-layout .admin-main{
         margin-left: 0;
     }
-    .admin-topbar {
+    .admin-layout .admin-topbar{
         padding: 0 16px;
     }
-    .admin-content-area {
+    .admin-layout .admin-content-area{
         padding: 16px;
     }
 }
 
-.sidebar-overlay {
+.admin-layout .sidebar-overlay{
     display: none;
     position: fixed;
     top: 0;
@@ -415,23 +415,23 @@
 }
 
 @media (max-width: 768px) {
-    .sidebar-overlay.open {
+    .admin-layout .sidebar-overlay.open{
         display: block;
     }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
+
+.admin-layout ::-webkit-scrollbar{
     width: 6px;
     height: 6px;
 }
-::-webkit-scrollbar-track {
+.admin-layout ::-webkit-scrollbar-track{
     background: transparent;
 }
-::-webkit-scrollbar-thumb {
+.admin-layout ::-webkit-scrollbar-thumb{
     background: var(--border-color);
     border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover {
+.admin-layout ::-webkit-scrollbar-thumb:hover{
     background: var(--text-muted);
 }

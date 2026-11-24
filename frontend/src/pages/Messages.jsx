@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef, useContext, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import {
   Search, Send, Phone, Video, MoreVertical, MessageSquare,
   ArrowLeft, Paperclip, X,
   Users, Inbox, Send as SendIcon, Image, FileText, X as XIcon,
-  Smile, Mic, Loader2, Shield, X as CloseIcon, Check, CheckCheck, AlertCircle, WifiOff
+  Smile, Mic, Loader2, Shield, X as CloseIcon, Check, CheckCheck, AlertCircle, WifiOff, Plus
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
 import Avatar from '../components/Avatar';
 import MessageBubble from '../components/MessageBubble';
+import GroupInfoModal from '../components/GroupInfoModal';
 import messagesService from '../services/messagesService';
 import './Messages.css';
+import './Messages.desktop.css';
 
 // File validation constants
 const FILE_LIMITS = {
@@ -49,6 +52,46 @@ export const getOtherParticipant = (contact) => {
 
 export const getContactAvatar = (contact) => contact;
 
+const normalizePreviewUserId = (value) => (
+  value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+);
+
+const GENERIC_GROUP_SENDER_NAMES = new Set([
+  'unknown', 'desconhecido', 'participant', 'participante', 'you', 'você'
+]);
+
+// Resolve the group-list sender by ID first. This avoids showing stale labels
+// such as "Unknown" and correctly labels the current user's own messages.
+export const getGroupLastMessageSenderName = (contact, currentUserId) => {
+  const lastMessage = contact?.last_message;
+  if (!lastMessage) return '';
+
+  const senderId = lastMessage.senderId ?? lastMessage.sender_id;
+  const normalizedSenderId = normalizePreviewUserId(senderId);
+  const normalizedCurrentUserId = normalizePreviewUserId(currentUserId);
+
+  if (normalizedSenderId && normalizedCurrentUserId && normalizedSenderId === normalizedCurrentUserId) {
+    return 'You';
+  }
+
+  const participant = normalizedSenderId
+    ? (contact.participants || []).find(member => (
+        normalizePreviewUserId(member.id ?? member.user_id ?? member.userId) === normalizedSenderId
+      ))
+    : null;
+  const participantName = String(participant?.name || '').trim();
+  if (participantName && !GENERIC_GROUP_SENDER_NAMES.has(participantName.toLowerCase())) {
+    return participantName;
+  }
+
+  const messageSenderName = String(lastMessage.senderName ?? lastMessage.sender_name ?? '').trim();
+  if (messageSenderName && !GENERIC_GROUP_SENDER_NAMES.has(messageSenderName.toLowerCase())) {
+    return messageSenderName;
+  }
+
+  return 'Participant';
+};
+
 export const getContactUnread = (contact) => contact.unreadCount || contact.unread_count || 0;
 
 const sanitizeFileName = (name) => {
@@ -82,6 +125,142 @@ const validateFile = (file, type) => {
 // Generate a unique temporary ID for optimistic messages
 const generateTempId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+
+const GroupCreationModal = ({
+  open, name, setName, description, setDescription,
+  search, setSearch, contacts, selectedIds, loadingContacts,
+  creating, error, onToggleContact, onClose, onSubmit
+}) => {
+  if (!open) return null;
+
+  const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR');
+  const filteredContacts = contacts.filter(contact => (
+    (contact.name || '').toLocaleLowerCase('pt-BR').includes(normalizedSearch)
+  ));
+
+  return createPortal(
+    <div
+      className="group-create-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="group-create-modal" role="dialog" aria-modal="true" aria-labelledby="group-create-title">
+        <header className="group-create-header">
+          <div>
+            <h2 id="group-create-title">Criar grupo</h2>
+            <p>Escolha pessoas com quem você já conversou, segue ou que seguem você.</p>
+          </div>
+          <button type="button" className="group-create-close" onClick={onClose} aria-label="Fechar">
+            <X size={20} />
+          </button>
+        </header>
+
+        <form onSubmit={onSubmit} className="group-create-form">
+          <label className="group-create-field">
+            <span>Nome do grupo</span>
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Ex.: Projeto de Robótica"
+              maxLength={80}
+              required
+            />
+          </label>
+
+          <label className="group-create-field">
+            <span>Descrição <small>(opcional)</small></span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Sobre o que é este grupo?"
+              maxLength={300}
+              rows={2}
+            />
+          </label>
+
+          <div className="group-create-contacts-heading">
+            <div>
+              <strong>Adicionar participantes</strong>
+              <span>{selectedIds.length} selecionado(s)</span>
+            </div>
+            <span>{contacts.length} contato(s) disponível(is)</span>
+          </div>
+
+          <div className="group-create-search">
+            <Search size={17} />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar pessoas..."
+              aria-label="Buscar participantes"
+            />
+          </div>
+
+          <div className="group-create-contact-list">
+            {loadingContacts ? (
+              <div className="group-create-empty">
+                <Loader2 size={22} className="spin" />
+                <span>Carregando contatos...</span>
+              </div>
+            ) : filteredContacts.length > 0 ? (
+              filteredContacts.map(contact => {
+                const isSelected = selectedIds.some(id => String(id) === String(contact.id));
+                const relationLabels = [];
+                if (contact.has_conversation) relationLabels.push('Já conversaram');
+                if (contact.is_following) relationLabels.push('Você segue');
+                if (contact.follows_you) relationLabels.push('Segue você');
+
+                return (
+                  <label key={contact.id} className={'group-create-contact' + (isSelected ? ' selected' : '')}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleContact(contact.id)}
+                    />
+                    <Avatar user={contact} className="group-create-avatar" />
+                    <span className="group-create-contact-info">
+                      <strong>{contact.name || 'Usuário'}</strong>
+                      <small>{relationLabels.join(' · ') || 'Contato disponível'}</small>
+                    </span>
+                    <span className="group-create-check" aria-hidden="true">
+                      {isSelected ? <Check size={16} /> : null}
+                    </span>
+                  </label>
+                );
+              })
+            ) : (
+              <div className="group-create-empty">
+                <Users size={26} />
+                <span>{contacts.length ? 'Nenhuma pessoa encontrada para esta busca.' : 'Nenhum contato elegível ainda.'}</span>
+                {!contacts.length && <small>Converse com alguém ou siga/receba um seguidor para poder adicioná-lo.</small>}
+              </div>
+            )}
+          </div>
+
+          {error && <p className="group-create-error" role="alert">{error}</p>}
+
+          <footer className="group-create-footer">
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={creating}>Cancelar</button>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={creating || loadingContacts || !name.trim() || selectedIds.length === 0}
+            >
+              {creating ? <><Loader2 size={16} className="spin" /> Criando...</> : <><Users size={16} /> Criar grupo</>}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>,
+    document.body
+  );
+};
+
 const Messages = () => {
   const { user } = useContext(AuthContext);
   const {
@@ -95,13 +274,14 @@ const Messages = () => {
     sendTypingStart,
     sendTypingStop,
     sendMessagesRead,
+    fetchUnreadMessagesCount,
     queueMessage,
     retryMessage,
     MESSAGE_STATUS
   } = useContext(SocketContext);
 
   // Read conversationId from URL params
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlConversationId = searchParams.get('conversationId');
 
   // Tab state - Instagram style: Primary, General, Requests, Groups
@@ -109,7 +289,17 @@ const Messages = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [conversations, setConversations] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [isGroupCreatorOpen, setIsGroupCreatorOpen] = useState(false);
+  const [groupCreatorName, setGroupCreatorName] = useState('');
+  const [groupCreatorDescription, setGroupCreatorDescription] = useState('');
+  const [groupContactSearch, setGroupContactSearch] = useState('');
+  const [eligibleGroupContacts, setEligibleGroupContacts] = useState([]);
+  const [selectedGroupContactIds, setSelectedGroupContactIds] = useState([]);
+  const [loadingGroupContacts, setLoadingGroupContacts] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupCreatorError, setGroupCreatorError] = useState('');
   const [selectedContact, setSelectedContact] = useState(null);
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [history, setHistory] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,6 +308,7 @@ const Messages = () => {
   const [historyPage, setHistoryPage] = useState(1);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyLoadError, setHistoryLoadError] = useState(false);
   const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [isOnline, setIsOnline] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
@@ -136,6 +327,12 @@ const Messages = () => {
   // Track message IDs we've already added (for deduplication)
   const messageIdsRef = useRef(new Set());
   const processedSocketMessagesRef = useRef(new Set());
+  const sendingMessageRef = useRef(false);
+  const syncInFlightRef = useRef(false);
+  const historyRequestIdRef = useRef(0);
+  const historyPageRequestRef = useRef(null);
+  const activeConversationIdRef = useRef(null);
+  const conversationsRef = useRef(conversations);
 
   // Refs
   const chatBodyRef = useRef(null);
@@ -150,6 +347,46 @@ const Messages = () => {
   const lastReadMessageIdRef = useRef(null);
   const isTypingRef = useRef(false);
   const typingDebounceRef = useRef(null);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  // Deep links must be removed when leaving a conversation, otherwise the URL
+  // resolver immediately selects the same conversation again.
+  const clearConversationQuery = useCallback(() => {
+    if (!urlConversationId) return;
+    setSearchParams(currentParams => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.delete('conversationId');
+      return nextParams;
+    }, { replace: true });
+  }, [urlConversationId, setSearchParams]);
+
+  const closeConversation = useCallback(() => {
+    historyRequestIdRef.current += 1;
+    activeConversationIdRef.current = null;
+    setSelectedContact(null);
+    setHistory([]);
+    setLoadingHistory(false);
+    setShowMobileChat(false);
+    setShowMessageSearch(false);
+    setMessageSearchTerm('');
+    setShowEmojiPicker(false);
+    clearConversationQuery();
+  }, [clearConversationQuery]);
+
+  const handleSelectContact = useCallback((contact) => {
+    if (!contact) {
+      closeConversation();
+      return;
+    }
+
+    activeConversationIdRef.current = String(contact.id ?? contact.conversation_id);
+    setSelectedContact(contact);
+    // A manually selected inbox item becomes the source of truth.
+    clearConversationQuery();
+  }, [closeConversation, clearConversationQuery]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -199,12 +436,15 @@ const Messages = () => {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const result = await messagesService.getConversations();
-      if (result.data) {
-        setConversations(result.data);
-      } else if (Array.isArray(result)) {
-        setConversations(result);
+      // Always bypass the service cache: a just-sent or just-received message can
+      // create a conversation that was absent from the previous inbox snapshot.
+      const result = await messagesService.getConversations('all', true);
+      const freshConversations = result.data || result;
+      if (Array.isArray(freshConversations)) {
+        setConversations(freshConversations);
+        return freshConversations;
       }
+      return [];
     } catch (err) {
       console.error('Erro ao buscar conversas:', err);
     }
@@ -212,7 +452,7 @@ const Messages = () => {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const result = await messagesService.getMyGroups();
+      const result = await messagesService.getMyGroups(true);
       let groupsData = [];
       if (result.data) {
         groupsData = result.data;
@@ -233,6 +473,94 @@ const Messages = () => {
     }
   }, []);
 
+  const openGroupCreator = useCallback(async () => {
+    setIsGroupCreatorOpen(true);
+    setGroupCreatorName('');
+    setGroupCreatorDescription('');
+    setGroupContactSearch('');
+    setSelectedGroupContactIds([]);
+    setGroupCreatorError('');
+    setLoadingGroupContacts(true);
+
+    try {
+      const result = await messagesService.getGroupContacts();
+      const contacts = result?.data || result?.contacts || result;
+      setEligibleGroupContacts(Array.isArray(contacts) ? contacts : []);
+    } catch (error) {
+      console.error('Erro ao carregar contatos elegíveis:', error);
+      setEligibleGroupContacts([]);
+      setGroupCreatorError(error.message || 'Não foi possível carregar seus contatos.');
+    } finally {
+      setLoadingGroupContacts(false);
+    }
+  }, []);
+
+  const toggleGroupContact = useCallback((contactId) => {
+    const id = Number(contactId);
+    setSelectedGroupContactIds(previous => (
+      previous.includes(id)
+        ? previous.filter(selectedId => selectedId !== id)
+        : [...previous, id]
+    ));
+    setGroupCreatorError('');
+  }, []);
+
+  const handleCreateChatGroup = useCallback(async (event) => {
+    event.preventDefault();
+    if (creatingGroup) return;
+
+    const name = groupCreatorName.trim();
+    if (!name) {
+      setGroupCreatorError('Informe um nome para o grupo.');
+      return;
+    }
+    if (selectedGroupContactIds.length === 0) {
+      setGroupCreatorError('Selecione pelo menos uma pessoa para criar o grupo.');
+      return;
+    }
+
+    setCreatingGroup(true);
+    setGroupCreatorError('');
+    try {
+      const result = await messagesService.createGroup({
+        name,
+        description: groupCreatorDescription.trim(),
+        participants: selectedGroupContactIds,
+      });
+      const groupId = result?.id ?? result?.group?.id ?? result?.data?.id;
+      if (!groupId) throw new Error('O grupo foi criado, mas o servidor não retornou seu identificador.');
+
+      const conversation = await messagesService.getConversation(groupId, true);
+      await Promise.all([fetchGroups(), fetchConversations()]);
+
+      const newGroupConversation = {
+        ...conversation,
+        id: String(conversation.id ?? groupId),
+        isGroup: true,
+        participants: conversation.participants || [],
+      };
+
+      setIsGroupCreatorOpen(false);
+      setActiveTab('groups');
+      setSearchTerm('');
+      handleSelectContact(newGroupConversation);
+      setShowMobileChat(true);
+    } catch (error) {
+      console.error('Erro ao criar grupo de conversa:', error);
+      setGroupCreatorError(error.message || 'Não foi possível criar o grupo. Tente novamente.');
+    } finally {
+      setCreatingGroup(false);
+    }
+  }, [
+    creatingGroup,
+    groupCreatorName,
+    groupCreatorDescription,
+    selectedGroupContactIds,
+    fetchGroups,
+    fetchConversations,
+    handleSelectContact,
+  ]);
+
   useEffect(() => {
     // Clear cache to force fresh fetch with fixed transformConversations
     messagesService.clearCache();
@@ -240,19 +568,29 @@ const Messages = () => {
     fetchGroups();
   }, [fetchConversations, fetchGroups]);
 
-  // Resolve deep links from profiles even if the inbox list is still loading.
+  // Resolve a deep link once per URL change. Inbox refreshes must not restart
+  // this request or re-select a conversation after the user has left it.
   useEffect(() => {
-    if (!urlConversationId) return;
+    if (!urlConversationId) return undefined;
     let cancelled = false;
-    const existing = conversations.find(c => String(c.id) === String(urlConversationId));
+    const requestedId = String(urlConversationId);
+    const existing = conversationsRef.current.find(c => String(c.id ?? c.conversation_id) === requestedId);
+
+    const applyConversation = (contact) => {
+      if (cancelled || !contact) return;
+      activeConversationIdRef.current = String(contact.id ?? contact.conversation_id ?? requestedId);
+      setSelectedContact(contact);
+      setActiveTab(contact.isGroup ? 'groups' : 'general');
+    };
+
     if (existing) {
-      setSelectedContact(existing);
-      setActiveTab(existing.isGroup ? 'groups' : 'general');
-      return;
+      applyConversation(existing);
+      return () => { cancelled = true; };
     }
+
     messagesService.getConversation(urlConversationId, true)
       .then(conversation => {
-        if (cancelled || !conversation) return;
+        if (!conversation || cancelled) return;
         const normalized = {
           ...conversation,
           id: String(conversation.id ?? conversation.conversationId ?? urlConversationId),
@@ -260,22 +598,45 @@ const Messages = () => {
           participants: conversation.participants || [],
           unreadCount: conversation.unreadCount || conversation.unread_count || 0,
         };
-        setSelectedContact(normalized);
-        setActiveTab(normalized.isGroup ? 'groups' : 'general');
+        applyConversation(normalized);
       })
       .catch(error => {
         if (!cancelled) console.error('Não foi possível abrir a conversa solicitada:', error);
       });
     return () => { cancelled = true; };
-  }, [urlConversationId, conversations]);
+  }, [urlConversationId]);
 
   const fetchHistory = useCallback(async (contactId, page = 1, append = false) => {
-    if (!contactId) return;
-    if (loadingHistory) return;
+    if (!contactId || historyPageRequestRef.current) return;
+
+    // Prevent duplicate observer callbacks from requesting the same page twice.
+    // A new conversation clears this lock before starting its own history request.
+    const requestToken = { conversationId: String(contactId), page };
+    historyPageRequestRef.current = requestToken;
+    setHistoryLoadError(false);
+
+    // Each request gets a generation. Switching or closing a chat invalidates
+    // older responses so they cannot repopulate another conversation's screen.
+    const requestId = ++historyRequestIdRef.current;
+    setLoadingHistory(true);
 
     try {
-      setLoadingHistory(true);
-      const result = await messagesService.getHistory(contactId, { page, limit: 30 });
+      const result = await messagesService.getHistory(contactId, { page, limit: 30, forceRefresh: true });
+      if (requestId !== historyRequestIdRef.current) return;
+
+      // Loading a conversation means its messages are being viewed. Persist the
+      // read state for both direct chats and groups before refreshing global badges.
+      try {
+        await messagesService.markAsRead(contactId);
+        if (requestId !== historyRequestIdRef.current) return;
+        await fetchUnreadMessagesCount();
+      } catch (readError) {
+        // A read-receipt failure must not prevent the conversation history from rendering.
+        console.error('Erro ao marcar mensagens como lidas:', readError);
+      }
+      if (requestId !== historyRequestIdRef.current) return;
+      if (requestId !== historyRequestIdRef.current) return;
+
       let data = result.data || [];
 
       // Ensure messages are in chronological order (oldest first) for proper grouping
@@ -284,26 +645,143 @@ const Messages = () => {
       if (append) {
         // Prepend older messages (page 2+) to the beginning
         setHistory(prev => {
-          const newMessages = data.filter(msg => !messageIdsRef.current.has(msg.id));
-          newMessages.forEach(msg => messageIdsRef.current.add(msg.id));
+          const newMessages = data.filter(msg => !messageIdsRef.current.has(String(msg.id)));
+          newMessages.forEach(msg => messageIdsRef.current.add(String(msg.id)));
           return [...newMessages, ...prev];
         });
       } else {
         // Initial load: show chronological order (oldest at top)
         messageIdsRef.current.clear();
-        data.forEach(msg => messageIdsRef.current.add(msg.id));
+        data.forEach(msg => messageIdsRef.current.add(String(msg.id)));
         setHistory(data);
       }
-      setHasMoreHistory(result.pagination?.hasMore || data.length >= 30);
+      const serverHasMore = result.pagination?.hasMore;
+      setHasMoreHistory(serverHasMore == null ? data.length >= 30 : Boolean(serverHasMore));
       setHistoryPage(page);
       fetchConversations();
     } catch (err) {
-      console.error('Erro ao buscar histórico:', err);
-      setHasMoreHistory(false);
+      if (requestId === historyRequestIdRef.current) {
+        console.error('Erro ao buscar histórico:', err);
+        // Keep the pagination boundary available and offer an explicit retry.
+        // This avoids a transient network failure looking like the end of history.
+        setHistoryLoadError(true);
+      }
     } finally {
-      setLoadingHistory(false);
+      if (historyPageRequestRef.current === requestToken) {
+        historyPageRequestRef.current = null;
+      }
+      if (requestId === historyRequestIdRef.current) {
+        setLoadingHistory(false);
+      }
     }
-  }, [fetchConversations, loadingHistory]);
+  }, [fetchConversations, fetchUnreadMessagesCount]);
+
+  // Socket.IO is the fast path; this periodic reconciliation is the reliability path.
+  // It recovers messages missed while a mobile browser suspends an apparently-live socket.
+  const syncLatestMessages = useCallback(async () => {
+    if (
+      syncInFlightRef.current ||
+      !user?.id ||
+      document.visibilityState !== 'visible'
+    ) return;
+
+    syncInFlightRef.current = true;
+    try {
+      await fetchConversations();
+
+      if (!selectedContact) {
+        await fetchUnreadMessagesCount();
+        return;
+      }
+
+      const expectedConversationId = String(selectedContact.id);
+      if (activeConversationIdRef.current !== expectedConversationId) return;
+
+      const result = await messagesService.getHistory(selectedContact.id, {
+        page: 1,
+        limit: 50,
+        forceRefresh: true,
+      });
+      if (activeConversationIdRef.current !== expectedConversationId) return;
+      const latestMessages = [...(result.data || [])].reverse();
+
+      if (result.isGroup || result.contact?.isGroup) {
+        await messagesService.markAsRead(selectedContact.id);
+      }
+      // GET history marks direct messages read; refresh after either direct or group sync.
+      await fetchUnreadMessagesCount();
+
+      latestMessages.forEach(serverMessage => {
+        const serverId = serverMessage.id ?? serverMessage.message_id;
+        const clientId = serverMessage.client_message_id ?? serverMessage.clientMessageId;
+        if (clientId != null) messageIdsRef.current.delete(String(clientId));
+        if (serverId != null) messageIdsRef.current.add(String(serverId));
+      });
+
+      if (latestMessages.length > 0) {
+        setHistory(previous => {
+          const merged = [...previous];
+
+          latestMessages.forEach(serverMessage => {
+            const serverId = serverMessage.id ?? serverMessage.message_id;
+            const clientId = serverMessage.client_message_id ?? serverMessage.clientMessageId;
+            const existingIndex = merged.findIndex(existing => (
+              (serverId != null && String(existing.id) === String(serverId)) ||
+              (clientId != null && [
+                existing.clientMessageId,
+                existing.client_message_id,
+                existing.tempId,
+              ].some(value => value != null && String(value) === String(clientId)))
+            ));
+
+            if (existingIndex >= 0) {
+              const existing = merged[existingIndex];
+              merged[existingIndex] = {
+                ...existing,
+                ...serverMessage,
+                tempId: existing.tempId,
+              };
+            } else {
+              merged.push(serverMessage);
+            }
+          });
+
+          const unique = new Map();
+          merged.forEach(message => {
+            const id = message.id ?? message.message_id ?? message.tempId;
+            if (id != null) unique.set(String(id), message);
+          });
+
+          return [...unique.values()].sort((a, b) => (
+            new Date(a.createdAt ?? a.created_at).getTime() -
+            new Date(b.createdAt ?? b.created_at).getTime()
+          ));
+        });
+      }
+    } catch (error) {
+      console.warn('Falha na sincronização periódica de mensagens:', error);
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [fetchConversations, fetchUnreadMessagesCount, selectedContact, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      syncLatestMessages();
+    }, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') syncLatestMessages();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [syncLatestMessages, user?.id]);
 
   const loadMoreHistory = useCallback(() => {
     if (selectedContact && hasMoreHistory && !loadingHistory) {
@@ -317,14 +795,19 @@ const Messages = () => {
       observerRef.current.disconnect();
     }
 
+    // The chat has its own overflow-y scroll area, so the observer must use
+    // that element as its root instead of the browser viewport.
+    const scrollContainer = chatBodyRef.current;
+    if (!scrollContainer || !loadMoreRef.current) return undefined;
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
-        if (first.isIntersecting && hasMoreHistory && !loadingHistory) {
+        if (first.isIntersecting && hasMoreHistory && !loadingHistory && !historyLoadError) {
           loadMoreHistory();
         }
       },
-      { rootMargin: '100px', threshold: 0.1 }
+      { root: scrollContainer, rootMargin: '100px', threshold: 0.1 }
     );
 
     if (loadMoreRef.current) {
@@ -336,11 +819,14 @@ const Messages = () => {
         observerRef.current.disconnect();
       }
     };
-  }, [hasMoreHistory, loadingHistory, loadMoreHistory]);
+  }, [hasMoreHistory, loadingHistory, historyLoadError, loadMoreHistory]);
 
   // Fetch history when contact changes
   useEffect(() => {
+    // Invalidate the previous request lock when switching or closing chats.
+    historyPageRequestRef.current = null;
     if (selectedContact) {
+      activeConversationIdRef.current = String(selectedContact.id);
       messageIdsRef.current.clear();
       processedSocketMessagesRef.current.clear();
       fetchHistory(selectedContact.id, 1, false);
@@ -350,7 +836,10 @@ const Messages = () => {
       // Join conversation for typing indicators
       joinConversation(selectedContact.id);
     } else {
+      historyRequestIdRef.current += 1;
+      activeConversationIdRef.current = null;
       setHistory([]);
+      setLoadingHistory(false);
       setShowMobileChat(false);
       setHasMoreHistory(true);
       setHistoryPage(1);
@@ -406,31 +895,74 @@ const Messages = () => {
 
   // Socket event handlers
   const handleNewMessage = useCallback((msg) => {
-    const msgId = msg.id || msg.tempId;
-    if (processedSocketMessagesRef.current.has(msgId)) return;
-    processedSocketMessagesRef.current.add(msgId);
+    const msgId = msg.id ?? msg.message_id ?? msg.tempId;
+    const normalizedMessageId = msgId == null ? null : String(msgId);
+    if (normalizedMessageId && processedSocketMessagesRef.current.has(normalizedMessageId)) {
+      fetchConversations();
+      return;
+    }
+    if (normalizedMessageId) processedSocketMessagesRef.current.add(normalizedMessageId);
 
     const senderId = msg.sender_id ?? msg.senderId;
     const receiverId = msg.receiver_id ?? msg.receiverId;
     const conversationId = msg.conversation_id ?? msg.conversationId;
+    const belongsToOpenConversation = selectedContact && (
+      String(conversationId) === String(selectedContact.id) ||
+      String(senderId) === String(selectedContact.id) ||
+      String(receiverId) === String(selectedContact.id)
+    );
 
-    if (selectedContact && (conversationId === selectedContact.id ||
-        (senderId === selectedContact.id || receiverId === selectedContact.id))) {
-      // Check if message already exists in history (deduplication)
-      const exists = history.some(m => m.id === msgId) ||
-                     history.some(m => m.content === msg.content && m.senderId === senderId &&
-                       Math.abs(new Date(m.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 1000);
-      if (!exists) {
-        setHistory(prev => [...prev, msg]);
-      }
-      // Send read receipt if we're viewing this conversation
+    if (belongsToOpenConversation) {
+      setHistory(prev => {
+        const duplicateIndex = prev.findIndex(existing => {
+          if (normalizedMessageId && String(existing.id) === normalizedMessageId) return true;
+          if (msg.tempId && String(existing.tempId) === String(msg.tempId)) return true;
+
+          // Reconcile the server echo with the optimistic outgoing message.
+          const existingSender = existing.sender_id ?? existing.senderId;
+          const isPendingOwnMessage = String(existingSender) === String(user?.id) &&
+            (existing.status === MESSAGE_STATUS.SENDING || existing.tempId);
+          const samePayload = isPendingOwnMessage &&
+            String(existing.content ?? '') === String(msg.content ?? '') &&
+            Math.abs(new Date(existing.createdAt ?? existing.created_at).getTime() -
+              new Date(msg.createdAt ?? msg.created_at).getTime()) < 30000;
+          return Boolean(samePayload);
+        });
+
+        if (duplicateIndex >= 0) {
+          const current = prev[duplicateIndex];
+          if (current.tempId && normalizedMessageId) {
+            const reconciled = [...prev];
+            reconciled[duplicateIndex] = { ...msg, tempId: current.tempId };
+            messageIdsRef.current.delete(String(current.id));
+            messageIdsRef.current.delete(String(current.tempId));
+            messageIdsRef.current.add(normalizedMessageId);
+            return reconciled;
+          }
+          return prev;
+        }
+
+        if (normalizedMessageId && messageIdsRef.current.has(normalizedMessageId)) return prev;
+        if (normalizedMessageId) messageIdsRef.current.add(normalizedMessageId);
+        return [...prev, msg];
+      });
+
       sendMessagesRead(selectedContact.id);
-    } else {
-      // Update conversation list
-      fetchConversations();
+      // Persist the read state for a conversation that is currently open.
+      messagesService.markAsRead(selectedContact.id)
+        .then(() => fetchUnreadMessagesCount())
+        .catch(error => console.error('Erro ao atualizar a leitura da conversa:', error));
+    } else if (
+      msg.isGroup ||
+      msg.group_id != null ||
+      /^\d+$/.test(String(conversationId || ''))
+    ) {
       fetchGroups();
     }
-  }, [selectedContact, history, sendMessagesRead, fetchConversations, fetchGroups]);
+
+    // Refresh even when the chat is already open so its preview and ordering stay current.
+    fetchConversations();
+  }, [selectedContact, sendMessagesRead, fetchUnreadMessagesCount, fetchConversations, fetchGroups, user?.id, MESSAGE_STATUS]);
 
   const handleMessageStatus = useCallback((data) => {
     const { messageId, tempId, status } = data;
@@ -476,20 +1008,29 @@ const Messages = () => {
   }, []);
 
   const handleMissedMessages = useCallback((data) => {
-    const { conversationId, messages } = data;
-    if (selectedContact && conversationId === selectedContact.id) {
-      const newMessages = messages.filter(msg => !messageIdsRef.current.has(msg.id));
-      newMessages.forEach(msg => messageIdsRef.current.add(msg.id));
-      if (newMessages.length > 0) {
-        setHistory(prev => {
-          // Merge and sort by timestamp
-          const combined = [...prev, ...newMessages];
-          combined.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          return combined;
-        });
-      }
+    const { conversationId, messages = [] } = data || {};
+    // Always refresh the inbox: a message may arrive while its conversation is closed.
+    fetchConversations();
+    fetchGroups();
+
+    if (!selectedContact || String(conversationId) !== String(selectedContact.id)) return;
+
+    const newMessages = messages.filter(msg => {
+      const id = msg.id ?? msg.message_id;
+      return id != null && !messageIdsRef.current.has(String(id));
+    });
+    newMessages.forEach(msg => messageIdsRef.current.add(String(msg.id ?? msg.message_id)));
+    if (newMessages.length > 0) {
+      setHistory(prev => {
+        const merged = [...prev, ...newMessages];
+        const unique = new Map();
+        merged.forEach(msg => unique.set(String(msg.id ?? msg.message_id ?? msg.tempId), msg));
+        return [...unique.values()].sort((a, b) =>
+          new Date(a.createdAt ?? a.created_at).getTime() - new Date(b.createdAt ?? b.created_at).getTime()
+        );
+      });
     }
-  }, [selectedContact]);
+  }, [selectedContact, fetchConversations, fetchGroups]);
 
   const handleConnectionChange = useCallback((data) => {
     const { connected } = data;
@@ -543,20 +1084,27 @@ const Messages = () => {
 
   const handleGroupDeleted = useCallback((data) => {
     if (selectedContact && selectedContact.isGroup && data.groupId === selectedContact.id) {
-      setSelectedContact(null);
+      closeConversation();
     }
     fetchGroups();
     fetchConversations();
-  }, [selectedContact, fetchGroups, fetchConversations]);
+  }, [selectedContact, closeConversation, fetchGroups, fetchConversations]);
 
   const handleMessageSentConfirmed = useCallback((data) => {
     const { tempId, message } = data;
-    setHistory(prev => prev.map(m =>
-      m.tempId === tempId ? { ...message, tempId: m.tempId } : m
-    ));
-    // Update messageIdsRef to include the confirmed message ID
-    messageIdsRef.current.add(message.id);
-  }, []);
+    if (!message) return;
+    setHistory(prev => prev.map(m => (
+      m.tempId === tempId ||
+      String(m.clientMessageId || '') === String(message.clientMessageId || tempId)
+        ? { ...message, tempId: m.tempId }
+        : m
+    )));
+    // Update messageIdsRef to include the confirmed message ID.
+    messageIdsRef.current.delete(String(tempId));
+    messageIdsRef.current.add(String(message.id));
+    fetchConversations();
+    fetchGroups();
+  }, [fetchConversations, fetchGroups]);
 
   // Auto-scroll to bottom on new messages (but not when loading history)
   useEffect(() => {
@@ -677,7 +1225,9 @@ const Messages = () => {
   // Send message with optimistic UI
   const handleSendMessage = useCallback(async (e) => {
     if (e) e.preventDefault();
-    if (!messageText.trim() && attachments.length === 0 || !selectedContact) return;
+    if (sendingMessageRef.current) return;
+    if ((!messageText.trim() && attachments.length === 0) || !selectedContact) return;
+    sendingMessageRef.current = true;
 
     // Clear typing indicator
     if (typingDebounceRef.current) {
@@ -698,6 +1248,7 @@ const Messages = () => {
     // Optimistic UI: create temporary message
     const optimisticMessage = {
       tempId,
+      clientMessageId: tempId,
       id: tempId,
       conversationId: selectedContact.id,
       senderId: user?.id,
@@ -773,7 +1324,8 @@ const Messages = () => {
         content: tempText,
         type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : 'text',
         message_type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : 'text',
-        attachments: uploadedAttachments
+        attachments: uploadedAttachments,
+        clientMessageId: tempId
       };
 
       // Try to send via API
@@ -785,7 +1337,7 @@ const Messages = () => {
           m.tempId === tempId ? { ...result, tempId } : m
         ));
         messageIdsRef.current.delete(tempId);
-        messageIdsRef.current.add(result.id);
+        messageIdsRef.current.add(String(result.id));
         fetchConversations();
         fetchGroups();
       } else {
@@ -807,7 +1359,8 @@ const Messages = () => {
             name: a.name,
             size: a.size
           })),
-          tempId
+          tempId,
+          clientMessageId: tempId
         });
         // Update status to indicate queued
         setHistory(prev => prev.map(m =>
@@ -828,6 +1381,7 @@ const Messages = () => {
         setShowAttachmentPreview(tempAttachments.length > 0);
       }
     } finally {
+      sendingMessageRef.current = false;
       setUploadProgress({});
       setUploadAbortControllers({});
     }
@@ -836,6 +1390,7 @@ const Messages = () => {
 
   // Retry failed message
   const handleRetryMessage = useCallback(async (msgId) => {
+    if (sendingMessageRef.current) return;
     const msg = history.find(m => m.id === msgId || m.tempId === msgId);
     if (!msg) return;
 
@@ -843,7 +1398,8 @@ const Messages = () => {
     const originalMsg = history.find(m => m.tempId === msgId);
     if (!originalMsg) return;
 
-    // Re-send with same content
+    sendingMessageRef.current = true;
+    // Re-send with the original client ID, so a response lost in transit cannot create a second row.
     try {
       setHistory(prev => prev.map(m =>
         (m.id === msgId || m.tempId === msgId) ? { ...m, status: MESSAGE_STATUS.SENDING } : m
@@ -853,7 +1409,8 @@ const Messages = () => {
         content: originalMsg.content,
         type: originalMsg.type,
         message_type: originalMsg.type,
-        attachments: originalMsg.attachments || []
+        attachments: originalMsg.attachments || [],
+        clientMessageId: originalMsg.clientMessageId || originalMsg.tempId || msgId
       };
 
       const result = await messagesService.sendMessage(selectedContact.id, messageData);
@@ -862,15 +1419,19 @@ const Messages = () => {
         setHistory(prev => prev.map(m =>
           (m.id === msgId || m.tempId === msgId) ? { ...result, tempId: m.tempId } : m
         ));
-        messageIdsRef.current.add(result.id);
+        messageIdsRef.current.add(String(result.id));
+        fetchConversations();
+        fetchGroups();
       }
     } catch (err) {
       console.error('Erro ao reenviar:', err);
       setHistory(prev => prev.map(m =>
         (m.id === msgId || m.tempId === msgId) ? { ...m, status: MESSAGE_STATUS.ERROR } : m
       ));
+    } finally {
+      sendingMessageRef.current = false;
     }
-  }, [history, selectedContact, MESSAGE_STATUS]);
+  }, [history, selectedContact, fetchConversations, fetchGroups, MESSAGE_STATUS]);
 
   // Handle file selection with validation
   const handleFileSelect = useCallback((e) => {
@@ -1059,17 +1620,36 @@ const Messages = () => {
             getContactAvatar={getContactAvatar}
             getContactUnread={getContactUnread}
             getOtherParticipant={getOtherParticipant}
-            onSelectContact={setSelectedContact}
+            onSelectContact={handleSelectContact}
             selectedContactId={selectedContact?.id || null}
             isMobile={isMobile}
             showMobileChat={showMobileChat}
             setShowMobileChat={setShowMobileChat}
             isConnected={isConnected}
+            onCreateGroup={openGroupCreator}
+            currentUserId={user?.id}
           />
         </aside>
         <div className="messages-chat">
           <ChatEmptyState activeTab={activeTab} />
         </div>
+        <GroupCreationModal
+          open={isGroupCreatorOpen}
+          name={groupCreatorName}
+          setName={setGroupCreatorName}
+          description={groupCreatorDescription}
+          setDescription={setGroupCreatorDescription}
+          search={groupContactSearch}
+          setSearch={setGroupContactSearch}
+          contacts={eligibleGroupContacts}
+          selectedIds={selectedGroupContactIds}
+          loadingContacts={loadingGroupContacts}
+          creating={creatingGroup}
+          error={groupCreatorError}
+          onToggleContact={toggleGroupContact}
+          onClose={() => setIsGroupCreatorOpen(false)}
+          onSubmit={handleCreateChatGroup}
+        />
       </div>
     );
   }
@@ -1089,12 +1669,14 @@ const Messages = () => {
           getContactAvatar={getContactAvatar}
           getContactUnread={getContactUnread}
           getOtherParticipant={getOtherParticipant}
-          onSelectContact={setSelectedContact}
+          onSelectContact={handleSelectContact}
           selectedContactId={selectedContact?.id || null}
           isMobile={isMobile}
           showMobileChat={showMobileChat}
           setShowMobileChat={setShowMobileChat}
           isConnected={isConnected}
+          onCreateGroup={openGroupCreator}
+            currentUserId={user?.id}
         />
       </aside>
 
@@ -1108,10 +1690,36 @@ const Messages = () => {
           isMobile={isMobile}
           showMobileChat={showMobileChat}
           setShowMobileChat={setShowMobileChat}
-          setSelectedContact={setSelectedContact}
+          onCloseConversation={closeConversation}
           onSearchToggle={setShowMessageSearch}
           showMessageSearch={showMessageSearch}
+          onGroupInfo={() => setShowGroupInfo(true)}
         />
+
+        {isGroup && showGroupInfo && (
+          <GroupInfoModal
+            groupId={selectedContact.id ?? selectedContact.conversation_id}
+            group={selectedContact}
+            currentUserId={user?.id}
+            onClose={() => setShowGroupInfo(false)}
+            onSearch={() => setShowMessageSearch(true)}
+            onUpdated={async () => {
+              const refreshed = await messagesService.getConversation(selectedContact.id ?? selectedContact.conversation_id, true);
+              setSelectedContact(previous => previous ? { ...previous, ...refreshed } : previous);
+              await Promise.all([fetchGroups(), fetchConversations()]);
+            }}
+            onLeave={async () => {
+              setShowGroupInfo(false);
+              closeConversation();
+              await Promise.all([fetchGroups(), fetchConversations()]);
+            }}
+            onDelete={async () => {
+              setShowGroupInfo(false);
+              closeConversation();
+              await Promise.all([fetchGroups(), fetchConversations()]);
+            }}
+          />
+        )}
 
         {showMessageSearch && (
           <MessageSearchBar
@@ -1145,7 +1753,19 @@ const Messages = () => {
         )}
 
         <div className="chat-body" ref={chatBodyRef}>
-          <div ref={loadMoreRef} className="load-more-trigger" aria-hidden="true">
+          <div ref={loadMoreRef} className="load-more-trigger">
+            {historyLoadError && selectedContact && (
+              <button
+                type="button"
+                className="history-retry-button"
+                onClick={() => {
+                  const append = history.length > 0;
+                  fetchHistory(selectedContact.id, append ? historyPage + 1 : 1, append);
+                }}
+              >
+                Não foi possível carregar. Tentar novamente
+              </button>
+            )}
             {loadingHistory && hasMoreHistory && (
               <div className="load-more-spinner" aria-label="Carregando mensagens anteriores">
                 <Loader2 size={20} className="spinning" color="#0056D2" />
@@ -1236,6 +1856,23 @@ const Messages = () => {
           emojiPickerRef={emojiPickerRef}
         />
       </div>
+      <GroupCreationModal
+        open={isGroupCreatorOpen}
+        name={groupCreatorName}
+        setName={setGroupCreatorName}
+        description={groupCreatorDescription}
+        setDescription={setGroupCreatorDescription}
+        search={groupContactSearch}
+        setSearch={setGroupContactSearch}
+        contacts={eligibleGroupContacts}
+        selectedIds={selectedGroupContactIds}
+        loadingContacts={loadingGroupContacts}
+        creating={creatingGroup}
+        error={groupCreatorError}
+        onToggleContact={toggleGroupContact}
+        onClose={() => setIsGroupCreatorOpen(false)}
+        onSubmit={handleCreateChatGroup}
+      />
     </div>
   );
 };
@@ -1245,9 +1882,9 @@ const Messages = () => {
 const MessagesSidebar = ({
   activeTab, setActiveTab, tabs, searchTerm, setSearchTerm,
   currentContacts, getContactName, getContactAvatar,
-  getContactUnread, getOtherParticipant,
+  getContactUnread, getOtherParticipant, currentUserId,
   onSelectContact, selectedContactId, isMobile, setShowMobileChat,
-  isConnected
+  isConnected, onCreateGroup
 }) => (
   <div className="messages-sidebar">
     <div className="messages-header">
@@ -1255,9 +1892,21 @@ const MessagesSidebar = ({
         <h2>Mensagens</h2>
       </div>
       <div className="header-right">
-        <button className="icon-btn-transparent" aria-label="Nova mensagem">
-          <SendIcon size={24} color="#0056D2" />
-        </button>
+        {activeTab === 'groups' ? (
+          <button
+            className="icon-btn-transparent"
+            type="button"
+            aria-label="Criar grupo"
+            title="Criar grupo"
+            onClick={onCreateGroup}
+          >
+            <Plus size={24} color="#0056D2" />
+          </button>
+        ) : (
+          <button className="icon-btn-transparent" aria-label="Nova mensagem">
+            <SendIcon size={24} color="#0056D2" />
+          </button>
+        )}
         <button className="icon-btn-transparent" aria-label="Mais opções">
           <MoreVertical size={24} color="#65676B" />
         </button>
@@ -1307,6 +1956,9 @@ const MessagesSidebar = ({
           const unreadCount = getContactUnread(contact);
           const hasUnread = unreadCount > 0;
           const contactName = getContactName(contact);
+          const groupSenderName = contact.isGroup
+            ? getGroupLastMessageSenderName(contact, currentUserId)
+            : '';
           const otherParticipant = getOtherParticipant(contact);
           const contactOnline = otherParticipant?.isOnline || false;
           const contactId = contact.conversation_id || contact.id;
@@ -1350,13 +2002,17 @@ const MessagesSidebar = ({
                   }}>
                     {contact.isGroup && contact.last_message ? (
                       <>
-                        {contact.last_message.senderName ? (
+                        {groupSenderName ? (
                           <>
-                            <strong>{contact.last_message.senderName}:</strong> {contact.last_message.content || contact.last_message.text || ''}
+                            <strong>{groupSenderName}:</strong> {contact.last_message.content || contact.last_message.text || ''}
                           </>
                         ) : (
                           contact.last_message.content || contact.last_message.text || 'Nenhuma mensagem ainda'
                         )}
+                      </>
+                    ) : contact.last_message?.type === 'story_reply' ? (
+                      <>
+                        <strong>Story:</strong> {contact.last_message.content || contact.last_message.text || 'Você recebeu uma resposta ao story'}
                       </>
                     ) : (
                       contact.last_message?.content || contact.last_message?.text || 'Nenhuma mensagem ainda'
@@ -1404,16 +2060,19 @@ const MessagesSidebar = ({
 
 const ConversationHeader = ({
   contact, isGroup, isOnline, user,
-  isMobile, setShowMobileChat,
-  setSelectedContact,
-  onSearchToggle, showMessageSearch
+  isMobile,
+  onCloseConversation,
+  onSearchToggle, showMessageSearch, onGroupInfo
 }) => {
   // Find other participant by name not being "Você" (handles case where both have same ID)
   const otherParticipant = contact.participants?.find(p => p.name !== 'Você');
-  const participantOnline = otherParticipant ? isOnline[otherParticipant.id] : false;
+  const participantOnline = otherParticipant
+    ? (isOnline[otherParticipant.id] ?? otherParticipant.isOnline ?? otherParticipant.is_online ?? false)
+    : false;
   const onlineCount = contact.participants?.filter(p => p.name !== 'Você' && isOnline[p.id]).length || 0;
   const totalParticipants = contact.participants?.length || Number(contact.memberCount ?? contact.member_count) || 0;
-  const admins = contact.participants?.filter(p => p.isAdmin && p.name !== 'Você') || [];
+  const contactAdminIds = (contact.adminIds || []).map(Number);
+  const admins = contact.participants?.filter(p => p.name !== 'Você' && (p.isAdmin || contactAdminIds.includes(Number(p.id)) || String(p.group_role || p.role).toLowerCase() === 'admin')) || [];
 
   return (
     <header className="chat-header" role="banner">
@@ -1421,39 +2080,47 @@ const ConversationHeader = ({
         {isMobile && (
           <button
             className="mobile-back-btn"
-            onClick={() => { setShowMobileChat(false); setSelectedContact(null); }}
+            onClick={onCloseConversation}
             aria-label="Voltar para lista de conversas"
             title="Voltar"
           >
             <ArrowLeft size={24} />
           </button>
         )}
-        <Avatar user={contact} style={{ width: '40px', height: '40px' }} />
-        <div className="chat-user-info">
-          <h3>{isGroup ? contact.name : (otherParticipant?.name || contact.name)}</h3>
-          <span className="contact-status">
-            {isGroup ? (
-              <>
-                <span className={`status-dot ${onlineCount > 0 ? 'online' : ''}`} aria-hidden="true"></span>
-                <span>{totalParticipants} {totalParticipants === 1 ? 'membro' : 'membros'}</span>
-                {admins.length > 0 && (
-                  <>
-                    <span className="admin-separator" aria-hidden="true">·</span>
-                    <span className="admin-badge">
-                      <Shield size={10} aria-hidden="true" />
-                      {admins.length} admin{admins.length > 1 ? 's' : ''}
-                    </span>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <span className={`status-dot ${participantOnline ? 'online' : ''}`} aria-hidden="true"></span>
-                <span>{participantOnline ? 'Online' : 'Offline'}</span>
-              </>
-            )}
-          </span>
-        </div>
+        <button
+          type="button"
+          className="chat-group-info-trigger"
+          onClick={onGroupInfo}
+          disabled={!isGroup}
+          aria-label={isGroup ? 'Abrir informações do grupo' : undefined}
+        >
+          <Avatar user={contact} style={{ width: '40px', height: '40px' }} />
+          <div className="chat-user-info">
+            <h3>{isGroup ? contact.name : (otherParticipant?.name || contact.name)}</h3>
+            <span className="contact-status">
+              {isGroup ? (
+                <>
+                  <span className={`status-dot ${onlineCount > 0 ? 'online' : ''}`} aria-hidden="true"></span>
+                  <span>{totalParticipants} {totalParticipants === 1 ? 'membro' : 'membros'}</span>
+                  {admins.length > 0 && (
+                    <>
+                      <span className="admin-separator" aria-hidden="true">·</span>
+                      <span className="admin-badge">
+                        <Shield size={10} aria-hidden="true" />
+                        {admins.length} admin{admins.length > 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className={`status-dot ${participantOnline ? 'online' : ''}`} aria-hidden="true"></span>
+                  <span>{participantOnline ? 'Online' : 'Offline'}</span>
+                </>
+              )}
+            </span>
+          </div>
+        </button>
       </div>
       <div className="chat-actions">
         <button
@@ -1652,7 +2319,6 @@ const ChatInputArea = ({
       type="submit"
       className="send-btn"
       disabled={!messageText.trim()}
-      onClick={handleSendMessage}
       aria-label="Enviar mensagem"
     >
       <Send size={20} color="white" />

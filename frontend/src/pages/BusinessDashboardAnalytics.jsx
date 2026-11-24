@@ -19,7 +19,8 @@ const BusinessDashboardAnalytics = () => {
         spent: 0,
         followers: 0,
         posts: 0,
-        stories: 0
+        stories: 0,
+        campaigns: 0
     });
     const [impressionsData, setImpressionsData] = useState({ labels: [], datasets: [] });
     const [ctrData, setCtrData] = useState({ labels: [], datasets: [] });
@@ -75,12 +76,12 @@ const BusinessDashboardAnalytics = () => {
     };
 
     const kpiCards = [
-        { label: 'Impressões', value: formatNumber(overview.impressions), icon: Eye, color: '#3B82F6', trend: '+12%' },
-        { label: 'Cliques', value: formatNumber(overview.clicks), icon: Zap, color: '#F59E0B', trend: '+8%' },
-        { label: 'CTR', value: `${overview.ctr}%`, icon: TrendingUp, color: '#8B5CF6', trend: '+0.2%' },
-        { label: 'Investido', value: formatCurrency(overview.spent), icon: DollarSign, color: '#059669', trend: '+5%' },
-        { label: 'Seguidores', value: formatNumber(overview.followers), icon: Users, color: '#EC4899', trend: '+23' },
-        { label: 'Publicações', value: formatNumber(overview.posts), icon: TrendingUp, color: '#14B8A6', trend: '+5' }
+        { label: 'Impressões', value: formatNumber(overview.impressions), icon: Eye, color: '#3B82F6' },
+        { label: 'Cliques', value: formatNumber(overview.clicks), icon: Zap, color: '#F59E0B' },
+        { label: 'CTR', value: `${overview.ctr}%`, icon: TrendingUp, color: '#8B5CF6' },
+        { label: 'Investido', value: formatCurrency(overview.spent), icon: DollarSign, color: '#059669' },
+        { label: 'Seguidores', value: formatNumber(overview.followers), icon: Users, color: '#EC4899' },
+        { label: 'Publicações', value: formatNumber(overview.posts), icon: TrendingUp, color: '#14B8A6' }
     ];
 
     const lineChartOptions = {
@@ -149,7 +150,7 @@ const BusinessDashboardAnalytics = () => {
                         <div className="kpi-content">
                             <div className="kpi-value">{kpi.value}</div>
                             <div className="kpi-label">{kpi.label}</div>
-                            <div className="kpi-trend positive">{kpi.trend}</div>
+                            {kpi.trend && <div className="kpi-trend positive">{kpi.trend}</div>}
                         </div>
                     </div>
                 ))}
@@ -160,7 +161,7 @@ const BusinessDashboardAnalytics = () => {
                 <div className="chart-card">
                     <div className="chart-header">
                         <h3>Impressões ao longo do tempo</h3>
-                        <p className="chart-subtitle">Visualizações de posts, stories e anúncios</p>
+                        <p className="chart-subtitle">Impressões válidas de anúncios registradas no período</p>
                     </div>
                     <div className="chart-container">
                         {impressionsData.labels?.length > 0 ? (
@@ -204,15 +205,15 @@ const BusinessDashboardAnalytics = () => {
 
                 <div className="chart-card">
                     <div className="chart-header">
-                        <h3>Distribuição de Impressões</h3>
-                        <p className="chart-subtitle">Por tipo de conteúdo</p>
+                        <h3>Atividade da empresa</h3>
+                        <p className="chart-subtitle">Quantidade de publicações, stories ativos e campanhas cadastradas</p>
                     </div>
                     <div className="chart-container">
                         <Doughnut
                             data={{
-                                labels: ['Posts', 'Stories', 'Anúncios'],
+                                labels: ['Publicações', 'Stories', 'Campanhas'],
                                 datasets: [{
-                                    data: [overview.posts * 100 || 1, overview.stories * 50 || 1, overview.clicks * 10 || 1],
+                                    data: [overview.posts || 0, overview.stories || 0, overview.campaigns || 0],
                                     backgroundColor: ['#3B82F6', '#8B5CF6', '#F59E0B'],
                                     borderWidth: 0
                                 }]
@@ -253,7 +254,7 @@ const BusinessDashboardAnalytics = () => {
                                         <td>{post.views_count?.toLocaleString() || 0}</td>
                                         <td>{post.likes_count?.toLocaleString() || 0}</td>
                                         <td>{post.comments_count?.toLocaleString() || 0}</td>
-                                        <td>{post.ctr?.toFixed(2)}%</td>
+                                        <td>—</td>
                                     </tr>
                                 )) : (
                                     <tr><td colSpan={6} className="empty-row">Nenhuma publicação no período</td></tr>
@@ -296,7 +297,7 @@ const BusinessDashboardAnalytics = () => {
                                         <td>{campaign.clicks?.toLocaleString() || 0}</td>
                                         <td>{campaign.ctr?.toFixed(2)}%</td>
                                         <td>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(campaign.spent || 0)}</td>
-                                        <td className="roi-positive">+{((campaign.clicks * 10) / (campaign.spent || 1) * 100).toFixed(0)}%</td>
+                                        <td>—</td>
                                     </tr>
                                 )) : (
                                     <tr><td colSpan={7} className="empty-row">Nenhuma campanha ativa no período</td></tr>

@@ -1,5 +1,6 @@
 const db = require('../db');
 const socketHelper = require('../socketHelper');
+const { getEligibleGroupContacts, getEligibleGroupParticipantIds } = require('../utils/groupEligibility');
 
 const groupController = {
     // Get all public groups (for discovery)
@@ -35,12 +36,28 @@ const groupController = {
                 (
                     SELECT m.content FROM group_messages m
                     WHERE m.group_id = g.id
-                    ORDER BY m.created_at DESC LIMIT 1
+                    ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                 ) as last_message,
+                (
+                    SELECT m.sender_id FROM group_messages m
+                    WHERE m.group_id = g.id
+                    ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                ) as last_message_sender_id,
+                (
+                    SELECT CASE
+                        WHEN latest.sender_id = ? THEN 'You'
+                        ELSE COALESCE(NULLIF(TRIM(sender.name), ''), 'Participant')
+                    END
+                    FROM group_messages latest
+                    LEFT JOIN users sender ON sender.id = latest.sender_id
+                    WHERE latest.group_id = g.id
+                    ORDER BY latest.created_at DESC, latest.id DESC
+                    LIMIT 1
+                ) as last_message_sender_name,
                 (
                     SELECT m.created_at FROM group_messages m
                     WHERE m.group_id = g.id
-                    ORDER BY m.created_at DESC LIMIT 1
+                    ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                 ) as last_interaction,
                 (
                     SELECT COUNT(*) FROM group_messages m
@@ -57,7 +74,10 @@ const groupController = {
                 WHERE gm.user_id = ?
                 ORDER BY last_interaction DESC, g.name ASC
             `;
-            const [groups] = await db.query(groupQuery, [loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId]);
+            const [groups] = await db.query(groupQuery, [
+                loggedUserId, loggedUserId, loggedUserId,
+                loggedUserId, loggedUserId, loggedUserId
+            ]);
 
             // For each group, fetch participants and admins separately (avoiding JSON_ARRAYAGG)
             const groupIds = groups.map(g => g.id);
@@ -105,23 +125,55 @@ const groupController = {
                 });
             }
 
-            // Parse JSON fields
-            const formattedGroups = groups.map(g => ({
-                ...g,
-                participants: participantsByGroup[g.id] || [],
-                adminIds: adminsByGroup[g.id] || [],
-                isMuted: g.is_muted === 1 || g.is_muted === true,
-                isImportant: g.is_important === 1 || g.is_important === true,
-                last_message: g.last_message ? {
-                    content: g.last_message,
-                    senderName: 'Unknown',
-                    type: 'text',
-                    status: 'read',
-                    createdAt: g.last_interaction
-                } : null,
-                unreadCount: g.unread_count || 0,
-                updatedAt: g.last_interaction || g.created_at
-            }));
+            // Build group previews from the actual last-message author. Keep IDs as
+            // strings because Supabase-backed user IDs may be UUIDs, not integers.
+            const placeholderSenderNames = new Set([
+                'unknown', 'desconhecido', 'participant', 'participante', 'you', 'você'
+            ]);
+            const formattedGroups = groups.map(g => {
+                const participants = participantsByGroup[g.id] || [];
+                const senderId = g.last_message_sender_id == null
+                    ? null
+                    : String(g.last_message_sender_id).trim();
+                const isOwnLastMessage = senderId !== null &&
+                    senderId.toLowerCase() === String(loggedUserId).trim().toLowerCase();
+                const senderParticipant = senderId === null
+                    ? null
+                    : participants.find(member =>
+                        String(member.id ?? member.user_id ?? '').trim().toLowerCase() === senderId.toLowerCase()
+                    );
+                const participantName = String(senderParticipant?.name || '').trim();
+                const queriedSenderName = String(g.last_message_sender_name || '').trim();
+                const senderName = isOwnLastMessage
+                    ? 'You'
+                    : (
+                        participantName && !placeholderSenderNames.has(participantName.toLowerCase())
+                            ? participantName
+                            : (
+                                queriedSenderName && !placeholderSenderNames.has(queriedSenderName.toLowerCase())
+                                    ? queriedSenderName
+                                    : 'Participant'
+                            )
+                    );
+
+                return {
+                    ...g,
+                    participants,
+                    adminIds: adminsByGroup[g.id] || [],
+                    isMuted: g.is_muted === 1 || g.is_muted === true,
+                    isImportant: g.is_important === 1 || g.is_important === true,
+                    last_message: g.last_message ? {
+                        senderId: g.last_message_sender_id,
+                        senderName,
+                        content: g.last_message,
+                        type: 'text',
+                        status: 'read',
+                        createdAt: g.last_interaction
+                    } : null,
+                    unreadCount: g.unread_count || 0,
+                    updatedAt: g.last_interaction || g.created_at
+                };
+            });
 
             res.status(200).json(formattedGroups);
         } catch (error) {
@@ -130,12 +182,38 @@ const groupController = {
         }
     },
 
+    getEligibleContacts: async (req, res) => {
+        try {
+            const contacts = await getEligibleGroupContacts(req.user.id);
+            return res.status(200).json(contacts);
+        } catch (error) {
+            console.error('Erro ao buscar contatos elegíveis para grupos:', error);
+            return res.status(500).json({ error: 'Erro ao buscar contatos para o grupo.' });
+        }
+    },
+
     create: async (req, res) => {
         try {
             const { name, description, icon, participants } = req.body;
             const creatorId = req.user.id;
 
-            if (!name) return res.status(400).json({ error: 'O nome do grupo é obrigatório.' });
+            if (!name || typeof name !== 'string' || !name.trim()) {
+                return res.status(400).json({ error: 'O nome do grupo é obrigatório.' });
+            }
+
+            const requestedParticipantIds = Array.isArray(participants)
+                ? [...new Set(participants.map(Number))].filter(id => id !== Number(creatorId))
+                : [];
+            if (requestedParticipantIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+                return res.status(400).json({ error: 'Um ou mais participantes são inválidos.' });
+            }
+
+            const eligibleParticipantIds = await getEligibleGroupParticipantIds(creatorId, requestedParticipantIds);
+            if (eligibleParticipantIds.length !== requestedParticipantIds.length) {
+                return res.status(403).json({
+                    error: 'Só é possível adicionar pessoas com quem você já conversou, segue ou que seguem você.'
+                });
+            }
 
             const defaultIcon = icon || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=random';
 
@@ -156,15 +234,27 @@ const groupController = {
                 [groupId, creatorId, creatorId]
             );
 
-            // Add initial participants if provided
-            if (participants && Array.isArray(participants)) {
-                for (const userId of participants) {
-                    if (userId !== creatorId) {
-                        await db.query(
-                            'INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
-                            [groupId, userId, 'member']
-                        );
-                    }
+            // Add only participants validated against existing conversations/follow relationships.
+            for (const userId of eligibleParticipantIds) {
+                await db.query(
+                    'INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
+                    [groupId, userId, 'member']
+                );
+            }
+
+            if (eligibleParticipantIds.length > 0) {
+                const notificationController = require('./notificationController');
+                for (const userId of eligibleParticipantIds) {
+                    await notificationController.createNotification(
+                        userId,
+                        'group_invite',
+                        creatorId,
+                        `adicionou você ao grupo "${name.trim()}".`,
+                        'group',
+                        Number(groupId),
+                        `group_${groupId}_invite`,
+                        { action: 'invite', group_id: Number(groupId), group_name: name.trim() }
+                    );
                 }
             }
 
@@ -282,6 +372,29 @@ const groupController = {
                 [id, userId]
             );
 
+            // If the departing member was the last admin, promote a remaining member
+            // so the group never becomes impossible to manage.
+            const [remainingAdmins] = await db.query(
+                'SELECT admin_id FROM group_admins WHERE group_id = ?',
+                [id]
+            );
+            if (remainingAdmins.length === 0) {
+                const [nextAdmin] = await db.query(
+                    'SELECT user_id FROM group_members WHERE group_id = ? ORDER BY user_id ASC LIMIT 1',
+                    [id]
+                );
+                if (nextAdmin.length > 0) {
+                    await db.query(
+                        'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?)',
+                        [id, nextAdmin[0].user_id, userId]
+                    );
+                    await db.query(
+                        "UPDATE group_members SET role = 'admin' WHERE group_id = ? AND user_id = ?",
+                        [id, nextAdmin[0].user_id]
+                    );
+                }
+            }
+
             // Emit group_updated event
             const [members] = await db.query(`
                 SELECT u.id, u.name, u.avatar, gm.role
@@ -340,11 +453,22 @@ const groupController = {
                 return res.status(400).json({ error: 'Lista de usuários é obrigatória.' });
             }
 
+            const normalizedUserIds = [...new Set(userIds.map(Number))].filter(userId => userId !== Number(requesterId));
+            if (normalizedUserIds.some(userId => !Number.isSafeInteger(userId) || userId <= 0)) {
+                return res.status(400).json({ error: 'Um ou mais participantes são inválidos.' });
+            }
+            const eligibleUserIds = await getEligibleGroupParticipantIds(requesterId, normalizedUserIds);
+            if (eligibleUserIds.length !== normalizedUserIds.length) {
+                return res.status(403).json({
+                    error: 'Só é possível adicionar pessoas com quem você já conversou, segue ou que seguem você.'
+                });
+            }
+
             const added = [];
             const groupNameResult = await db.query('SELECT name FROM groups_table WHERE id = ?', [id]);
             const groupName = groupNameResult[0]?.name || 'Grupo';
 
-            for (const userId of userIds) {
+            for (const userId of normalizedUserIds) {
                 const [existing] = await db.query(
                     'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
                     [id, userId]

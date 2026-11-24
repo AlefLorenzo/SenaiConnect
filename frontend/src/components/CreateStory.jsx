@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
-import { X, Image, Video, Send, AtSign, Smile, MoreHorizontal, PenTool, Crop, Lock, Users, UserMinus, UserPlus, MessageSquare, Heart } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { acquireModalScrollLock } from '../utils/modalScrollLock.js';
+import { X, Image, Video, Send, AtSign, Smile, Ellipsis, Pen, Crop, Lock, Users, UserRoundMinus, UserRoundPlus, MessageSquare, Heart, Camera, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { storiesService } from '../services/storiesService';
 import './CreateStory.css';
@@ -37,11 +39,16 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [mediaType, setMediaType] = useState(null); // 'image' | 'video'
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState('');
+  const [cameraFacing, setCameraFacing] = useState('environment');
+  const cameraVideoRef = useRef(null);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionUsers, setMentionUsers] = useState([]);
   const [selectedMentions, setSelectedMentions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInProgressRef = useRef(false);
   const [error, setError] = useState(null);
 
   // Text overlay/drawing tools state
@@ -67,6 +74,105 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
   const canvasRef = useRef(null);
   const mediaRef = useRef(null);
   const overlayContainerRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const stopDeviceCamera = useCallback(() => {
+    setCameraStream((current) => {
+      current?.getTracks?.().forEach((track) => track.stop());
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'camera') stopDeviceCamera();
+    return () => stopDeviceCamera();
+  }, [isOpen, activeTab, stopDeviceCamera]);
+
+  useEffect(() => {
+    if (cameraVideoRef.current && cameraStream) {
+      cameraVideoRef.current.srcObject = cameraStream;
+      cameraVideoRef.current.play().catch(() => {});
+    }
+  }, [cameraStream]);
+
+  const startDeviceCamera = async () => {
+    setCameraError('');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Este navegador não oferece acesso direto à câmera. Use a opção de escolher arquivo.');
+      return;
+    }
+    try {
+      stopDeviceCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: cameraFacing }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      });
+      setCameraStream(stream);
+    } catch (cameraAccessError) {
+      console.error('Falha ao acessar a câmera deste aparelho:', cameraAccessError);
+      if (cameraAccessError.name === 'NotAllowedError' || cameraAccessError.name === 'PermissionDeniedError') {
+        setCameraError('A permissão da câmera foi negada neste aparelho/navegador. Libere a câmera nas configurações do site e tente novamente.');
+      } else if (cameraAccessError.name === 'NotFoundError' || cameraAccessError.name === 'DevicesNotFoundError') {
+        setCameraError('Nenhuma câmera foi encontrada neste aparelho.');
+      } else {
+        setCameraError('Não foi possível abrir a câmera. Verifique se ela está sendo usada por outro aplicativo.');
+      }
+    }
+  };
+
+  const switchDeviceCamera = async () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    setCameraFacing(nextFacing);
+    setCameraError('');
+    try {
+      stopDeviceCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: nextFacing } } });
+      setCameraStream(stream);
+    } catch (cameraAccessError) {
+      console.error('Não foi possível alternar a câmera:', cameraAccessError);
+      setCameraError('Não foi possível alternar a câmera deste aparelho.');
+    }
+  };
+
+  const captureDeviceCamera = () => {
+    const video = cameraVideoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) { setCameraError('Não foi possível capturar a foto. Tente novamente.'); return; }
+      const file = new File([blob], `senai-story-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      if (mediaPreview) URL.revokeObjectURL(mediaPreview);
+      setMediaFile(file);
+      setMediaType('image');
+      setMediaPreview(URL.createObjectURL(file));
+      setOverlayElements([]);
+      setCameraError('');
+      stopDeviceCamera();
+    }, 'image/jpeg', 0.92);
+  };
+
+  // Keep the Home feed locked until every stacked creation overlay has closed.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const releaseScrollLock = acquireModalScrollLock();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onCloseRef.current?.();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      releaseScrollLock();
+    };
+  }, [isOpen]);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -87,6 +193,8 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
     setMediaFile(null);
     setMediaPreview(null);
     setMediaType(null);
+    stopDeviceCamera();
+    setCameraError('');
     setShowMentions(false);
     setMentionQuery('');
     setMentionUsers([]);
@@ -122,7 +230,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
     if (lastAtIndex !== -1 && lastAtIndex === textBeforeCursor.length - 1 ||
         (lastAtIndex !== -1 && /^@[\w.]*$/.test(textBeforeCursor.slice(lastAtIndex)))) {
       const query = textBeforeCursor.slice(lastAtIndex + 1);
-      setMentionTriggerRef({ start: lastAtIndex, end: cursorPos });
+      mentionTriggerRef.current = { start: lastAtIndex, end: cursorPos };
       if (query.length > 0 || query.length === 0) {
         setShowMentions(true);
         setMentionQuery(query);
@@ -180,9 +288,10 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
       return;
     }
 
-    const maxSize = mediaType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const selectedMediaType = file.type.startsWith('video/') ? 'video' : 'image';
+    const maxSize = selectedMediaType === 'video' ? 35 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      setError(mediaType === 'video' ? 'Vídeo deve ter no máximo 50MB' : 'Imagem deve ter no máximo 10MB');
+      setError(selectedMediaType === 'video' ? 'Vídeo deve ter no máximo 35MB' : 'Imagem deve ter no máximo 10MB');
       return;
     }
 
@@ -294,6 +403,52 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
     setCropArea({ x: 10, y: 10, width: 80, height: 80 });
   };
 
+  // Resize the crop rectangle from the selected corner.
+  const startCropDrag = (event, handle) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const bounds = overlayContainerRef.current?.getBoundingClientRect();
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const initial = { ...cropArea };
+    const minSize = 10;
+
+    const handleMove = (moveEvent) => {
+      const dx = ((moveEvent.clientX - startX) / bounds.width) * 100;
+      const dy = ((moveEvent.clientY - startY) / bounds.height) * 100;
+      let { x, y, width, height } = initial;
+
+      if (handle.includes('l')) {
+        const right = initial.x + initial.width;
+        x = Math.min(right - minSize, Math.max(0, initial.x + dx));
+        width = right - x;
+      } else if (handle.includes('r')) {
+        width = Math.min(100 - initial.x, Math.max(minSize, initial.width + dx));
+      }
+
+      if (handle.includes('t')) {
+        const bottom = initial.y + initial.height;
+        y = Math.min(bottom - minSize, Math.max(0, initial.y + dy));
+        height = bottom - y;
+      } else if (handle.includes('b')) {
+        height = Math.min(100 - initial.y, Math.max(minSize, initial.height + dy));
+      }
+
+      setCropArea({ x, y, width, height });
+    };
+
+    const handleEnd = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd, { once: true });
+  };
+
   const applyCrop = async () => {
     if (!mediaFile || !mediaRef.current) return;
 
@@ -365,11 +520,13 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
   };
 
   const handleSubmit = async () => {
+    if (submitInProgressRef.current) return;
     if (!textContent.trim() && !mediaFile && overlayElements.length === 0) {
       setError('Adicione texto ou mídia para criar a história');
       return;
     }
 
+    submitInProgressRef.current = true;
     setIsSubmitting(true);
     setError(null);
 
@@ -416,6 +573,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
       console.error('Erro ao criar história:', err);
       setError('Erro ao criar história. Tente novamente.');
     } finally {
+      submitInProgressRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -428,7 +586,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
   // Get emojis for active category
   const activeEmojis = EMOJI_CATEGORIES[activeEmojiCategory] || [];
 
-  return (
+  return createPortal(
     <div className="create-story-overlay" role="dialog" aria-modal="true" aria-label="Criar história">
       <div className="create-story-container">
         {/* Header */}
@@ -442,7 +600,7 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
             )}
             {mediaFile && (
               <button className="header-tool-btn" onClick={addTextOverlay} aria-label="Adicionar texto">
-                <PenTool size={22} />
+                <Pen size={22} />
               </button>
             )}
             {mediaFile && (
@@ -619,12 +777,26 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
                     </div>
                   )}
                 </div>
+              ) : cameraStream ? (
+                <div className="device-camera-preview">
+                  <video ref={cameraVideoRef} autoPlay muted playsInline aria-label="Prévia da câmera do aparelho" />
+                  <div className="device-camera-actions">
+                    <button type="button" onClick={switchDeviceCamera} aria-label="Alternar câmera"><RefreshCw size={19} /></button>
+                    <button type="button" className="device-camera-capture" onClick={captureDeviceCamera} aria-label="Tirar foto"><Camera size={23} /></button>
+                    <button type="button" onClick={stopDeviceCamera} aria-label="Fechar câmera"><X size={19} /></button>
+                  </div>
+                </div>
               ) : (
                 <div className="camera-placeholder">
                   <div className="camera-icon">
-                    <Image size={48} />
+                    <Camera size={48} />
                   </div>
-                  <p>Toque para adicionar foto ou vídeo</p>
+                  <p>Use a câmera deste aparelho ou escolha uma foto/vídeo</p>
+                  <button type="button" className="camera-button" onClick={startDeviceCamera}>
+                    <Camera size={20} />
+                    <span>Permitir acesso à câmera</span>
+                  </button>
+                  {cameraError && <p className="device-camera-error" role="alert">{cameraError}</p>}
                   <input
                     type="file"
                     accept="image/*,video/*"
@@ -878,7 +1050,8 @@ const CreateStory = ({ isOpen, onClose, onStoryCreated }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

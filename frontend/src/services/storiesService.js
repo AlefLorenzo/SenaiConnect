@@ -175,21 +175,28 @@ class StoriesService extends BaseService {
       return newStory;
     }
 
-    // For file uploads, we need FormData
-    const formData = new FormData();
-    if (storyData.image) formData.append('image', storyData.image);
-    if (storyData.video) formData.append('video', storyData.video);
-    if (storyData.text) formData.append('text', storyData.text);
-    if (storyData.backgroundColor) formData.append('backgroundColor', storyData.backgroundColor);
-    if (storyData.privacy) formData.append('privacy', storyData.privacy);
-
-    const url = this.buildUrl(ENDPOINTS.STORIES.CREATE);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getAuthHeader(),
-      body: formData,
+    const toDataUrl = (file) => new Promise((resolve, reject) => {
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Não foi possível ler a mídia selecionada.'));
+      reader.readAsDataURL(file);
     });
-    return this.handleResponse(response);
+
+    const image = await toDataUrl(storyData.image);
+    const video = await toDataUrl(storyData.video);
+    const payload = {
+      media_url: image || video || null,
+      media_type: image ? 'image' : video ? 'video' : (storyData.text ? 'text' : null),
+      text_content: storyData.text || null,
+      background_color: storyData.backgroundColor || null,
+      privacy: storyData.privacy || 'public',
+      text_overlay_data: storyData.text_overlay_data || null,
+      privacy_exceptions: storyData.privacy_exceptions || [],
+    };
+    const created = await this.post(ENDPOINTS.STORIES.CREATE, payload);
+    this.invalidateCache();
+    return created;
   }
 
   /**
@@ -211,7 +218,10 @@ class StoriesService extends BaseService {
       return { success: true };
     }
 
-    return this.post(ENDPOINTS.STORIES.VIEW(storyId), {});
+    const result = await this.post(ENDPOINTS.STORIES.VIEW(storyId), {});
+    // Refresh cached feed data so the seen/unseen ring stays accurate across navigation.
+    this.invalidateCache();
+    return result;
   }
 
   /**
@@ -401,39 +411,6 @@ class StoriesService extends BaseService {
     }
 
     return this.get(`${ENDPOINTS.STORIES.MENTIONS_SEARCH}?q=${encodeURIComponent(query)}&limit=10`);
-  }
-
-  /**
-   * Mark story as viewed
-   */
-  async viewStory(storyId) {
-    if (USE_MOCK) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      this.mockFeed.forEach(group => {
-        group.items.forEach(item => {
-          if (item.id === storyId) {
-            item.viewed = true;
-          }
-        });
-        group.hasUnviewed = group.items.some(item => !item.viewed);
-      });
-      this.invalidateCache();
-      return { success: true };
-    }
-
-    return this.post(`${ENDPOINTS.STORIES.BASE}/${storyId}/view`, {});
-  }
-
-  /**
-   * Get story viewers (owner only)
-   */
-  async getStoryViewers(storyId) {
-    if (USE_MOCK) {
-      await new Promise(resolve => setTimeout(resolve, 150));
-      return mockStoryViewers;
-    }
-
-    return this.get(`${ENDPOINTS.STORIES.BASE}/${storyId}/viewers`);
   }
 
   /**

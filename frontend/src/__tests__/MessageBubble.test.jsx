@@ -95,20 +95,23 @@ describe('MessageBubble', () => {
       expect(bubble).toHaveClass('sent');
     });
 
-    test('does not show sender name for own messages in groups', () => {
+    test('shows "You" for own group messages even when sender ID types differ', () => {
       const sentMessage = {
         ...defaultProps.message,
-        sender_id: 1,
-        sender_name: 'Você',
+        sender_id: '1',
+        sender_name: 'Nome da conta',
       };
 
       renderMessageBubble({
         message: sentMessage,
+        currentUserId: 1,
         isGroup: true,
       });
 
-      // Component does not show sender header for sent messages (isSent returns false for shouldShowSenderHeader)
-      expect(screen.queryByText('Você')).not.toBeInTheDocument();
+      const bubble = screen.getByText('Mensagem de teste').closest('.message-bubble');
+      expect(bubble).toHaveClass('sent');
+      expect(screen.getByText('You')).toBeInTheDocument();
+      expect(screen.queryByText('Nome da conta')).not.toBeInTheDocument();
     });
 
     test('does not show sender name for own messages in individual chats', () => {
@@ -141,6 +144,20 @@ describe('MessageBubble', () => {
       });
 
       expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+    });
+
+    test('uses the participant name instead of a generic Unknown sender label', () => {
+      renderMessageBubble({
+        message: {
+          ...defaultProps.message,
+          senderName: 'Unknown',
+          sender_name: 'Unknown',
+        },
+        isGroup: true,
+      });
+
+      expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+      expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
     });
 
     test('shows sender avatar for received messages in groups', () => {
@@ -222,6 +239,55 @@ describe('MessageBubble', () => {
       });
 
       expect(screen.getByText('⚠')).toBeInTheDocument();
+    });
+  });
+
+  describe('Story reply messages', () => {
+    test('shows the original story preview together with the private reply text', () => {
+      renderMessageBubble({
+        message: {
+          ...defaultProps.message,
+          sender_id: 1,
+          message_type: 'story_reply',
+          type: 'story_reply',
+          content: 'Que lugar lindo!',
+          storyReply: {
+            storyId: 42,
+            ownerId: 2,
+            ownerName: 'Maria Silva',
+            mediaUrl: 'https://example.com/story.jpg',
+            mediaType: 'image',
+            textContent: 'Passeio de hoje',
+          },
+        },
+      });
+
+      expect(screen.getByText('Story de Maria Silva')).toBeInTheDocument();
+      expect(screen.getByText('Passeio de hoje')).toBeInTheDocument();
+      expect(screen.getByText('Que lugar lindo!')).toBeInTheDocument();
+      expect(document.querySelector('.story-message-thumbnail')).toHaveAttribute('src', 'https://example.com/story.jpg');
+    });
+
+    test('labels a story preview as the current user\'s story when received by its owner', () => {
+      renderMessageBubble({
+        currentUserId: 2,
+        message: {
+          ...defaultProps.message,
+          sender_id: 1,
+          message_type: 'story_reply',
+          type: 'story_reply',
+          content: 'Adorei!',
+          storyReply: {
+            storyId: 42,
+            ownerId: 2,
+            ownerName: 'Maria Silva',
+            textContent: 'Meu story',
+          },
+        },
+      });
+
+      expect(screen.getByText('Seu story')).toBeInTheDocument();
+      expect(screen.getByText('Adorei!')).toBeInTheDocument();
     });
   });
 
@@ -395,7 +461,7 @@ describe('MessageBubble', () => {
         { ...defaultProps.message, id: 3, sender_id: 3, created_at: '2024-01-15T10:32:00Z' },
       ];
 
-      // Participants include sender_id 3 with name "Maria Silva" for the third message
+      // Participant data is authoritative when an older message object carries a stale sender label.
       const participants = [
         { id: 1, name: 'Você', avatar: 'current-avatar.jpg' },
         { id: 2, name: 'Maria Silva', avatar: 'maria.jpg' },

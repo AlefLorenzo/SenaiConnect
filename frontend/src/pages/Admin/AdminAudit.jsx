@@ -44,7 +44,7 @@ const AdminAudit = () => {
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -77,7 +77,7 @@ const AdminAudit = () => {
 
     const fetchStats = useCallback(async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/audit/stats`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -94,7 +94,7 @@ const AdminAudit = () => {
 
     const fetchActions = useCallback(async () => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/audit/actions`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -135,16 +135,37 @@ const AdminAudit = () => {
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const exportLogs = () => {
+    const exportLogs = async () => {
         const params = new URLSearchParams();
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
         if (actionFilter) params.append('action', actionFilter);
         if (adminFilter) params.append('admin_id', adminFilter);
 
-        window.open(`${API_URL}/api/admin/audit/export?${params}`, '_blank');
-    };
+        try {
+            const token = sessionStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/admin/audit/export?${params}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Não foi possível exportar o relatório.');
+            }
 
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = 'senai-connect-auditoria.csv';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            console.error('Erro ao exportar auditoria:', error);
+            window.alert(error.message || 'Não foi possível exportar o relatório.');
+        }
+    };
     const openDetail = (log) => setDetailModal(log);
     const closeDetail = () => setDetailModal(null);
 

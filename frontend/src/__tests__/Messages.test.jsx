@@ -66,6 +66,7 @@ jest.mock('../context/SocketContext.jsx', () => {
     sendTypingStart: jest.fn(),
     sendTypingStop: jest.fn(),
     sendMessagesRead: jest.fn(),
+    fetchUnreadMessagesCount: jest.fn().mockResolvedValue(undefined),
     queueMessage: jest.fn(),
     retryMessage: jest.fn(),
     MESSAGE_STATUS: {
@@ -109,6 +110,7 @@ jest.mock('../context/AuthContext.jsx', () => {
 // Mock lucide-react icons - include all icons used by MessagesSidebar and MessageBubble
 jest.mock('lucide-react', () => ({
   Send: jest.fn(() => <span data-testid="send-icon" />),
+  Plus: jest.fn(() => <span data-testid="plus-icon" />),
   SendIcon: jest.fn(() => <span data-testid="send-icon" />), // Send as SendIcon
   MoreVertical: jest.fn(() => <span data-testid="more-icon" />),
   Search: jest.fn(() => <span data-testid="search-icon" />),
@@ -280,6 +282,14 @@ describe('Messages Page', () => {
   });
 
   describe('Contact List', () => {
+    test('loads the Geral inbox from the server instead of using a stale cache', async () => {
+      renderMessages();
+
+      await waitFor(() => {
+        expect(messagesService.getConversations).toHaveBeenCalledWith('all', true);
+      });
+    });
+
     test('displays non-pinned conversations in Geral tab (default)', async () => {
       renderMessages();
 
@@ -461,6 +471,25 @@ describe('Messages Page', () => {
       }
     }, 15000);
 
+    test('marks direct messages as read when the conversation is opened', async () => {
+      jest.useRealTimers();
+      try {
+        renderMessages();
+
+        await waitFor(() => {
+          expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+        }, { timeout: 10000 });
+
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.markAsRead).toHaveBeenCalledWith('1_2');
+        }, { timeout: 10000 });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
+
     test('highlights selected conversation', async () => {
       renderMessages();
 
@@ -500,9 +529,254 @@ describe('Messages Page', () => {
         jest.useFakeTimers();
       }
     });
+    test('closes a deep-linked conversation without reopening it', async () => {
+      jest.useRealTimers();
+      const originalPath = window.location.pathname + window.location.search;
+      const originalWidth = window.innerWidth;
+
+      try {
+        window.innerWidth = 375;
+        window.history.pushState({}, '', '/messages?conversationId=1_2');
+        messagesService.getConversation.mockResolvedValue({
+          id: '1_2',
+          isGroup: false,
+          participants: [
+            { id: 1, name: 'Você', avatar: null },
+            { id: 2, name: 'Maria Silva', avatar: null, isOnline: true },
+          ],
+        });
+
+        renderMessages({ conversations: [], groups: [] });
+
+        await waitFor(() => {
+          expect(screen.getByRole('region', { name: /conversa com maria silva/i })).toBeInTheDocument();
+        }, { timeout: 10000 });
+
+        fireEvent.click(screen.getByRole('button', { name: /voltar para lista de conversas/i }));
+
+        await waitFor(() => {
+          expect(screen.getByText('Selecione uma conversa')).toBeInTheDocument();
+          expect(new URLSearchParams(window.location.search).has('conversationId')).toBe(false);
+        }, { timeout: 10000 });
+
+        expect(screen.queryByRole('region', { name: /conversa com maria silva/i })).not.toBeInTheDocument();
+        expect(messagesService.getConversation).toHaveBeenCalledTimes(1);
+      } finally {
+        window.innerWidth = originalWidth;
+        window.history.pushState({}, '', originalPath || '/');
+        window.dispatchEvent(new Event('resize'));
+        jest.useFakeTimers();
+      }
+    }, 15000);
+
+    test('does not restart history loading when the loading state changes', async () => {
+      jest.useRealTimers();
+      try {
+        renderMessages();
+
+        await waitFor(() => {
+          expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+        }, { timeout: 10000 });
+
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 1,
+            limit: 30,
+            forceRefresh: true,
+          });
+        }, { timeout: 10000 });
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledTimes(1);
+        }, { timeout: 10000 });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
+
+    test('loads older messages when the chat scroll area reaches its top', async () => {
+      jest.useRealTimers();
+      try {
+        messagesService.getHistory.mockResolvedValue({
+          data: [{
+            id: 90,
+            content: 'Mensagem recente',
+            senderId: 2,
+            sender_id: 2,
+            senderName: 'Maria Silva',
+            type: 'text',
+            createdAt: '2024-01-15T11:00:00Z',
+            created_at: '2024-01-15T11:00:00Z',
+          }],
+          contact: null,
+          isGroup: false,
+          pagination: { page: 1, limit: 30, total: 60, hasMore: true },
+        });
+
+        renderMessages();
+        await waitFor(() => expect(screen.getByText('Maria Silva')).toBeInTheDocument());
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 1,
+            limit: 30,
+            forceRefresh: true,
+          });
+        });
+
+        await screen.findByText('Mensagem recente');
+        await act(async () => {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        const chatBody = document.querySelector('.chat-body');
+        expect(chatBody).toBeInTheDocument();
+        const historyObserverCall = IntersectionObserver.mock.calls
+          .filter(([, options]) => options?.root === chatBody && options?.rootMargin === '100px')
+          .at(-1);
+        expect(historyObserverCall).toBeDefined();
+
+        act(() => historyObserverCall[0]([{ isIntersecting: true }]));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 2,
+            limit: 30,
+            forceRefresh: true,
+          });
+        });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
+
+    test('offers a retry when older history fails temporarily', async () => {
+      jest.useRealTimers();
+      try {
+        const firstPage = [{
+          id: 101,
+          content: 'Mensagem anterior',
+          senderId: 2,
+          sender_id: 2,
+          senderName: 'Maria Silva',
+          type: 'text',
+          createdAt: '2024-01-15T10:30:00Z',
+          created_at: '2024-01-15T10:30:00Z',
+        }];
+        messagesService.getHistory
+          .mockResolvedValueOnce({
+            data: firstPage,
+            contact: null,
+            isGroup: false,
+            pagination: { page: 1, limit: 30, total: 60, hasMore: true },
+          })
+          .mockRejectedValueOnce(new Error('Falha temporária de rede'))
+          .mockResolvedValueOnce({
+            data: [{
+              ...firstPage[0],
+              id: 100,
+              content: 'Mensagem mais antiga',
+              createdAt: '2024-01-15T10:00:00Z',
+              created_at: '2024-01-15T10:00:00Z',
+            }],
+            contact: null,
+            isGroup: false,
+            pagination: { page: 2, limit: 30, total: 60, hasMore: false },
+          });
+
+        renderMessages();
+        await waitFor(() => expect(screen.getByText('Maria Silva')).toBeInTheDocument());
+        fireEvent.click(screen.getByText('Maria Silva'));
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledWith('1_2', {
+            page: 1,
+            limit: 30,
+            forceRefresh: true,
+          });
+        });
+
+        await screen.findByText('Mensagem anterior');
+        await act(async () => {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        const chatBody = document.querySelector('.chat-body');
+        const historyObserverCall = IntersectionObserver.mock.calls
+          .filter(([, options]) => options?.root === chatBody && options?.rootMargin === '100px')
+          .at(-1);
+        expect(historyObserverCall).toBeDefined();
+
+        act(() => historyObserverCall[0]([{ isIntersecting: true }]));
+
+        const retryButton = await screen.findByRole('button', { name: /tentar novamente/i });
+        fireEvent.click(retryButton);
+
+        await waitFor(() => {
+          expect(messagesService.getHistory).toHaveBeenCalledTimes(3);
+          expect(messagesService.getHistory).toHaveBeenLastCalledWith('1_2', {
+            page: 2,
+            limit: 30,
+            forceRefresh: true,
+          });
+        });
+      } finally {
+        jest.useFakeTimers();
+      }
+    }, 15000);
   });
 
   describe('Group Conversations', () => {
+    test('shows You for own group messages and resolves Unknown to the member name', async () => {
+      const groupsWithLastMessages = [
+        {
+          ...mockGroups[0],
+          id: 10,
+          name: 'Desenvolvimento de Sistemas',
+          participants: [
+            { id: 1, name: 'Current User' },
+            { id: 2, name: 'Maria Silva' },
+          ],
+          last_message: {
+            senderId: 1,
+            senderName: 'Unknown',
+            content: 'opa',
+            createdAt: '2026-11-22T18:26:00.000Z',
+          },
+        },
+        {
+          ...mockGroups[0],
+          id: 11,
+          name: 'Projeto SENAI',
+          participants: [
+            { id: 1, name: 'Current User' },
+            { id: 2, name: 'Maria Silva' },
+          ],
+          last_message: {
+            senderId: 2,
+            senderName: 'Unknown',
+            content: 'Bom dia',
+            createdAt: '2026-11-22T18:20:00.000Z',
+          },
+        },
+      ];
+
+      renderMessages({ groups: groupsWithLastMessages });
+      fireEvent.click(screen.getByRole('tab', { name: /grupos/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('You:')).toBeInTheDocument();
+        expect(screen.getByText('Maria Silva:')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('opa')).toBeInTheDocument();
+      expect(screen.getByText('Bom dia')).toBeInTheDocument();
+      expect(screen.queryByText('Unknown:')).not.toBeInTheDocument();
+    });
+
     test('displays group info correctly', async () => {
       renderMessages();
 

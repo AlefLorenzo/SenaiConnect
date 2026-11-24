@@ -5,7 +5,8 @@ import Avatar from './Avatar';
 import './NotificationDropdown.css';
 
 const NotificationDropdown = () => {
-    const { notifications, unreadCount, markAsRead } = useContext(SocketContext);
+    const { notifications = [], unreadCount = 0, markAsRead } = useContext(SocketContext);
+    const safeNotifications = Array.isArray(notifications) ? notifications : [];
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
@@ -22,14 +23,33 @@ const NotificationDropdown = () => {
     }, []);
 
     const handleNotificationClick = (notification) => {
-        if (!notification.read) {
+        setIsOpen(false);
+        if (!notification.read && typeof markAsRead === 'function') {
             markAsRead(notification.id);
         }
-        if (notification.post_id) {
-            setIsOpen(false);
+        if (notification.activity_type === 'message' || notification.type === 'message') {
+            let metadata = notification.metadata || {};
+            if (typeof metadata === 'string') {
+                try { metadata = JSON.parse(metadata); } catch { metadata = {}; }
+            }
+            const conversationId = metadata.conversation_id;
+            navigate(conversationId ? `/messages?conversationId=${encodeURIComponent(conversationId)}` : '/messages');
+            return;
+        }
+        const metadata = typeof notification.metadata === 'string'
+            ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+            : (notification.metadata || {});
+        const resource = metadata.resource || notification.reference_type;
+        const destination = resource === 'events' || resource === 'event' ? '/events'
+            : resource === 'courses' || resource === 'course' ? '/courses'
+            : resource === 'notices' || resource === 'notice' ? '/notices'
+            : resource === 'posts' || resource === 'post' ? '/'
+            : null;
+        if (destination) {
+            navigate(destination);
+        } else if (notification.post_id) {
             navigate('/');
         } else if (notification.source_user_id) {
-            setIsOpen(false);
             navigate(`/profile/${notification.source_user_id}`);
         }
     };
@@ -38,8 +58,12 @@ const NotificationDropdown = () => {
         switch (type) {
             case 'like': return '❤️';
             case 'comment': return '💬';
-            case 'follow': return '👤';
+            case 'follow':
+            case 'friend_request':
+            case 'friend_accepted': return '👤';
+            case 'message': return '💬';
             case 'mention': return '📢';
+            case 'admin_publication': return '📣';
             default: return '🔔';
         }
     };
@@ -49,6 +73,7 @@ const NotificationDropdown = () => {
         const date = new Date(dateStr);
         const diffMs = now - date;
         const diffMin = Math.floor(diffMs / 60000);
+        if (!Number.isFinite(date.getTime())) return '';
         if (diffMin < 1) return 'agora';
         if (diffMin < 60) return `${diffMin}min`;
         const diffH = Math.floor(diffMin / 60);
@@ -59,13 +84,13 @@ const NotificationDropdown = () => {
 
     return (
         <div className="notification-wrapper" ref={dropdownRef}>
-            <button className="icon-btn notification-bell-btn" onClick={() => setIsOpen(!isOpen)}>
+            <button type="button" className="icon-btn notification-bell-btn" onClick={() => setIsOpen(!isOpen)} aria-label={unreadCount > 0 ? `Notificações, ${unreadCount} não lidas` : 'Notificações'} aria-expanded={isOpen}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
                 {unreadCount > 0 && (
-                    <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                    <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
                 )}
             </button>
 
@@ -76,14 +101,14 @@ const NotificationDropdown = () => {
                         <span className="notification-count">{unreadCount} novas</span>
                     </div>
                     <div className="notification-list">
-                        {notifications.length > 0 ? (
-                            notifications.slice(0, 20).map(n => (
+                        {safeNotifications.length > 0 ? (
+                            safeNotifications.slice(0, 20).map(n => (
                                 <div
                                     key={n.id}
                                     className={`notification-item ${!n.read ? 'unread' : ''}`}
                                     onClick={() => handleNotificationClick(n)}
                                 >
-                                    <div className="notification-icon">{getNotificationIcon(n.type)}</div>
+                                    <div className="notification-icon">{getNotificationIcon(n.activity_type || n.type)}</div>
                                     <div className="notification-body">
                                         <Avatar user={{ avatar: n.source_user_avatar, name: n.source_user_name }} className="notification-avatar" />
                                         <div className="notification-text">
@@ -101,6 +126,9 @@ const NotificationDropdown = () => {
                             </div>
                         )}
                     </div>
+                    <button type="button" className="notification-view-all" onClick={() => { setIsOpen(false); navigate('/notifications'); }}>
+                        Ver todas as notificações
+                    </button>
                 </div>
             )}
         </div>

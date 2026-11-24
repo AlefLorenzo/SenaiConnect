@@ -721,7 +721,7 @@ export default {
   admin: adminApi,
   courses: coursesApi,
   events: eventsApi,
-  upload: uploadApi,
+  uploads: uploadApi,
   // Core helpers
   request,
   get,

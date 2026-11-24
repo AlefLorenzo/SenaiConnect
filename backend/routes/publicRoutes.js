@@ -1,39 +1,45 @@
 const express = require('express');
-const router = express.createElement ? express.Router() : express.Router(); // fallback just in case
+const router = express.Router();
 const db = require('../db');
+const { authenticateToken } = require('../middlewares/auth');
+const { buildUnitVisibilityClause } = require('../utils/contentVisibility');
 
-router.get('/events', async (req, res) => {
+router.get('/events', authenticateToken, async (req, res) => {
     try {
+        const visibility = buildUnitVisibilityClause(req.user, 'e');
         const [rows] = await db.query(`
-            SELECT e.*,
+            SELECT e.*, u.name as author_name, u.avatar as author_avatar,
               (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id) as enrolled_count
             FROM events e
-            WHERE e.status = "ativo"
-            ORDER BY e.event_date ASC
-        `);
+            LEFT JOIN users u ON u.id = e.author_id
+            WHERE LOWER(TRIM(COALESCE(e.status, ''))) IN ('ativo', 'active')
+              AND ${visibility.sql}
+            ORDER BY e.event_date ASC, e.created_at DESC
+        `, visibility.params);
         res.json(rows);
-    } catch (err) { res.status(500).json({ error: 'Erro' }); }
+    } catch (err) {
+        console.error('Erro ao buscar eventos publicados:', err);
+        res.status(500).json({ error: 'Não foi possível carregar os eventos.' });
+    }
 });
 
-router.get('/courses', async (req, res) => {
+router.get('/courses', authenticateToken, async (req, res) => {
     try {
+        const visibility = buildUnitVisibilityClause(req.user, 'c');
         const [rows] = await db.query(`
             SELECT c.*, u.name as author_name, u.avatar as author_avatar,
               (SELECT COUNT(*) FROM course_enrollments ce WHERE ce.course_id = c.id) as enrolled_count
             FROM courses c
             LEFT JOIN users u ON u.id = c.author_id
-            WHERE c.status = "ativo"
+            WHERE LOWER(TRIM(COALESCE(c.status, ''))) IN ('ativo', 'active')
+              AND ${visibility.sql}
             ORDER BY c.created_at DESC
-        `);
+        `, visibility.params);
         res.json(rows);
-    } catch (err) { res.status(500).json({ error: 'Erro' }); }
-});
-
-router.get('/notices', async (req, res) => {
-    try {
-        const [rows] = await db.query('SELECT * FROM notices ORDER BY created_at DESC');
-        res.json(rows);
-    } catch (err) { res.status(500).json({ error: 'Erro' }); }
+    } catch (err) {
+        console.error('Erro ao buscar cursos publicados:', err);
+        res.status(500).json({ error: 'Não foi possível carregar os cursos.' });
+    }
 });
 
 module.exports = router;

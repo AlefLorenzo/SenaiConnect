@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { SocketContext } from '../context/SocketContext.jsx';
 import { Image, Paperclip, Smile, Video, X, Plus } from 'lucide-react';
 import Post from '../components/Post';
 import StoryViewer from '../components/StoryViewer';
 import CreateStory from '../components/CreateStory';
+import CreatePostModal from '../components/CreatePostModal';
 import MobileStories from '../components/MobileStories';
 import Avatar from '../components/Avatar';
 import storiesService from '../services/storiesService';
@@ -16,15 +17,22 @@ const Home = () => {
   const { user } = useContext(AuthContext);
   const { socket } = useContext(SocketContext);
   const location = useLocation();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
+  const [postsPage, setPostsPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const loadingMorePostsRef = useRef(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [postImage, setPostImage] = useState(null);
   const [postImagePreview, setPostImagePreview] = useState(null);
   const [inputPlaceholder, setInputPlaceholder] = useState('No que você está pensando?');
   const [showCreateStory, setShowCreateStory] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
+  const creatingPostRef = useRef(false);
 
   // Check for creation type from sessionStorage (set by FAB via MobileCreateSheet)
   useEffect(() => {
@@ -41,8 +49,8 @@ const Home = () => {
         post: 'O que você quer compartilhar?',
       };
       setInputPlaceholder(placeholders[createType] || placeholders.post);
-      // Focus the input to show it's ready for the specific type
-      inputRef.current?.focus();
+      // Open a dedicated composer instead of scrolling the Home feed to its inline input.
+      setShowCreatePost(true);
     }
   }, []);
 
@@ -73,7 +81,7 @@ const Home = () => {
           post: 'O que você quer compartilhar?',
         };
         setInputPlaceholder(placeholders[type] || placeholders.post);
-        inputRef.current?.focus();
+        setShowCreatePost(true);
       }
     };
 
@@ -81,10 +89,51 @@ const Home = () => {
     return () => window.removeEventListener('createPostTypeChanged', handleCreatePostTypeChanged);
   }, []);
 
+  // Open the story composer when requested from the mobile create sheet,
+  // including when the user is already on the home route.
+  useEffect(() => {
+    const openStoryComposer = () => setShowCreateStory(true);
+    window.addEventListener('createStoryRequested', openStoryComposer);
+    return () => window.removeEventListener('createStoryRequested', openStoryComposer);
+  }, []);
+
   // Story viewing state (for StoryViewer when clicking on stories from MobileStories)
   const [viewingStoryIndex, setViewingStoryIndex] = useState(null);
   const [storyGroups, setStoryGroups] = useState([]);
   const [stories, setStories] = useState([]);
+
+  // Keep the feed's source data and the rendered story list in sync as soon
+  // as the API confirms a view. This prevents a stale group snapshot from
+  // restoring the green/unviewed ring after the viewer closes.
+  const handleStoryViewed = useCallback((storyId) => {
+    const markViewed = (currentGroups) => currentGroups.map((group) => {
+      const updatedStories = (group.stories || []).map((story) =>
+        String(story.id) === String(storyId) ? { ...story, viewed: true } : story
+      );
+
+      return {
+        ...group,
+        stories: updatedStories,
+        hasUnviewed: updatedStories.some((story) => story.viewed !== true),
+      };
+    });
+
+    setStoryGroups(markViewed);
+    setStories(markViewed);
+  }, []);
+
+  // A successful status reply becomes a private chat, just like WhatsApp.
+  const handleStoryReplySent = useCallback((...replyArgs) => {
+    const result = replyArgs[2];
+    const conversationId = result?.conversationId ??
+      result?.conversation_id ??
+      result?.message?.conversationId ??
+      result?.message?.conversation_id;
+    if (!conversationId) return;
+
+    setViewingStoryIndex(null);
+    navigate(`/messages?conversationId=${encodeURIComponent(conversationId)}`);
+  }, [navigate]);
 
   // Transform storyGroups into story groups for MobileStories (one item per user)
   useEffect(() => {
@@ -92,7 +141,9 @@ const Home = () => {
       .filter(group => group && group.stories && group.stories.length > 0)
       .map(group => {
         const stories = group.stories || [];
-        const hasUnviewed = stories.some(story => story.views_count === 0 || story.views_count === undefined);
+        // The API exposes the current viewer's read state; views_count is a
+        // popularity counter and must never be used to infer whether I viewed it.
+        const hasUnviewed = stories.some(story => story.viewed !== true);
         return {
           id: group.user_id,
           user_id: group.user_id,
@@ -108,10 +159,29 @@ const Home = () => {
 
   const fetchPosts = async () => {
     try {
-      const data = await postsService.getFeed();
+      const data = await postsService.getFeed({ page: 1, limit: 20 });
       setPosts(data.posts || []);
+      setPostsPage(data.page || 1);
+      setHasMorePosts(Boolean(data.hasMore));
     } catch (err) {
       console.log('Erro ao buscar posts', err);
+    }
+  };
+
+  const loadMorePosts = async () => {
+    if (!hasMorePosts || loadingMorePostsRef.current) return;
+    loadingMorePostsRef.current = true;
+    setLoadingMorePosts(true);
+    try {
+      const data = await postsService.getFeed({ page: postsPage + 1, limit: 20, append: true });
+      setPosts(data.posts || []);
+      setPostsPage(data.page || postsPage + 1);
+      setHasMorePosts(Boolean(data.hasMore));
+    } catch (err) {
+      console.warn('Não foi possível carregar mais publicações:', err);
+    } finally {
+      loadingMorePostsRef.current = false;
+      setLoadingMorePosts(false);
     }
   };
 
@@ -131,8 +201,8 @@ const Home = () => {
 
   // Subscribe to posts service changes (for real-time updates from other components)
   useEffect(() => {
-    const unsubscribe = postsService.subscribe(() => {
-      fetchPosts();
+    const unsubscribe = postsService.subscribe((updatedPosts) => {
+      setPosts(Array.isArray(updatedPosts) ? [...updatedPosts] : []);
     });
     return unsubscribe;
   }, []);
@@ -161,7 +231,8 @@ const Home = () => {
   };
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !postImage) return;
+    if (creatingPostRef.current || (!newPostContent.trim() && !postImage)) return;
+    creatingPostRef.current = true;
     setLoading(true);
     try {
       let attachment_url = null;
@@ -198,9 +269,11 @@ const Home = () => {
       setNewPostContent('');
       setPostImage(null);
       setPostImagePreview(null);
+      setShowCreatePost(false);
     } catch (error) {
       alert('Erro ao publicar post.');
     } finally {
+      creatingPostRef.current = false;
       setLoading(false);
     }
   };
@@ -216,6 +289,8 @@ const Home = () => {
           storyGroups={stories}
           initialGroupIndex={viewingStoryIndex}
           onClose={() => setViewingStoryIndex(null)}
+          onStoryViewed={handleStoryViewed}
+          onReply={handleStoryReplySent}
         />
       )}
 
@@ -295,7 +370,34 @@ const Home = () => {
             Nenhuma publicação ainda. Seja o primeiro a postar!
           </div>
         )}
+        {hasMorePosts && (
+          <button
+            type="button"
+            className="btn-secondary load-more-posts"
+            onClick={loadMorePosts}
+            disabled={loadingMorePosts}
+          >
+            {loadingMorePosts ? 'Carregando...' : 'Carregar mais publicações'}
+          </button>
+        )}
       </div>
+
+      {/* Publication composer is rendered in a body portal to avoid page clipping/scroll shifts. */}
+      {user && (
+        <CreatePostModal
+          isOpen={showCreatePost}
+          onClose={() => setShowCreatePost(false)}
+          user={user}
+          content={newPostContent}
+          onContentChange={setNewPostContent}
+          placeholder={inputPlaceholder}
+          imagePreview={postImagePreview}
+          onRemoveImage={() => { setPostImage(null); setPostImagePreview(null); }}
+          onImageSelect={handleImageSelect}
+          onSubmit={handleCreatePost}
+          isSubmitting={loading}
+        />
+      )}
 
       {/* Create Story Modal */}
       {user && (

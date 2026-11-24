@@ -1,0 +1,115 @@
+/*
+ * Desktop scroll normalization for SENAI Connect.
+ * Standard pages use the document as the single vertical scroll surface.
+ * Messages keep their dedicated conversation scroll; admin keeps its own
+ * navigation and modal/table scroll regions. Mobile rules are untouched.
+ */
+@media (min-width: 769px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    height: auto;
+    overflow-x: clip;
+  }
+
+  html {
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) {
+    display: block;
+    width: 100%;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) > .app-main {
+    display: block;
+    min-width: 0;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
+    overscroll-behavior: auto;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) > .app-main > .app-feed-container {
+    display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+    padding-bottom: 40px;
+  }
+
+  /* The sidebar is fixed to the viewport and scrolls only if its menu exceeds it. */
+  .app-layout .mobile-bottom-nav {
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+
+  .app-layout .mobile-bottom-nav-inner {
+    min-height: min-content;
+  }
+
+  /* Admin: avoid a page-level scroll nested inside the content scroll. */
+  .app-layout--admin .app-main--admin {
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .admin-layout {
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+  }
+
+  .admin-layout .admin-main {
+    min-height: 100dvh;
+    height: auto;
+  }
+
+  .admin-layout .admin-content-area {
+    min-height: calc(100dvh - var(--header-height, 64px));
+    height: auto;
+    overflow: visible;
+    overflow-y: visible;
+  }
+
+  /* Tables and tab strips retain their intentional horizontal scrolling. */
+  .admin-layout .admin-content-area .table-container,
+  .admin-layout .admin-content-area .admin-table-container {
+    overscroll-behavior-x: contain;
+  }
+
+  /* Dialogs remain independently scrollable when taller than the viewport. */
+  .modal-overlay,
+  .admin-modal-overlay {
+    overscroll-behavior: contain;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @media (min-width: 769px) {
+    html { scroll-behavior: auto; }
+  }
+}

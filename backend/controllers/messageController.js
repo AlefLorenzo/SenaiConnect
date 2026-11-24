@@ -4,6 +4,7 @@ const path = require('path');
 const socketHelper = require('../socketHelper');
 const crypto = require('crypto');
 const { buildPrivacyWhereClause } = require('../utils/privacyHelper');
+const { getEligibleGroupParticipantIds } = require('../utils/groupEligibility');
 
 // Import new socket helper functions
 const { emitMessageStatus, broadcastToGroup } = require('../socketHelper');
@@ -50,6 +51,38 @@ function resolveIndividualPeerId(conversationId, currentUserId) {
 }
 
 const messageController = {
+    // Exact total of unread direct and group messages for the authenticated user.
+    getUnreadCount: async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const [rows] = await db.query(`
+                SELECT (
+                    SELECT COUNT(*)
+                    FROM messages
+                    WHERE receiver_id = ? AND status = 'enviada'
+                ) + (
+                    SELECT COUNT(*)
+                    FROM group_messages gm
+                    WHERE gm.sender_id <> ?
+                      AND EXISTS (
+                          SELECT 1 FROM group_members member
+                          WHERE member.group_id = gm.group_id AND member.user_id = ?
+                      )
+                      AND gm.id > COALESCE((
+                          SELECT gl.last_read_message_id
+                          FROM group_last_read gl
+                          WHERE gl.group_id = gm.group_id AND gl.user_id = ?
+                      ), 0)
+                ) AS count
+            `, [userId, userId, userId, userId]);
+
+            return res.status(200).json({ count: Number(rows[0]?.count || 0) });
+        } catch (error) {
+            console.error('Erro ao contar mensagens não lidas:', error);
+            return res.status(500).json({ error: 'Erro ao buscar contagem de mensagens.' });
+        }
+    },
+
     // Get all conversations (individual + groups)
     getConversations: async (req, res) => {
         try {
@@ -69,13 +102,37 @@ const messageController = {
                         SELECT m.content FROM messages m
                         WHERE (m.sender_id = u.id AND m.receiver_id = ?)
                            OR (m.sender_id = ? AND m.receiver_id = u.id)
-                        ORDER BY m.created_at DESC LIMIT 1
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                     ) as last_message,
+                    (
+                        SELECT m.id FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_id,
+                    (
+                        SELECT m.sender_id FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_sender_id,
+                    (
+                        SELECT m.message_type FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_type,
+                    (
+                        SELECT m.status FROM messages m
+                        WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                           OR (m.sender_id = ? AND m.receiver_id = u.id)
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_status,
                     (
                         SELECT m.created_at FROM messages m
                         WHERE (m.sender_id = u.id AND m.receiver_id = ?)
                            OR (m.sender_id = ? AND m.receiver_id = u.id)
-                        ORDER BY m.created_at DESC LIMIT 1
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                     ) as last_interaction,
                     (
                         SELECT COUNT(*) FROM messages m
@@ -83,12 +140,16 @@ const messageController = {
                     ) as unread_count
                 FROM users u
                 WHERE u.id != ?
+                AND EXISTS (
+                    SELECT 1
+                    FROM messages thread_message
+                    WHERE (thread_message.sender_id = u.id AND thread_message.receiver_id = ?)
+                       OR (thread_message.sender_id = ? AND thread_message.receiver_id = u.id)
+                )
                 AND ${buildPrivacyWhereClause(loggedUserId, 'u')}
                 ORDER BY last_interaction DESC, u.name ASC
             `;
-            const [individuals] = await db.query(individualQuery, [
-                loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId
-            ]);
+            const [individuals] = await db.query(individualQuery, Array(16).fill(loggedUserId));
 
             // Get group conversations
             const groupQuery = `
@@ -102,12 +163,28 @@ const messageController = {
                     (
                         SELECT m.content FROM group_messages m
                         WHERE m.group_id = g.id
-                        ORDER BY m.created_at DESC LIMIT 1
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                     ) as last_message,
+                    (
+                        SELECT m.sender_id FROM group_messages m
+                        WHERE m.group_id = g.id
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
+                    ) as last_message_sender_id,
+                    (
+                        SELECT CASE
+                            WHEN latest.sender_id = ? THEN 'You'
+                            ELSE COALESCE(NULLIF(TRIM(sender.name), ''), 'Participant')
+                        END
+                        FROM group_messages latest
+                        LEFT JOIN users sender ON sender.id = latest.sender_id
+                        WHERE latest.group_id = g.id
+                        ORDER BY latest.created_at DESC, latest.id DESC
+                        LIMIT 1
+                    ) as last_message_sender_name,
                     (
                         SELECT m.created_at FROM group_messages m
                         WHERE m.group_id = g.id
-                        ORDER BY m.created_at DESC LIMIT 1
+                        ORDER BY m.created_at DESC, m.id DESC LIMIT 1
                     ) as last_interaction,
                     (
                         SELECT COUNT(*) FROM group_messages m
@@ -126,22 +203,63 @@ const messageController = {
                 WHERE gm.user_id = ?
                 ORDER BY last_interaction DESC
             `;
-            const [groups] = await db.query(groupQuery, [loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId]);
+            const [groups] = await db.query(groupQuery, [loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId, loggedUserId]);
 
-            // Fetch participants and admin_ids for each group separately (avoid JSON_ARRAYAGG)
-            for (const group of groups) {
-                const [participants] = await db.query(`
-                    SELECT u2.id, u2.name, u2.avatar, gm2.role, u2.is_online, u2.last_seen
+            // Load all group participants/admins in batches instead of running two queries per group.
+            const groupIds = groups.map(group => Number(group.conversation_id)).filter(Number.isSafeInteger);
+            if (groupIds.length > 0) {
+                const placeholders = groupIds.map(() => '?').join(',');
+                const [allParticipants] = await db.query(`
+                    SELECT gm2.group_id, u2.id, u2.name, u2.avatar, gm2.role, u2.is_online, u2.last_seen
                     FROM group_members gm2
                     JOIN users u2 ON u2.id = gm2.user_id
-                    WHERE gm2.group_id = ?
-                `, [group.conversation_id]);
-                group.participants = participants;
-
-                const [admins] = await db.query(`
-                    SELECT admin_id FROM group_admins WHERE group_id = ?
-                `, [group.conversation_id]);
-                group.admin_ids = admins.map(a => a.admin_id);
+                    WHERE gm2.group_id IN (${placeholders})
+                    ORDER BY gm2.group_id, u2.name
+                `, groupIds);
+                const [allAdmins] = await db.query(`
+                    SELECT group_id, admin_id
+                    FROM group_admins
+                    WHERE group_id IN (${placeholders})
+                `, groupIds);
+                const participantsByGroup = new Map();
+                const adminsByGroup = new Map();
+                for (const participant of allParticipants) {
+                    const key = Number(participant.group_id);
+                    if (!participantsByGroup.has(key)) participantsByGroup.set(key, []);
+                    const { group_id, ...member } = participant;
+                    participantsByGroup.get(key).push(member);
+                }
+                for (const admin of allAdmins) {
+                    const key = Number(admin.group_id);
+                    if (!adminsByGroup.has(key)) adminsByGroup.set(key, []);
+                    adminsByGroup.get(key).push(admin.admin_id);
+                }
+                for (const group of groups) {
+                    const key = Number(group.conversation_id);
+                    group.participants = participantsByGroup.get(key) || [];
+                    group.admin_ids = adminsByGroup.get(key) || [];
+                    const senderId = group.last_message_sender_id == null
+                        ? ''
+                        : String(group.last_message_sender_id).trim().toLowerCase();
+                    const currentUserId = String(loggedUserId).trim().toLowerCase();
+                    const participantSender = (group.participants || []).find(
+                        participant => String(participant.id ?? participant.user_id ?? '').trim().toLowerCase() === senderId
+                    );
+                    const queriedSenderName = String(group.last_message_sender_name || '').trim();
+                    const participantSenderName = String(participantSender?.name || '').trim();
+                    const genericSenderNames = new Set(['unknown', 'desconhecido', 'participant', 'participante', 'you', 'você']);
+                    group.last_message_sender_name = senderId && senderId === currentUserId
+                        ? 'You'
+                        : (
+                            participantSenderName && !genericSenderNames.has(participantSenderName.toLowerCase())
+                                ? participantSenderName
+                                : (
+                                    queriedSenderName && !genericSenderNames.has(queriedSenderName.toLowerCase())
+                                        ? queriedSenderName
+                                        : 'Participant'
+                                )
+                        );
+                }
             }
 
             const conversations = [];
@@ -167,10 +285,12 @@ const messageController = {
                         otherUser
                     ],
                     last_message: conv.last_message ? {
+                        id: conv.last_message_id,
+                        senderId: conv.last_message_sender_id,
                         content: conv.last_message,
-                        senderName: otherUser.name,
-                        type: 'text',
-                        status: 'read',
+                        senderName: Number(conv.last_message_sender_id) === Number(loggedUserId) ? 'Você' : otherUser.name,
+                        type: conv.last_message_type || 'text',
+                        status: conv.last_message_status || 'enviada',
                         createdAt: conv.last_interaction
                     } : null,
                     unreadCount: conv.unread_count || 0,
@@ -187,19 +307,7 @@ const messageController = {
                 const participants = group.participants || [];
                 const adminIds = group.admin_ids || [];
 
-                // Get sender name for last message
-                let lastMessageSenderName = 'Unknown';
-                if (group.last_message) {
-                    const [lastMsg] = await db.query(`
-                        SELECT u.name FROM group_messages gm
-                        JOIN users u ON u.id = gm.sender_id
-                        WHERE gm.group_id = ? AND gm.content = ?
-                        ORDER BY gm.created_at DESC LIMIT 1
-                    `, [group.conversation_id, group.last_message]);
-                    if (lastMsg.length > 0) {
-                        lastMessageSenderName = lastMsg[0].name;
-                    }
-                }
+                const lastMessageSenderName = group.last_message_sender_name || 'Participant';
 
                 conversations.push({
                     conversation_id: group.conversation_id,
@@ -210,6 +318,7 @@ const messageController = {
                     participants: participants,
                     adminIds: adminIds,
                     last_message: group.last_message ? {
+                        senderId: group.last_message_sender_id,
                         content: group.last_message,
                         senderName: lastMessageSenderName,
                         type: 'text',
@@ -357,8 +466,12 @@ const messageController = {
         try {
             const loggedUserId = req.user.id;
             const { id } = req.params;
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 50;
+            const requestedPage = Number.parseInt(req.query.page, 10);
+            const requestedLimit = Number.parseInt(req.query.limit, 10);
+            const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+            const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+                ? Math.min(requestedLimit, 100)
+                : 50;
             const offset = (page - 1) * limit;
 
             // Check if it's a group conversation
@@ -378,12 +491,12 @@ const messageController = {
                 const [groupMessages] = await db.query(`
                     SELECT
                         gm.*,
-                        u.name as sender_name,
+                        COALESCE(NULLIF(TRIM(u.name), ''), 'Participant') as sender_name,
                         u.avatar as sender_avatar
                     FROM group_messages gm
-                    JOIN users u ON u.id = gm.sender_id
+                    LEFT JOIN users u ON u.id = gm.sender_id
                     WHERE gm.group_id = ?
-                    ORDER BY gm.created_at ASC
+                    ORDER BY gm.created_at DESC, gm.id DESC
                     LIMIT ? OFFSET ?
                 `, [id, limit, offset]);
 
@@ -393,7 +506,9 @@ const messageController = {
                     id: m.id,
                     conversationId: m.group_id,
                     senderId: m.sender_id,
-                    senderName: m.sender_name,
+                    senderName: String(m.sender_id ?? '').trim().toLowerCase() === String(loggedUserId).trim().toLowerCase()
+                        ? 'You'
+                        : (m.sender_name || 'Participant'),
                     senderAvatar: m.sender_avatar,
                     content: m.content,
                     type: m.message_type || 'text',
@@ -440,10 +555,24 @@ const messageController = {
                 const otherUser = user[0];
 
                 const [individualMessages] = await db.query(`
-                    SELECT * FROM messages
-                    WHERE (sender_id = ? AND receiver_id = ?)
-                       OR (sender_id = ? AND receiver_id = ?)
-                    ORDER BY created_at ASC
+                    SELECT
+                        m.*,
+                        sr.story_id AS story_id,
+                        s.user_id AS story_owner_id,
+                        story_owner.name AS story_owner_name,
+                        s.media_url AS story_media_url,
+                        s.media_type AS story_media_type,
+                        s.text_content AS story_text_content,
+                        s.background_color AS story_background_color,
+                        s.created_at AS story_created_at
+                    FROM messages m
+                    LEFT JOIN story_replies sr
+                        ON sr.message_id = m.id AND m.message_type = 'story_reply'
+                    LEFT JOIN stories s ON s.id = sr.story_id
+                    LEFT JOIN users story_owner ON story_owner.id = s.user_id
+                    WHERE (m.sender_id = ? AND m.receiver_id = ?)
+                       OR (m.sender_id = ? AND m.receiver_id = ?)
+                    ORDER BY m.created_at DESC, m.id DESC
                     LIMIT ? OFFSET ?
                 `, [loggedUserId, peerId, peerId, loggedUserId, limit, offset]);
 
@@ -467,6 +596,16 @@ const messageController = {
                     fileName: m.attachment_name,
                     fileSize: m.attachment_size,
                     fileType: m.attachment_type,
+                    storyReply: m.story_id ? {
+                        storyId: m.story_id,
+                        ownerId: m.story_owner_id,
+                        ownerName: m.story_owner_name,
+                        mediaUrl: m.story_media_url,
+                        mediaType: m.story_media_type,
+                        textContent: m.story_text_content || '',
+                        backgroundColor: m.story_background_color,
+                        createdAt: m.story_created_at,
+                    } : null,
                 }));
 
                 contact = {
@@ -524,6 +663,8 @@ const messageController = {
             // Get conversationId from route params (the route is /conversations/:id/messages)
             const conversationId = req.params.id;
             const { content, type, message_type, mediaUrl, media_url, fileName, file_name, fileSize, file_size, fileType, file_type, attachments, receiverId } = req.body;
+            // Stable idempotency key reused by automatic retries and offline replay.
+            const clientMessageId = String(req.body.clientMessageId || req.body.client_message_id || crypto.randomUUID()).trim().slice(0, 128);
 
             // Process attachments array if present (frontend sends as attachments[N][mediaUrl] etc.)
             let processedAttachments = [];
@@ -563,30 +704,44 @@ const messageController = {
                 }
 
                 const messageType = finalMessageType;
-                const [result] = await db.query(
-                    "INSERT INTO group_messages (group_id, sender_id, content, status, message_type, media_url, attachment_name, attachment_size, attachment_type) VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?)",
-                    [conversationId, senderId, sanitizedContent, messageType, finalMediaUrl || null, finalFileName || null, finalFileSize || null, finalFileType || null]
+                const [insertResult] = await db.query(
+                    `INSERT INTO group_messages
+                        (group_id, sender_id, content, status, message_type, media_url,
+                         attachment_name, attachment_size, attachment_type, client_message_id)
+                     VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?, ?)
+                     ON CONFLICT (client_message_id) DO NOTHING
+                     RETURNING id`,
+                    [conversationId, senderId, sanitizedContent, messageType, finalMediaUrl || null,
+                     finalFileName || null, finalFileSize || null, finalFileType || null, clientMessageId]
                 );
-
-                const [newMessage] = await db.query(`
-                    SELECT gm.*, u.name as sender_name, u.avatar as sender_avatar
-                    FROM group_messages gm
-                    JOIN users u ON u.id = gm.sender_id
-                    WHERE gm.id = ?
-                `, [result.insertId]);
-
+                const wasCreated = Boolean(insertResult.insertId);
+                const lookupSql = wasCreated
+                    ? 'SELECT * FROM group_messages WHERE id = ?'
+                    : 'SELECT * FROM group_messages WHERE client_message_id = ? AND sender_id = ? AND group_id = ?';
+                const lookupParams = wasCreated
+                    ? [insertResult.insertId]
+                    : [clientMessageId, senderId, conversationId];
+                const [newMessage] = await db.query(lookupSql, lookupParams);
                 const message = newMessage[0];
+                if (!message) {
+                    return res.status(409).json({ error: 'O identificador desta mensagem já foi utilizado em outra conversa.' });
+                }
 
-                // Send to all group members except sender
-                const [members] = await db.query('SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?', [conversationId, senderId]);
+                const [senderRows] = await db.query('SELECT name, avatar FROM users WHERE id = ?', [senderId]);
+                const sender = senderRows[0] || { name: req.user.name, avatar: null };
 
-                for (const member of members) {
-                    socketHelper.sendToUser(member.user_id, 'new_message', {
+                {
+                    const [members] = await db.query(
+                        'SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?',
+                        [conversationId, senderId]
+                    );
+                    const eventPayload = {
                         id: message.id,
+                        clientMessageId,
                         conversationId: message.group_id,
                         senderId: message.sender_id,
-                        senderName: message.sender_name,
-                        senderAvatar: message.sender_avatar,
+                        senderName: sender.name,
+                        senderAvatar: sender.avatar,
                         content: message.content,
                         type: message.message_type,
                         message_type: message.message_type,
@@ -596,15 +751,39 @@ const messageController = {
                         fileName: message.attachment_name,
                         fileSize: message.attachment_size,
                         fileType: message.attachment_type,
-                    });
+                    };
+                    if (wasCreated) {
+                        try {
+                            const [mutedMembers] = await db.query(
+                                'SELECT user_id FROM group_muted WHERE group_id = ?',
+                                [conversationId]
+                            );
+                            const mutedIds = new Set(mutedMembers.map(row => Number(row.user_id)));
+                            const notificationController = require('./notificationController');
+                            for (const member of members) {
+                                if (!mutedIds.has(Number(member.user_id))) {
+                                    await notificationController.createNotification(
+                                        member.user_id, 'message', senderId,
+                                        `enviou uma mensagem no grupo "${groups[0].name}".`,
+                                        'group', conversationId, `group_message_${message.id}`,
+                                        { action: 'message', conversation_id: String(conversationId), message_id: message.id, group_id: conversationId }
+                                    );
+                                }
+                            }
+                        } catch (notificationError) {
+                            console.error('Erro ao notificar mensagem de grupo:', notificationError);
+                        }
+                    }
+                    for (const member of members) socketHelper.sendToUser(member.user_id, 'new_message', eventPayload);
                 }
 
-                return res.status(201).json({
+                return res.status(wasCreated ? 201 : 200).json({
                     id: message.id,
+                    clientMessageId,
                     conversationId: message.group_id,
                     senderId: message.sender_id,
-                    senderName: message.sender_name,
-                    senderAvatar: message.sender_avatar,
+                    senderName: sender.name,
+                    senderAvatar: sender.avatar,
                     content: message.content,
                     type: message.message_type,
                     message_type: message.message_type,
@@ -617,16 +796,19 @@ const messageController = {
                 });
             } else {
                 // Individual message - parse receiverId from conversationId (format: "userId1_userId2" sorted)
-                let receiverId = req.body.receiverId;
-                if (!receiverId) {
-                    const parts = conversationId.split('_').map(Number);
-                    if (parts.length === 2) {
-                        receiverId = parts[0] === senderId ? parts[1] : parts[0];
-                    }
+                const participants = String(conversationId).split('_').map(Number);
+                if (
+                    participants.length !== 2 ||
+                    participants.some(id => !Number.isSafeInteger(id) || id <= 0) ||
+                    participants[0] === participants[1] ||
+                    !participants.includes(Number(senderId))
+                ) {
+                    return res.status(400).json({ error: 'Identificador de conversa inválido.' });
                 }
 
-                if (!receiverId) {
-                    return res.status(400).json({ error: 'Destinatário é obrigatório.' });
+                const receiverId = participants[0] === Number(senderId) ? participants[1] : participants[0];
+                if (req.body.receiverId && Number(req.body.receiverId) !== receiverId) {
+                    return res.status(403).json({ error: 'O destinatário não pertence a esta conversa.' });
                 }
 
                 // Verify receiver exists
@@ -636,49 +818,68 @@ const messageController = {
                 }
 
                 const messageType = finalMessageType;
-                const [result] = await db.query(
-                    "INSERT INTO messages (sender_id, receiver_id, content, status, message_type, media_url, attachment_name, attachment_size, attachment_type) VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?)",
-                    [senderId, receiverId, sanitizedContent, messageType, finalMediaUrl || null, finalFileName || null, finalFileSize || null, finalFileType || null]
+                const [insertResult] = await db.query(
+                    `INSERT INTO messages
+                        (sender_id, receiver_id, content, status, message_type, media_url,
+                         attachment_name, attachment_size, attachment_type, client_message_id)
+                     VALUES (?, ?, ?, 'enviada', ?, ?, ?, ?, ?, ?)
+                     ON CONFLICT (client_message_id) DO NOTHING
+                     RETURNING id`,
+                    [senderId, receiverId, sanitizedContent, messageType, finalMediaUrl || null,
+                     finalFileName || null, finalFileSize || null, finalFileType || null, clientMessageId]
                 );
-
-                const [newMessage] = await db.query('SELECT * FROM messages WHERE id = ?', [result.insertId]);
+                const wasCreated = Boolean(insertResult.insertId);
+                const lookupSql = wasCreated
+                    ? 'SELECT * FROM messages WHERE id = ?'
+                    : 'SELECT * FROM messages WHERE client_message_id = ? AND sender_id = ? AND receiver_id = ?';
+                const lookupParams = wasCreated
+                    ? [insertResult.insertId]
+                    : [clientMessageId, senderId, receiverId];
+                const [newMessage] = await db.query(lookupSql, lookupParams);
                 const message = newMessage[0];
-
-                // Create Activity Center notification for new message
-                if (receiverId !== senderId) {
-                    const notificationController = require('./notificationController');
-                    await notificationController.createNotification(
-                        receiverId,
-                        'message',
-                        senderId,
-                        `enviou uma mensagem.`,
-                        'message',
-                        message.id,
-                        `message_${message.id}`,
-                        { action: 'message', message_id: message.id, conversation_id: receiverId }
-                    );
+                if (!message) {
+                    return res.status(409).json({ error: 'O identificador desta mensagem já foi utilizado em outra conversa.' });
                 }
 
-                // Send to receiver - use the proper conversationId format (e.g., "38_42")
-                socketHelper.sendToUser(receiverId, 'new_message', {
-                    id: message.id,
-                    conversationId: conversationId, // Use original conversationId from params (format: "userId1_userId2")
-                    senderId: message.sender_id,
-                    senderName: req.user.name,
-                    content: message.content,
-                    type: message.message_type,
-                    message_type: message.message_type,
-                    status: message.status,
-                    createdAt: message.created_at,
-                    mediaUrl: message.media_url,
-                    fileName: message.attachment_name,
-                    fileSize: message.attachment_size,
-                    fileType: message.attachment_type,
-                });
+                if (Number(receiverId) !== Number(senderId)) {
+                    // Persist the notification once; safely re-emit the same message on idempotent retries.
+                    if (wasCreated) {
+                        const notificationController = require('./notificationController');
+                        await notificationController.createNotification(
+                            receiverId,
+                            'message',
+                            senderId,
+                            'enviou uma mensagem.',
+                            'message',
+                            message.id,
+                            `message_${message.id}`,
+                            { action: 'message', message_id: message.id, conversation_id: conversationId }
+                        );
+                    }
 
-                return res.status(201).json({
+                    socketHelper.sendToUser(receiverId, 'new_message', {
+                        id: message.id,
+                        clientMessageId,
+                        conversationId,
+                        senderId: message.sender_id,
+                        receiverId,
+                        senderName: req.user.name,
+                        content: message.content,
+                        type: message.message_type,
+                        message_type: message.message_type,
+                        status: message.status,
+                        createdAt: message.created_at,
+                        mediaUrl: message.media_url,
+                        fileName: message.attachment_name,
+                        fileSize: message.attachment_size,
+                        fileType: message.attachment_type,
+                    });
+                }
+
+                return res.status(wasCreated ? 201 : 200).json({
                     id: message.id,
-                    conversationId: receiverId,
+                    clientMessageId,
+                    conversationId,
                     senderId: message.sender_id,
                     senderName: req.user.name,
                     content: message.content,
@@ -935,6 +1136,13 @@ const messageController = {
                 return res.status(403).json({ error: 'Apenas administradores podem adicionar membros.' });
             }
 
+            const eligibleIds = await getEligibleGroupParticipantIds(loggedUserId, [userId]);
+            if (eligibleIds.length !== 1) {
+                return res.status(403).json({
+                    error: 'Só é possível adicionar pessoas com quem você já conversou, segue ou que seguem você.'
+                });
+            }
+
             // Verify user exists
             const [user] = await db.query('SELECT id, name, avatar FROM users WHERE id = ?', [userId]);
             if (user.length === 0) {
@@ -1051,14 +1259,34 @@ const messageController = {
                 return res.status(404).json({ error: 'Usuário não é membro do grupo.' });
             }
 
+            if (typeof isAdmin !== 'boolean') {
+                return res.status(400).json({ error: 'O status de administrador é inválido.' });
+            }
+
             if (isAdmin) {
                 await db.query(
-                    'INSERT INTO group_admins (group_id, admin_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE admin_id = ?',
-                    [id, userId, userId]
+                    'INSERT INTO group_admins (group_id, admin_id, assigned_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE assigned_by = ?',
+                    [id, userId, loggedUserId, loggedUserId]
+                );
+                await db.query(
+                    "UPDATE group_members SET role = 'admin' WHERE group_id = ? AND user_id = ?",
+                    [id, userId]
                 );
             } else {
+                // Do not allow the last administrator to leave the group without an administrator.
+                const [otherAdmins] = await db.query(
+                    'SELECT admin_id FROM group_admins WHERE group_id = ? AND admin_id <> ?',
+                    [id, userId]
+                );
+                if (otherAdmins.length === 0) {
+                    return res.status(400).json({ error: 'Promova outro participante antes de remover o último administrador.' });
+                }
                 await db.query(
                     'DELETE FROM group_admins WHERE group_id = ? AND admin_id = ?',
+                    [id, userId]
+                );
+                await db.query(
+                    "UPDATE group_members SET role = 'member' WHERE group_id = ? AND user_id = ?",
                     [id, userId]
                 );
             }
@@ -1106,7 +1334,7 @@ const messageController = {
                 values.push(description);
             }
             if (avatar !== undefined) {
-                updates.push('avatar = ?');
+                updates.push('icon = ?');
                 values.push(avatar);
             }
 

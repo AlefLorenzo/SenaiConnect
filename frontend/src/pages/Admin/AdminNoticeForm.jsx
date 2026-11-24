@@ -5,6 +5,19 @@ import './AdminNoticeForm.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+const toLocalDateTimeInput = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+const fromLocalDateTimeInput = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
 const PRIORITY_OPTIONS = [
     { value: 'urgent', label: 'Urgente', desc: 'Notificação imediata para todos destinatários', icon: Shield, color: '#DC2626', bg: '#FEF2F2' },
     { value: 'important', label: 'Importante', desc: 'Destaque no mural, notificação padrão', icon: Shield, color: '#FF6B00', bg: '#FFF3E8' },
@@ -17,13 +30,6 @@ const RECIPIENT_GROUPS = [
     { id: 'units', label: 'Por Unidade', icon: MapPin, desc: 'Selecionar unidades específicas' },
     { id: 'teachers', label: 'Professores', icon: Shield, desc: 'Todos os professores' },
     { id: 'admins', label: 'Administradores', icon: Shield, desc: 'Todos os administradores' }
-];
-
-const COURSES = [
-    'Desenvolvimento de Sistemas', 'Análise e Desenvolvimento de Sistemas',
-    'Redes de Computadores', 'Eletrotécnica', 'Eletrônica', 'Mecânica',
-    'Mecatrônica', 'Administração', 'Logística', 'Marketing', 'Design Gráfico',
-    'Automação Industrial', 'Edificações', 'Segurança do Trabalho'
 ];
 
 const AdminNoticeForm = () => {
@@ -42,6 +48,7 @@ const AdminNoticeForm = () => {
     const [formData, setFormData] = useState({
         title: '',
         content: '',
+        status: 'published',
         priority: 'important',
         recipients: { type: 'all' },
         published_at: defaultPublished,
@@ -56,6 +63,7 @@ const AdminNoticeForm = () => {
     const [selectedGroups, setSelectedGroups] = useState(['all']);
     const [selectedCourses, setSelectedCourses] = useState([]);
     const [selectedUnits, setSelectedUnits] = useState([]);
+    const [recipientOptions, setRecipientOptions] = useState({ courses: [], units: [] });
     const [loading, setLoading] = useState(isEditing);
     const [saving, setSaving] = useState(false);
     const [files, setFiles] = useState({ image: null, attachment: null });
@@ -65,12 +73,33 @@ const AdminNoticeForm = () => {
     const mountedRef = useRef(true);
 
     useEffect(() => {
+        let active = true;
+        const loadRecipientOptions = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/notices/recipient-options`, {
+                    headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` }
+                });
+                if (!res.ok) throw new Error('Não foi possível carregar cursos e unidades.');
+                const data = await res.json();
+                if (active) setRecipientOptions({
+                    courses: Array.isArray(data.courses) ? data.courses : [],
+                    units: Array.isArray(data.units) ? data.units : []
+                });
+            } catch (error) {
+                console.error('Erro ao carregar destinatários:', error);
+            }
+        };
+        loadRecipientOptions();
+        return () => { active = false; };
+    }, []);
+
+    useEffect(() => {
         if (!isEditing) return;
 
         mountedRef.current = true;
         const loadNotice = async () => {
             try {
-                const token = sessionStorage.getItem('admin_token');
+                const token = sessionStorage.getItem('token');
                 const res = await fetch(`${API_URL}/api/admin/notices/${id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -82,20 +111,28 @@ const AdminNoticeForm = () => {
                         content: notice.content,
                         priority: notice.priority,
                         recipients: notice.recipients,
-                        published_at: notice.published_at ? new Date(notice.published_at).toISOString().slice(0, 16) : '',
-                        expires_at: notice.expires_at ? new Date(notice.expires_at).toISOString().slice(0, 16) : '',
+                        published_at: toLocalDateTimeInput(notice.published_at),
+                        expires_at: toLocalDateTimeInput(notice.expires_at),
                         is_pinned: notice.is_pinned,
                         send_notification: notice.send_notification,
                         image_url: notice.image_url || '',
                         attachment_url: notice.attachment_url || '',
                         attachment_name: notice.attachment_name || ''
                     }));
-                    if (notice.recipients?.type === 'courses') {
-                        setSelectedCourses(notice.recipients.courses || []);
-                    } else if (notice.recipients?.type === 'units') {
-                        setSelectedUnits(notice.recipients.units || []);
+                    let savedRecipients = notice.recipients;
+                    if (typeof savedRecipients === 'string') {
+                        try { savedRecipients = JSON.parse(savedRecipients); }
+                        catch { savedRecipients = { type: savedRecipients || 'all' }; }
                     }
-                    setSelectedGroups([notice.recipients?.type || 'all']);
+                    savedRecipients = savedRecipients && typeof savedRecipients === 'object'
+                        ? savedRecipients
+                        : { type: 'all' };
+                    if (savedRecipients.type === 'courses') {
+                        setSelectedCourses(savedRecipients.values || savedRecipients.courses || []);
+                    } else if (savedRecipients.type === 'units') {
+                        setSelectedUnits(savedRecipients.values || savedRecipients.units || []);
+                    }
+                    setSelectedGroups([savedRecipients.type || 'all']);
                 }
             } catch (error) {
                 console.error('Erro ao buscar aviso:', error);
@@ -113,20 +150,20 @@ const AdminNoticeForm = () => {
     };
 
     const handleRecipientChange = (groupId) => {
-        setSelectedGroups(prev => {
-            if (groupId === 'all') return ['all'];
-            const next = prev.filter(g => g !== 'all');
-            return next.includes(groupId) ? next.filter(g => g !== groupId) : [...next, groupId];
-        });
+        setSelectedGroups([groupId]);
     };
 
     const buildRecipients = () => {
-        if (selectedGroups.includes('all')) return { type: 'all' };
-        if (selectedGroups.includes('courses') && selectedCourses.length > 0) return { type: 'courses', values: selectedCourses };
-        if (selectedGroups.includes('units') && selectedUnits.length > 0) return { type: 'units', values: selectedUnits };
-        if (selectedGroups.includes('teachers')) return { type: 'teachers' };
-        if (selectedGroups.includes('admins')) return { type: 'admins' };
-        return { type: 'all' };
+        const group = selectedGroups[0] || 'all';
+        if (group === 'courses') {
+            if (selectedCourses.length === 0) throw new Error('Selecione pelo menos um curso.');
+            return { type: 'courses', values: selectedCourses };
+        }
+        if (group === 'units') {
+            if (selectedUnits.length === 0) throw new Error('Selecione pelo menos uma unidade.');
+            return { type: 'units', values: selectedUnits };
+        }
+        return { type: group };
     };
 
     const handleFileSelect = (field) => (e) => {
@@ -137,6 +174,7 @@ const AdminNoticeForm = () => {
             return;
         }
         setFiles(prev => ({ ...prev, [field]: file }));
+        setFormData(prev => ({ ...prev, [`${field}_url`]: '', [`${field}_name`]: '' }));
         const reader = new FileReader();
         reader.onload = (ev) => setPreviews(prev => ({ ...prev, [field]: ev.target.result }));
         reader.readAsDataURL(file);
@@ -144,24 +182,22 @@ const AdminNoticeForm = () => {
 
     const handleUpload = async (field) => {
         const file = files[field];
-        if (!file) return;
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('folder', 'notices');
-        try {
-            const token = sessionStorage.getItem('admin_token');
-            const res = await fetch(`${API_URL}/api/upload`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: formData
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setFormData(prev => ({ ...prev, [`${field}_url`]: data.url, [`${field}_name`]: file.name }));
-            }
-        } catch (error) {
-            console.error('Erro no upload:', error);
-        }
+        const dataUri = previews[field];
+        if (!file) return null;
+        if (!dataUri) throw new Error('O arquivo ainda está sendo processado. Tente novamente.');
+
+        const token = sessionStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/upload`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ file: dataUri, name: file.name, folder: 'notices' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Falha ao enviar anexo.');
+        return { url: data.url, name: file.name };
     };
 
     const removeFile = (field) => {
@@ -174,15 +210,27 @@ const AdminNoticeForm = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const recipients = buildRecipients();
+            const publicationStatus = e.nativeEvent?.submitter?.value === 'draft' ? 'draft' : 'published';
+            const nextFormData = { ...formData, status: publicationStatus };
 
-            // Upload files if selected
-            if (files.image && !formData.image_url) await handleUpload('image');
-            if (files.attachment && !formData.attachment_url) await handleUpload('attachment');
+            if (files.image && !nextFormData.image_url) {
+                const uploaded = await handleUpload('image');
+                if (uploaded) nextFormData.image_url = uploaded.url;
+            }
+            if (files.attachment && !nextFormData.attachment_url) {
+                const uploaded = await handleUpload('attachment');
+                if (uploaded) {
+                    nextFormData.attachment_url = uploaded.url;
+                    nextFormData.attachment_name = uploaded.name;
+                }
+            }
 
             const payload = {
-                ...formData,
+                ...nextFormData,
+                published_at: fromLocalDateTimeInput(nextFormData.published_at),
+                expires_at: fromLocalDateTimeInput(nextFormData.expires_at),
                 recipients: JSON.stringify(recipients),
                 is_pinned: formData.is_pinned ? 1 : 0,
                 send_notification: formData.send_notification ? 1 : 0
@@ -205,7 +253,7 @@ const AdminNoticeForm = () => {
             }
         } catch (error) {
             console.error('Erro ao salvar:', error);
-            alert('Erro ao salvar aviso');
+            alert(error.message || 'Erro ao salvar aviso');
         } finally {
             setSaving(false);
         }
@@ -213,9 +261,8 @@ const AdminNoticeForm = () => {
 
     if (loading) return <div className="form-loading">Carregando...</div>;
 
-    const filteredCourses = COURSES.filter(c => c.toLowerCase().includes(courseSearch.toLowerCase()));
-    const filteredUnits = ['SENAI Informática', 'SENAI Automação', 'SENAI Telecomunicações', 'SENAI Eletroeletrônica', 'SENAI Gestão', 'SENAI Design', 'SENAI Logística', 'SENAI Centro']
-        .filter(u => u.toLowerCase().includes(unitSearch.toLowerCase()));
+    const filteredCourses = recipientOptions.courses.filter(course => course.toLowerCase().includes(courseSearch.toLowerCase()));
+    const filteredUnits = recipientOptions.units.filter(unit => unit.toLowerCase().includes(unitSearch.toLowerCase()));
 
     return (
         <div className="admin-notice-form-page">
@@ -229,8 +276,8 @@ const AdminNoticeForm = () => {
                 </div>
                 <div className="header-actions">
                     <Link to="/admin/notices" className="btn-secondary">Cancelar</Link>
-                    <button type="button" className="btn-secondary" onClick={() => { formData.is_pinned ? 1 : 0; }}>Salvar Rascunho</button>
-                    <button type="submit" form="noticeForm" className="btn-primary" disabled={saving}>
+                    <button type="submit" form="noticeForm" name="publication_status" value="draft" className="btn-secondary" disabled={saving}>Salvar Rascunho</button>
+                    <button type="submit" form="noticeForm" name="publication_status" value="published" className="btn-primary" disabled={saving}>
                         <Save size={18} /> {saving ? 'Salvando...' : (isEditing ? 'Atualizar' : 'Publicar')}
                     </button>
                 </div>
@@ -303,7 +350,8 @@ const AdminNoticeForm = () => {
                         {RECIPIENT_GROUPS.map(group => (
                             <label key={group.id} className={`recipient-option ${selectedGroups.includes(group.id) ? 'selected' : ''}`}>
                                 <input
-                                    type="checkbox"
+                                    type="radio"
+                                    name="notice-recipient"
                                     checked={selectedGroups.includes(group.id)}
                                     onChange={() => handleRecipientChange(group.id)}
                                 />
@@ -374,7 +422,7 @@ const AdminNoticeForm = () => {
                         </div>
                     )}
 
-                    <span className="help-text">Selecione um ou mais grupos. O aviso será visível apenas para os destinatários escolhidos.</span>
+                    <span className="help-text">Escolha um público. O aviso ficará visível apenas para os usuários que correspondem à seleção.</span>
                 </section>
 
                 {/* Agendamento */}
@@ -453,6 +501,14 @@ const AdminNoticeForm = () => {
                                     </button>
                                 </div>
                             )}
+                            {!previews.image && formData.image_url && (
+                                <div className="file-preview">
+                                    <img src={formData.image_url} alt="Imagem atualmente salva" />
+                                    <button type="button" className="remove-file" onClick={() => removeFile('image')}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className={`upload-area ${previews.attachment ? 'has-file' : ''}`}>
@@ -477,6 +533,17 @@ const AdminNoticeForm = () => {
                                     </button>
                                 </div>
                             )}
+                            {!previews.attachment && formData.attachment_url && (
+                                <div className="file-preview attachment">
+                                    <FileText size={32} color="#E53935" />
+                                    <a href={formData.attachment_url} target="_blank" rel="noopener noreferrer">
+                                        {formData.attachment_name || 'Abrir arquivo salvo'}
+                                    </a>
+                                    <button type="button" className="remove-file" onClick={() => removeFile('attachment')}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>
@@ -484,8 +551,8 @@ const AdminNoticeForm = () => {
                 {/* Ações fixas no rodapé */}
                 <div className="fixed-actions">
                     <Link to="/admin/notices" className="btn-secondary">Cancelar</Link>
-                    <button type="button" className="btn-secondary" onClick={() => { }}>Salvar Rascunho</button>
-                    <button type="submit" className="btn-primary" disabled={saving}>
+                    <button type="submit" name="publication_status" value="draft" className="btn-secondary" disabled={saving}>Salvar Rascunho</button>
+                    <button type="submit" name="publication_status" value="published" className="btn-primary" disabled={saving}>
                         <Save size={18} /> {saving ? 'Salvando...' : (isEditing ? 'Atualizar Aviso' : 'Publicar Aviso')}
                     </button>
                 </div>

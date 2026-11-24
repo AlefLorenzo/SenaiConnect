@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { X, Image, Video, FileText, MessageSquare, HelpCircle, Lightbulb, Calendar, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import './MobileCreateSheet.css';
+import { acquireModalScrollLock } from '../utils/modalScrollLock.js';
 
 const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNavigateHome }) => {
   const navigate = useNavigate();
@@ -165,30 +167,31 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
   }, [onClose]);
 
   useEffect(() => {
-    if (isOpen) {
-      previousActiveElement.current = document.activeElement;
-      document.body.style.overflow = 'hidden';
-      // Capture sheet height for drag threshold
-      setTimeout(() => {
-        if (sheetRef.current) {
-          sheetHeight.current = sheetRef.current.offsetHeight;
-        }
-        const firstFocusable = sheetRef.current?.querySelector(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        firstFocusable?.focus();
-      }, 50);
-
-      document.addEventListener('keydown', handleKeyDown);
-    } else {
-      document.body.style.overflow = '';
-      previousActiveElement.current?.focus();
+    if (!isOpen) {
       setDragOffset(0);
+      return undefined;
     }
 
+    const releaseScrollLock = acquireModalScrollLock();
+    previousActiveElement.current = document.activeElement;
+
+    const focusTimer = window.setTimeout(() => {
+      if (sheetRef.current) {
+        sheetHeight.current = sheetRef.current.offsetHeight;
+      }
+      const firstFocusable = sheetRef.current?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus({ preventScroll: true });
+    }, 50);
+
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
-      document.body.style.overflow = '';
+      window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', handleKeyDown);
+      releaseScrollLock();
+      previousActiveElement.current?.focus({ preventScroll: true });
     };
   }, [isOpen, handleKeyDown]);
 
@@ -206,7 +209,7 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
     opacity: isDragging ? Math.max(0.7, 1 - dragOffset / sheetHeight.current) : 1,
   };
 
-  return (
+  return createPortal((
     <div
       className="mobile-create-sheet-overlay"
       onClick={handleBackdropClick}
@@ -261,7 +264,7 @@ const MobileCreateSheet = ({ isOpen, onClose, onCreatePost, onCreateStory, onNav
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 export default MobileCreateSheet;

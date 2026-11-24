@@ -116,6 +116,21 @@ const MobileHome = () => {
     setViewingStoryIndex(index);
   }, []);
 
+  // Keep the mobile story rings synchronized with confirmed server views.
+  const handleStoryViewed = useCallback((storyId) => {
+    setStoryGroups((currentGroups) => currentGroups.map((group) => {
+      const updatedStories = (group.stories || []).map((story) =>
+        String(story.id) === String(storyId) ? { ...story, viewed: true } : story
+      );
+
+      return {
+        ...group,
+        stories: updatedStories,
+        has_unviewed: updatedStories.some((story) => story.viewed !== true),
+      };
+    }));
+  }, []);
+
   return (
     <div className="mobile-home">
       <MobileStories stories={storyGroups} onStoryClick={handleStoryClick} />
@@ -125,6 +140,7 @@ const MobileHome = () => {
           storyGroups={storyGroups}
           initialGroupIndex={viewingStoryIndex}
           onClose={() => setViewingStoryIndex(null)}
+          onStoryViewed={handleStoryViewed}
         />
       )}
 

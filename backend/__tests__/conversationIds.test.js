@@ -74,7 +74,7 @@ describe('individual conversation IDs', () => {
           last_seen_privacy: 'all',
         }]];
       }
-      if (sql.includes('SELECT * FROM messages') && sql.includes('ORDER BY created_at ASC')) {
+      if (sql.includes('FROM messages m') && sql.includes('ORDER BY m.created_at DESC, m.id DESC')) {
         expect(params).toEqual([1, 2, 2, 1, 50, 0]);
         return [[{
           id: 10,

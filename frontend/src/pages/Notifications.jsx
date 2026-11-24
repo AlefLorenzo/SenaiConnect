@@ -13,6 +13,10 @@ const getNotificationIcon = (type) => {
         case 'friend_request': return <UserPlus size={20} fill="#F59E0B" />;
         case 'friend_accepted': return <CheckCircle size={20} fill="#10B981" />;
         case 'mention': return <AtSign size={20} fill="#8B5CF6" />;
+        case 'admin_publication':
+        case 'notice': return <BellRing size={20} />;
+        case 'business_publication':
+        case 'business_ad': return <BellRing size={20} />;
         default: return <Bell size={20} fill="#6B7280" />;
     }
 };
@@ -25,6 +29,10 @@ const getNotificationTypeLabel = (type) => {
         friend_request: 'enviou uma solicitação de amizade',
         friend_accepted: 'aceitou sua solicitação de amizade',
         mention: 'te mencionou',
+        admin_publication: 'publicou um novo conteúdo institucional',
+        notice: 'publicou um comunicado',
+        business_publication: 'publicou uma oportunidade empresarial',
+        business_ad: 'publicou um anúncio empresarial',
     };
     return labels[type] || 'enviou uma notificação';
 };
@@ -69,9 +77,10 @@ const formatGroupDate = (dateStr) => {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Notifications = () => {
-    const { notifications, unreadCount, markAsRead, fetchNotifications } = useContext(SocketContext);
+    const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications } = useContext(SocketContext);
     const navigate = useNavigate();
     const [page, setPage] = useState(1);
+    const [categoryFilter, setCategoryFilter] = useState('all');
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [allNotifications, setAllNotifications] = useState(notifications);
@@ -94,6 +103,33 @@ const Notifications = () => {
       storyNotifications: true,
     });
     const [savingPreferences, setSavingPreferences] = useState(false);
+    const [browserPermission, setBrowserPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
+    const [requestingPermission, setRequestingPermission] = useState(false);
+
+    const enableBrowserNotifications = async () => {
+        if (!('Notification' in window)) { setBrowserPermission('unsupported'); return; }
+        setRequestingPermission(true);
+        try {
+            const permission = await Notification.requestPermission();
+            setBrowserPermission(permission);
+            if (permission === 'granted') {
+                const registration = await navigator.serviceWorker?.ready;
+                if (registration) await registration.showNotification('SENAI Connect', {
+                    body: 'Notificações ativadas! Você será avisado quando houver novas atividades.',
+                    icon: '/favicon.svg', badge: '/favicon.svg', tag: 'senai-connect-enabled'
+                });
+            }
+        } catch (error) { console.error('Não foi possível ativar notificações:', error); }
+        finally { setRequestingPermission(false); }
+    };
+
+    useEffect(() => {
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(error => console.error('Falha ao registrar service worker:', error));
+        const refreshPermission = () => setBrowserPermission('Notification' in window ? Notification.permission : 'unsupported');
+        window.addEventListener('focus', refreshPermission);
+        document.addEventListener('visibilitychange', refreshPermission);
+        return () => { window.removeEventListener('focus', refreshPermission); document.removeEventListener('visibilitychange', refreshPermission); };
+    }, []);
 
     // Update allNotifications when notifications from socket change
     useEffect(() => {
@@ -204,27 +240,53 @@ const Notifications = () => {
         if (!notification.read) {
             markAsRead(notification.id);
         }
-        if (notification.post_id) {
-            navigate('/');
-        } else if (notification.source_user_id) {
-            navigate(`/profile/${notification.source_user_id}`);
+        if (notification.activity_type === 'message' || notification.type === 'message') {
+            let metadata = notification.metadata || {};
+            if (typeof metadata === 'string') {
+                try { metadata = JSON.parse(metadata); } catch { metadata = {}; }
+            }
+            const conversationId = metadata.conversation_id;
+            navigate(conversationId ? `/messages?conversationId=${encodeURIComponent(conversationId)}` : '/messages');
+        } else {
+            const metadata = typeof notification.metadata === 'string'
+                ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+                : (notification.metadata || {});
+            const resource = metadata.resource || notification.reference_type;
+            const destination = resource === 'events' || resource === 'event' ? '/events'
+                : resource === 'courses' || resource === 'course' ? '/courses'
+                : resource === 'notices' || resource === 'notice' ? '/notices'
+                : resource === 'posts' || resource === 'post' ? '/'
+                : (typeof metadata.destination === 'string' && metadata.destination.startsWith('/') ? metadata.destination : null);
+            if (destination) {
+                navigate(destination);
+            } else if (notification.post_id) {
+                navigate('/');
+            } else if (notification.source_user_id) {
+                navigate(`/profile/${notification.source_user_id}`);
+            }
         }
     };
 
     const handleMarkAllRead = async () => {
-        try {
-            const token = sessionStorage.getItem('token');
-            await fetch(`${API_URL}/api/notifications/read-all`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        } catch (err) {
-            console.error('Erro ao marcar todas como lidas:', err);
-        }
+        const updated = await markAllAsRead();
+        if (updated) setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
     };
 
-    const groupedNotifications = groupNotificationsByDate(allNotifications);
+    const getCategory = (notification) => {
+        const type = String(notification.activity_type || notification.type || '').toLowerCase();
+        const metadata = typeof notification.metadata === 'string'
+            ? (() => { try { return JSON.parse(notification.metadata); } catch { return {}; } })()
+            : (notification.metadata || {});
+        const resource = String(metadata.resource || notification.reference_type || '').toLowerCase();
+        if (type.includes('business') || type.includes('campaign') || type.includes('advert') || resource.includes('business') || resource.includes('campaign')) return 'business';
+        if (['admin_publication', 'notice', 'event_reminder'].includes(type) || ['notice', 'notices', 'event', 'events', 'course', 'courses'].includes(resource)) return 'institutional';
+        return 'community';
+    };
+
+    const filteredNotifications = categoryFilter === 'all'
+        ? allNotifications
+        : allNotifications.filter(notification => getCategory(notification) === categoryFilter);
+    const groupedNotifications = groupNotificationsByDate(filteredNotifications);
 
     const handlePreferenceChange = (key, value) => {
         setPreferences(prev => ({ ...prev, [key]: value }));
@@ -246,26 +308,64 @@ const Notifications = () => {
 
     return (
         <div className="notifications-page">
-            <div className="notifications-page-header">
-                <h1>Notificações</h1>
-                <div className="header-actions">
-                    {unreadCount > 0 && (
-                        <button className="mark-all-read-btn" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
-                            Marcar todas como lidas
+            <div className="notifications-sticky-header">
+                <div className="notifications-page-header">
+                    <div className="notifications-heading-copy">
+                        <h1>Central de atividades</h1>
+                        <p className="notifications-page-subtitle">Acompanhe comunicados, oportunidades e interações da comunidade.</p>
+                    </div>
+                    <div className="header-actions">
+                        {unreadCount > 0 && (
+                            <button className="mark-all-read-btn" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
+                                Marcar todas como lidas
+                            </button>
+                        )}
+                        <button
+                            className="preferences-toggle-btn"
+                            onClick={() => setShowPreferences(!showPreferences)}
+                            aria-expanded={showPreferences}
+                            aria-controls="notification-preferences"
+                        >
+                            <Settings size={20} />
+                            <span>Preferências</span>
+                            {showPreferences ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
-                    )}
-                    <button
-                        className="preferences-toggle-btn"
-                        onClick={() => setShowPreferences(!showPreferences)}
-                        aria-expanded={showPreferences}
-                        aria-controls="notification-preferences"
-                    >
-                        <Settings size={20} />
-                        <span>Preferências</span>
-                        {showPreferences ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
+                    </div>
+                </div>
+                <div className="notification-category-filters" role="group" aria-label="Filtrar atividades">
+                    {[
+                        ['all', 'Tudo'],
+                        ['institutional', 'Institucional'],
+                        ['business', 'Empresas'],
+                        ['community', 'Comunidade']
+                    ].map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            className={`notification-category-filter ${categoryFilter === value ? 'active' : ''}`}
+                            aria-pressed={categoryFilter === value}
+                            onClick={() => setCategoryFilter(value)}
+                        >
+                            {label}
+                        </button>
+                    ))}
                 </div>
             </div>
+
+            <section className="browser-notification-permission" aria-label="Notificações do navegador">
+                <div>
+                    <strong>Notificações no dispositivo</strong>
+                    <p>{browserPermission === 'granted'
+                        ? 'Ativadas neste navegador. Você receberá alertas quando o site estiver em segundo plano.'
+                        : browserPermission === 'denied'
+                            ? 'Bloqueadas pelo navegador. Altere a permissão nas configurações do site.'
+                            : browserPermission === 'unsupported'
+                                ? 'Este navegador não oferece suporte a notificações.'
+                                : 'Ative para receber alertas de mensagens, curtidas, novos seguidores e outras atividades.'}</p>
+                </div>
+                {browserPermission === 'default' && <button type="button" onClick={enableBrowserNotifications} disabled={requestingPermission}><BellRing size={17} /> {requestingPermission ? 'Ativando…' : 'Ativar notificações'}</button>}
+                {browserPermission === 'granted' && <span className="browser-notification-status">Ativadas</span>}
+            </section>
 
             {/* Preferences Panel */}
             {showPreferences && (
@@ -341,7 +441,7 @@ const Notifications = () => {
                                     onClick={() => handleClick(n)}
                                 >
                                     <div className="notification-icon-wrapper">
-                                        {getNotificationIcon(n.type)}
+                                        {getNotificationIcon(n.activity_type || n.type)}
                                     </div>
                                     <Avatar user={{ avatar: n.source_user_avatar, name: n.source_user_name }} className="notification-avatar" />
                                     <div className="notification-content">
@@ -359,7 +459,7 @@ const Notifications = () => {
                 ) : (
                     <div className="notifications-page-empty">
                         <Bell size={64} className="empty-icon" aria-hidden="true" />
-                        <p>Nenhuma notificação ainda</p>
+                        <p>Nenhum aviso nesta categoria</p>
                     </div>
                 )}
 

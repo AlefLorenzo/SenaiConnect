@@ -4,10 +4,12 @@ import Avatar from './Avatar';
 import { storiesService } from '../services/storiesService';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { StoryViewerContext } from '../context/StoryViewerContext.jsx';
 import './StoryViewer.css';
 
-const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact }) => {
+const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact, onStoryViewed }) => {
   const { user } = useContext(AuthContext);
+  const { setStoryViewerOpen } = useContext(StoryViewerContext);
   const [currentGroupIndex, setCurrentGroupIndex] = useState(initialGroupIndex);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -16,6 +18,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [replyError, setReplyError] = useState('');
   const [showViewerList, setShowViewerList] = useState(false);
   const [viewers, setViewers] = useState([]);
   const [isLoadingViewers, setIsLoadingViewers] = useState(false);
@@ -24,6 +27,78 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentStoryId, setCurrentStoryId] = useState(null);
 
+  // Keep the global app navigation hidden for the complete story viewing session.
+  useEffect(() => {
+    setStoryViewerOpen(true);
+    return () => setStoryViewerOpen(false);
+  }, [setStoryViewerOpen]);
+
+  // Lock every page scroll container while the story is fullscreen.
+  // This covers the document and the app's independently scrollable main area.
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const hadLockClass = root.classList.contains('story-viewer-open');
+
+    const previousRootStyles = {
+      overflow: root.style.overflow,
+      overscrollBehavior: root.style.overscrollBehavior,
+    };
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      overscrollBehavior: body.style.overscrollBehavior,
+    };
+
+    root.classList.add('story-viewer-open');
+    root.style.overflow = 'hidden';
+    root.style.overscrollBehavior = 'none';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = `-${scrollX}px`;
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'none';
+
+    const preventBackgroundScroll = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const allowedScrollPanel = target?.closest(
+        '.story-replies-panel, .story-reactions-panel, .story-viewer-modal'
+      );
+
+      if (!allowedScrollPanel) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+    document.addEventListener('wheel', preventBackgroundScroll, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchmove', preventBackgroundScroll);
+      document.removeEventListener('wheel', preventBackgroundScroll);
+
+      if (!hadLockClass) {
+        root.classList.remove('story-viewer-open');
+      }
+
+      Object.assign(root.style, previousRootStyles);
+      Object.assign(body.style, previousBodyStyles);
+
+      // Restore the previous page position after releasing the fixed body.
+      if (scrollX || scrollY) {
+        window.scrollTo(scrollX, scrollY);
+      }
+    };
+  }, []);
+
   // Guard against empty storyGroups or invalid index - close via effect
   useEffect(() => {
     if (!storyGroups || storyGroups.length === 0 || initialGroupIndex >= storyGroups.length) {
@@ -31,16 +106,11 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     }
   }, [storyGroups, initialGroupIndex, onClose]);
 
-  // Early return if no valid stories (will be closed by effect above)
-  if (!storyGroups || storyGroups.length === 0 || currentGroupIndex >= storyGroups.length) {
-    return null;
-  }
-
   const currentGroup = storyGroups[currentGroupIndex];
   const currentStory = currentGroup?.stories?.[currentStoryIndex];
 
   // Track if current user owns this story
-  const isOwner = currentGroup && user && currentGroup.user_id === user.id;
+  const isOwner = Boolean(currentGroup && user && String(currentGroup.user_id) === String(user.id));
   const storyId = currentStory?.id;
   const storyOwnerId = currentGroup?.user_id;
 
@@ -73,7 +143,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
       setCurrentGroupIndex(prev => prev + 1);
       setCurrentStoryIndex(0);
     } else {
-      onClose(); // End of all stories
+      onClose?.(); // End of all stories
     }
   }, [currentGroupIndex, currentStoryIndex, currentGroup, storyGroups.length, onClose]);
 
@@ -112,8 +182,14 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
   }, [isPaused, goToNext]);
 
   useEffect(() => {
+    // Start counting at the moment this story becomes active, not after the
+    // first animation frame. This also makes the initial story start instantly.
+    lastTimeRef.current = performance.now();
     requestRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(requestRef.current);
+
+    return () => {
+      cancelAnimationFrame(requestRef.current);
+    };
   }, [currentGroupIndex, currentStoryIndex, isPaused, animate]);
 
   // Reset progress when story changes
@@ -123,14 +199,18 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     setShowReactions(false);
     setShowReplies(false);
     setReplyText('');
+    setReplyError('');
+    setIsPaused(false);
 
     // Load reactions for new story
     if (storyId) {
       loadReactions(storyId);
-      // Mark as viewed
-      storiesService.viewStory(storyId).catch(console.error);
+      // Update the current user's read state only after the server confirms it.
+      storiesService.viewStory(storyId)
+        .then(() => onStoryViewed?.(storyId))
+        .catch(console.error);
     }
-  }, [storyId]);
+  }, [storyId, onStoryViewed]);
 
   // Load story reactions
   const loadReactions = async (id) => {
@@ -171,20 +251,20 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
-    if (isPaused) {
+    if (isPaused && !showReplies) {
       setIsPaused(false);
     }
-  }, [isPaused]);
+  }, [isPaused, showReplies]);
 
   const handlePointerLeave = useCallback(() => {
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
-    if (isPaused) {
+    if (isPaused && !showReplies) {
       setIsPaused(false);
     }
-  }, [isPaused]);
+  }, [isPaused, showReplies]);
 
   // Handle reactions
   const handleReact = async (reactionType) => {
@@ -206,19 +286,24 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
     }
   };
 
-  // Handle reply
+  // Story replies are private direct messages to the story owner.
+  // The owner cannot reply to their own story, matching WhatsApp status rules.
   const handleReplySubmit = async (e) => {
     e.preventDefault();
-    if (!replyText.trim() || !storyId) return;
+    const content = replyText.trim();
+    if (!content || !storyId || isOwner || isReplying) return;
 
+    setReplyError('');
     setIsReplying(true);
     try {
-      await storiesService.replyToStory(storyId, replyText.trim());
-      if (onReply) onReply(storyId, replyText.trim());
+      const result = await storiesService.replyToStory(storyId, content);
+      onReply?.(storyId, content, result);
       setReplyText('');
       setShowReplies(false);
+      setIsPaused(false);
     } catch (err) {
-      console.error('Erro ao responder:', err);
+      console.error('Erro ao responder ao story:', err);
+      setReplyError(err.message || 'Não foi possível enviar a resposta. Tente novamente.');
     } finally {
       setIsReplying(false);
     }
@@ -308,9 +393,26 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
             <button className="story-action-btn" onClick={() => setShowReactions(!showReactions)} aria-label="Reações">
               <Heart size={22} color="white" />
             </button>
-            <button className="story-action-btn" onClick={() => setShowReplies(!showReplies)} aria-label="Responder">
-              <MessageSquare size={22} color="white" />
-            </button>
+            {!isOwner && (
+              <button
+                className="story-action-btn"
+                onClick={() => {
+                  setShowReactions(false);
+                  if (showReplies) {
+                    setShowReplies(false);
+                    setIsPaused(false);
+                  } else {
+                    setReplyError('');
+                    setShowReplies(true);
+                    setIsPaused(true);
+                  }
+                }}
+                aria-label="Responder"
+                aria-expanded={showReplies}
+              >
+                <MessageSquare size={22} color="white" />
+              </button>
+            )}
             {isOwner && (
               <button className="story-action-btn" onClick={toggleMoreMenu} aria-label="Mais opções">
                 <MoreVertical size={22} color="white" />
@@ -385,21 +487,40 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
           )}
 
           {/* Replies panel */}
-          {showReplies && (
-            <div className="story-replies-panel" role="dialog" aria-label="Responder">
+          {showReplies && !isOwner && (
+            <div className="story-replies-panel" role="dialog" aria-label="Responder em particular">
               <div className="replies-header">
-                <span>Responder</span>
-                <button onClick={() => setShowReplies(false)} aria-label="Fechar"><X size={20} color="white" /></button>
+                <div className="story-reply-heading">
+                  <span>Responder em particular</span>
+                  <small>Somente {currentGroup.user_name} receberá sua mensagem</small>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReplies(false);
+                    setIsPaused(false);
+                    setReplyError('');
+                  }}
+                  aria-label="Fechar"
+                >
+                  <X size={20} color="white" />
+                </button>
               </div>
               <form onSubmit={handleReplySubmit} className="reply-form">
                 <textarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Escreva uma resposta..."
+                  onChange={(e) => {
+                    setReplyText(e.target.value);
+                    if (replyError) setReplyError('');
+                  }}
+                  placeholder="Escreva uma mensagem..."
                   maxLength={500}
                   rows={3}
-                  aria-label="Sua resposta"
+                  aria-label="Sua resposta privada"
+                  disabled={isReplying}
+                  autoFocus
                 />
+                {replyError && <p className="story-reply-error" role="alert">{replyError}</p>}
                 <div className="reply-footer">
                   <span className="reply-char-count">{replyText.length}/500</span>
                   <button
@@ -407,7 +528,7 @@ const StoryViewer = ({ storyGroups, initialGroupIndex, onClose, onReply, onReact
                     className="reply-send-btn"
                     disabled={!replyText.trim() || isReplying}
                   >
-                    {isReplying ? 'Enviando...' : 'Enviar'}
+                    {isReplying ? 'Enviando...' : 'Enviar mensagem'}
                   </button>
                 </div>
               </form>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Bell, Shield, Eye, Moon, Sun, Save, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../services/api';
+import { applyTheme, getStoredTheme, isExplicitTheme, persistTheme } from '../utils/theme';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
-    theme: 'system',
+    theme: getStoredTheme() || 'light',
     language: 'pt-BR',
     notifications: {
       push: true,
@@ -35,39 +36,72 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Load settings from backend on mount
+  // Theme changes are explicit user choices. Never follow the operating
+  // system's color scheme automatically after the user has selected a theme.
   useEffect(() => {
-    loadSettings();
-  }, []);
+    applyTheme(settings.theme === 'dark' ? 'dark' : 'light');
+    const root = document.documentElement;
+    root.classList.toggle('accessibility-reduced-motion', Boolean(settings.accessibility?.reducedMotion));
+    root.classList.toggle('accessibility-high-contrast', Boolean(settings.accessibility?.highContrast));
+    root.dataset.fontSize = settings.accessibility?.fontSize || 'medium';
+  }, [settings.theme, settings.accessibility?.reducedMotion, settings.accessibility?.highContrast, settings.accessibility?.fontSize]);
 
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/settings');
-      setSettings(response.data);
+      // api.get() returns the decoded JSON body directly (not an Axios response).
+      const response = await api.get('/api/settings');
+      const loaded = response?.settings && typeof response.settings === 'object'
+        ? response.settings
+        : response;
+      if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) {
+        throw new Error('Resposta inválida do servidor ao carregar configurações.');
+      }
+      const localTheme = getStoredTheme();
+      const serverTheme = isExplicitTheme(loaded.theme) ? loaded.theme : null;
+      const resolvedTheme = localTheme || serverTheme || 'light';
+      if (!localTheme && serverTheme) persistTheme(serverTheme);
+
+      setSettings((current) => ({
+        ...current,
+        ...loaded,
+        theme: resolvedTheme,
+        notifications: { ...current.notifications, ...(loaded.notifications || {}) },
+        privacy: { ...current.privacy, ...(loaded.privacy || {}) },
+        accessibility: { ...current.accessibility, ...(loaded.accessibility || {}) }
+      }));
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
-      setMessage({ type: 'error', text: 'Erro ao carregar configurações. Usando padrões.' });
+      const detail = error?.data?.error || error?.message;
+      setMessage({ type: 'error', text: detail
+        ? `Não foi possível carregar suas configurações: ${detail}`
+        : 'Não foi possível carregar suas configurações. Verifique sua conexão e tente novamente.' });
     } finally {
       setLoading(false);
     }
   };
+
+  // Load settings from backend on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
 
   const handleSave = async () => {
     try {
       setSaving(true);
       setMessage({ type: '', text: '' });
 
-      const response = await api.put('/settings', settings);
+      persistTheme(settings.theme === 'dark' ? 'dark' : 'light');
+      const response = await api.put('/api/settings', settings);
+      const saved = response?.settings && typeof response.settings === 'object' ? response.settings : settings;
+      setSettings((current) => ({
+        ...current,
+        ...saved,
+        notifications: { ...current.notifications, ...(saved.notifications || {}) },
+        privacy: { ...current.privacy, ...(saved.privacy || {}) },
+        accessibility: { ...current.accessibility, ...(saved.accessibility || {}) }
+      }));
       setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
-
-      // Apply theme immediately
-      if (response.data.theme) {
-        document.documentElement.setAttribute('data-theme', response.data.theme === 'system'
-          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : response.data.theme
-        );
-      }
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
       setMessage({ type: 'error', text: 'Erro ao salvar configurações. Tente novamente.' });
@@ -78,6 +112,7 @@ const Settings = () => {
   };
 
   const updateSetting = (path, value) => {
+    if (path === 'theme') persistTheme(value);
     const keys = path.split('.');
     setSettings(prev => {
       const newSettings = JSON.parse(JSON.stringify(prev));
@@ -114,7 +149,7 @@ const Settings = () => {
       </div>
 
       {message.text && (
-        <div className="card animate-fade-in" style={{
+        <div className={`card animate-fade-in settings-feedback-message settings-feedback-message--${message.type}`} style={{
           padding: '12px 20px',
           background: message.type === 'success' ? '#E8F5E9' : '#FFEBEE',
           borderLeft: `4px solid ${message.type === 'success' ? '#4CAF50' : '#F44336'}`,
@@ -168,21 +203,6 @@ const Settings = () => {
             }}
           >
             <Moon size={18} /> Dark
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => updateSetting('theme', 'system')}
-            style={{
-              flex: 1,
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '8px',
-              border: settings.theme === 'system' ? '2px solid var(--senai-blue-primary)' : '1px solid var(--border-color)',
-              padding: '12px',
-              background: settings.theme === 'system' ? 'var(--senai-blue-light)' : 'transparent'
-            }}
-          >
-            <SettingsIcon size={18} /> Sistema
           </button>
         </div>
       </div>

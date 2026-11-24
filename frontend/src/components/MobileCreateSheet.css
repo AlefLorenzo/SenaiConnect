@@ -3,13 +3,27 @@
 
 .mobile-create-sheet-overlay {
   position: fixed;
+  /* This overlay must span the viewport; generic dialog sizing is excluded globally. */
+  max-width: none;
+  max-height: none;
   inset: 0;
+  /* Let the fixed insets define the exact viewport width. A separate 100%
+     width plus horizontal safe-area padding was shrinking the usable sheet. */
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 0;
   z-index: 2000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+  overscroll-behavior: none;
+  touch-action: pan-y;
   animation: fadeIn 0.2s ease;
 }
 
@@ -24,15 +38,22 @@
 
 .mobile-create-sheet {
   width: 100%;
-  max-width: 100%;
+  max-width: 560px;
+  min-width: 0;
+  margin: 0 auto;
+  box-sizing: border-box;
   background: var(--color-surface, #ffffff);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: 85vh;
+  max-height: min(85vh, 680px);
+  max-height: min(85dvh, 680px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 [data-theme="dark"] .mobile-create-sheet {
@@ -75,7 +96,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px 16px;
+  padding: 0 calc(20px + env(safe-area-inset-right, 0px)) 16px
+    calc(20px + env(safe-area-inset-left, 0px));
   border-bottom: 1px solid var(--color-border, #e0e0e0);
 }
 
@@ -128,17 +150,25 @@
 }
 
 /* Options Grid */
-.sheet-options {
+ .sheet-options {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 8px;
-  padding: 20px;
+  padding: 20px calc(20px + env(safe-area-inset-right, 0px))
+    calc(20px + env(safe-area-inset-bottom, 0px))
+    calc(20px + env(safe-area-inset-left, 0px));
   overflow-y: auto;
-  max-height: calc(85vh - 120px);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* Create Option Button */
-.create-option {
+ .create-option {
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -255,7 +285,7 @@
   }
 
   .sheet-options {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 16px;
     gap: 6px;
   }
@@ -279,4 +309,72 @@
     animation: none;
     transition: none;
   }
+}
+@media (max-width: 480px) {
+  .mobile-create-sheet {
+    width: 100%;
+    max-width: none;
+    max-height: min(88vh, 680px);
+    max-height: min(88dvh, 680px);
+    border-radius: 18px 18px 0 0;
+  }
+
+  .sheet-options {
+    padding: 12px calc(14px + env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(14px + env(safe-area-inset-left, 0px));
+    gap: 10px;
+  }
+
+  .create-option {
+    min-height: 88px;
+    padding: 12px 8px;
+  }
+
+  .option-description {
+    white-space: normal;
+    line-height: 1.25;
+  }
+}
+
+@media (max-height: 620px) {
+  .mobile-create-sheet {
+    max-height: 94vh;
+    max-height: 94dvh;
+  }
+
+  .sheet-handle {
+    padding-top: 8px;
+    padding-bottom: 6px;
+  }
+
+  .sheet-header {
+    padding-bottom: 10px;
+  }
+
+  .sheet-options {
+    padding-top: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .create-option {
+    min-height: 76px;
+    padding: 10px 8px;
+  }
+
+  .option-icon-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.mobile-create-sheet,
+.mobile-create-sheet * {
+  box-sizing: border-box;
+}
+
+.sheet-options > *,
+.create-option,
+.option-content {
+  min-width: 0;
 }

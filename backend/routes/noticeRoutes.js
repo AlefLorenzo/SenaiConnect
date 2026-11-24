@@ -3,6 +3,8 @@ const router = express.Router();
 const noticeController = require('../controllers/noticeController');
 const { authenticateToken } = require('../middlewares/auth');
 
+router.get('/files', authenticateToken, noticeController.getNoticeFiles);
+router.post('/:id/read', authenticateToken, noticeController.markNoticeRead);
 router.get('/', authenticateToken, noticeController.getNotices);
 router.post('/', authenticateToken, noticeController.createNotice);
 router.get('/events', authenticateToken, noticeController.getEvents);

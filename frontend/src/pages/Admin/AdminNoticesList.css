@@ -1,12 +1,12 @@
-/* Admin Notices List - SENAI Connect */
-/* Uses design tokens from tokens.css */
 
-.admin-notices-list {
+
+
+.admin-notices-list{
   max-width: 1400px;
   margin: 0 auto;
 }
 
-.page-header {
+.admin-notices-list .page-header{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -15,26 +15,26 @@
   gap: var(--space-4);
 }
 
-.page-header h1 {
+.admin-notices-list .page-header h1{
   font-size: var(--text-2xl);
   font-weight: var(--font-bold);
   color: var(--color-text-primary);
 }
 
-.page-header p {
+.admin-notices-list .page-header p{
   color: var(--color-text-secondary);
   font-size: var(--text-sm);
 }
 
-.card {
-  /* Card component handles styling */
+.admin-notices-list .card{
+  
 }
 
-.notices-card {
-  /* Card component handles styling */
+.admin-notices-list .notices-card{
+  
 }
 
-.card-header {
+.admin-notices-list .card-header{
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -44,26 +44,26 @@
   gap: var(--space-3);
 }
 
-.card-title {
+.admin-notices-list .card-title{
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
 }
 
-.filters {
+.admin-notices-list .filters{
   display: flex;
   gap: var(--space-3);
   align-items: center;
   flex-wrap: wrap;
 }
 
-.search-box {
+.admin-notices-list .search-box{
   position: relative;
   flex: 1;
   min-width: 240px;
 }
 
-.search-box svg {
+.admin-notices-list .search-box svg{
   position: absolute;
   left: var(--space-4);
   top: 50%;
@@ -74,7 +74,7 @@
   pointer-events: none;
 }
 
-.search-box input {
+.admin-notices-list .search-box input{
   width: 100%;
   padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + 24px);
   border: var(--input-border-width) solid var(--color-border);
@@ -90,28 +90,28 @@
   height: var(--touch-target);
 }
 
-.search-box input::placeholder {
+.admin-notices-list .search-box input::placeholder{
   color: var(--color-text-muted);
 }
 
-.search-box input:focus {
+.admin-notices-list .search-box input:focus{
   outline: none;
   border-color: var(--color-border-focus);
   box-shadow: var(--shadow-focus);
 }
 
-.search-box input:disabled {
+.admin-notices-list .search-box input:disabled{
   opacity: 0.6;
   cursor: not-allowed;
   background: var(--color-bg-disabled);
 }
 
-.filter-group {
+.admin-notices-list .filter-group{
   display: flex;
   gap: var(--space-2);
 }
 
-.filter-select {
+.admin-notices-list .filter-select{
   padding: var(--space-2) var(--space-3);
   border: var(--input-border-width) solid var(--color-border);
   border-radius: var(--radius-md);
@@ -126,34 +126,34 @@
   min-width: 160px;
 }
 
-.filter-select:focus {
+.admin-notices-list .filter-select:focus{
   outline: none;
   border-color: var(--color-border-focus);
   box-shadow: var(--shadow-focus);
 }
 
-.filter-select:disabled {
+.admin-notices-list .filter-select:disabled{
   opacity: 0.6;
   cursor: not-allowed;
   background: var(--color-bg-disabled);
 }
 
-.table-container {
+.admin-notices-list .table-container{
   overflow-x: auto;
 }
 
-table {
+.admin-notices-list table{
   width: 100%;
   border-collapse: collapse;
 }
 
-th, td {
+.admin-notices-list th,.admin-notices-list td{
   padding: var(--space-4) var(--space-5);
   text-align: left;
   font-size: var(--text-sm);
 }
 
-th {
+.admin-notices-list th{
   background: var(--color-bg-subtle);
   font-weight: var(--font-semibold);
   color: var(--color-text-secondary);
@@ -164,35 +164,35 @@ th {
   white-space: nowrap;
 }
 
-td {
+.admin-notices-list td{
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
 }
 
-tr:last-child td {
+.admin-notices-list tr:last-child td{
   border-bottom: none;
 }
 
-tr:hover td {
+.admin-notices-list tr:hover td{
   background: var(--color-bg-hover);
 }
 
-.notice-title {
+.admin-notices-list .notice-title{
   font-weight: var(--font-medium);
   color: var(--color-text-primary);
 }
 
-.notice-author {
+.admin-notices-list .notice-author{
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
 
-.recipients-cell {
+.admin-notices-list .recipients-cell{
   max-width: 200px;
 }
 
-.recipient-tag {
+.admin-notices-list .recipient-tag{
   display: inline-block;
   background: var(--color-primary-light);
   color: var(--color-primary);
@@ -204,18 +204,18 @@ tr:hover td {
   margin-bottom: var(--space-1);
 }
 
-.actions {
+.admin-notices-list .actions{
   display: flex;
   gap: var(--space-2);
 }
 
-.empty-row {
+.admin-notices-list .empty-row{
   text-align: center;
   color: var(--color-text-secondary);
   padding: var(--space-10) var(--space-5) !important;
 }
 
-.pagination {
+.admin-notices-list .pagination{
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,19 +224,19 @@ tr:hover td {
   border-top: 1px solid var(--color-border);
 }
 
-.pagination-info {
+.admin-notices-list .pagination-info{
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   margin: 0 var(--space-2);
 }
 
-.loading-state {
+.admin-notices-list .loading-state{
   text-align: center;
   padding: var(--space-16) var(--space-5);
   color: var(--color-text-secondary);
 }
 
-.loading-spinner {
+.admin-notices-list .loading-spinner{
   display: inline-block;
   width: 40px;
   height: 40px;
@@ -251,100 +251,91 @@ tr:hover td {
   to { transform: rotate(360deg); }
 }
 
-/* Responsive */
+
 @media (max-width: 1024px) {
-  .search-box {
+  .admin-notices-list .search-box{
     min-width: 200px;
   }
 }
 
 @media (max-width: 768px) {
-  .page-header {
+  .admin-notices-list .page-header{
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .filter-group {
+  .admin-notices-list .filter-group{
     width: 100%;
   }
 
-  .filter-select {
+  .admin-notices-list .filter-select{
     flex: 1;
   }
 
-  th, td {
+  .admin-notices-list th,.admin-notices-list td{
     padding: var(--space-3) var(--space-4);
   }
 
-  .actions {
+  .admin-notices-list .actions{
     flex-wrap: wrap;
   }
 }
 
-/* Reduced Motion */
+
 @media (prefers-reduced-motion: reduce) {
-  .loading-spinner {
+  .admin-notices-list .loading-spinner{
     animation: none;
   }
 
-  .search-box input,
-  .filter-select,
-  .action-btn,
-  .pagination-btn,
-  tr:hover td {
+  .admin-notices-list .search-box input,.admin-notices-list .filter-select,.admin-notices-list .action-btn,.admin-notices-list .pagination-btn,.admin-notices-list tr:hover td{
     transition: none;
   }
 }
 
-/* High Contrast Mode */
+
 @media (forced-colors: active) {
-  .search-box input,
-  .filter-select {
+  .admin-notices-list .search-box input,.admin-notices-list .filter-select{
     border: 1px solid CanvasText;
     background: Canvas;
     color: CanvasText;
   }
 
-  .search-box input:focus,
-  .filter-select:focus {
+  .admin-notices-list .search-box input:focus,.admin-notices-list .filter-select:focus{
     outline: 2px solid Highlight;
     outline-offset: 2px;
   }
 
-  th {
+  .admin-notices-list th{
     background: Canvas;
     border-color: CanvasText;
   }
 
-  td {
+  .admin-notices-list td{
     border-color: CanvasText;
   }
 
-  tr:hover td {
+  .admin-notices-list tr:hover td{
     background: Highlight;
     color: HighlightText;
   }
 
-  .recipient-tag {
+  .admin-notices-list .recipient-tag{
     background: Highlight;
     color: HighlightText;
   }
 
-  .action-btn,
-  .pagination-btn {
+  .admin-notices-list .action-btn,.admin-notices-list .pagination-btn{
     border: 1px solid CanvasText;
     background: Canvas;
     color: CanvasText;
   }
 
-  .action-btn:hover:not(:disabled),
-  .pagination-btn:hover:not(:disabled) {
+  .admin-notices-list .action-btn:hover:not(:disabled),.admin-notices-list .pagination-btn:hover:not(:disabled){
     background: Highlight;
     color: HighlightText;
   }
 
-  .action-btn.danger:hover,
-  .action-btn.unblock:hover {
+  .admin-notices-list .action-btn.danger:hover,.admin-notices-list .action-btn.unblock:hover{
     background: Highlight;
     color: HighlightText;
   }

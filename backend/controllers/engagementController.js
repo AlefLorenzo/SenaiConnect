@@ -59,33 +59,67 @@ const engagementController = {
   },
 
   toggleEvent: async (req, res) => {
+    const userId = req.user.id;
+    const eventId = Number.parseInt(req.params.id, 10);
+    const registration = req.body || {};
+    const registrationName = String(registration.registration_name || registration.name || '').trim();
+    if (!registrationName) return res.status(400).json({ error: 'Informe seu nome para confirmar a inscrição.' });
+    if (!Number.isSafeInteger(eventId) || eventId <= 0) return res.status(400).json({ error: 'Evento inválido.' });
+
+    let connection;
     try {
-      const userId = req.user.id;
-      const eventId = parseInt(req.params.id, 10);
-      const [ev] = await db.query('SELECT id, vacancies FROM events WHERE id = ?', [eventId]);
-      if (!ev.length) return res.status(404).json({ error: 'Evento não encontrado.' });
-      const [existing] = await db.query(
-        'SELECT 1 FROM event_registrations WHERE event_id = ? AND user_id = ?',
-        [eventId, userId]
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+      const [events] = await connection.query(
+        "SELECT id, vacancies, status FROM events WHERE id = ? FOR UPDATE", [eventId]
+      );
+      if (!events.length || !['ativo', 'active'].includes(String(events[0].status || '').toLowerCase())) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'Evento não encontrado ou não está aceitando inscrições.' });
+      }
+      const [existing] = await connection.query(
+        'SELECT event_id FROM event_registrations WHERE event_id = ? AND user_id = ?', [eventId, userId]
       );
       if (existing.length) {
-        await db.query('DELETE FROM event_registrations WHERE event_id = ? AND user_id = ?', [eventId, userId]);
-        return res.json({ registered: false, message: 'Inscrição cancelada.' });
+        await connection.rollback();
+        return res.status(409).json({ error: 'Você já está inscrito neste evento.' });
       }
-      if (ev[0].vacancies > 0) {
-        const [[{ count }]] = await db.query(
-          'SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ?',
-          [eventId]
-        );
-        if (count >= ev[0].vacancies) {
-          return res.status(400).json({ error: 'Não há vagas disponíveis.' });
-        }
+      const [counts] = await connection.query(
+        'SELECT COUNT(*) AS count FROM event_registrations WHERE event_id = ?', [eventId]
+      );
+      const total = Number(counts[0]?.count || 0);
+      const vacancies = Number(events[0].vacancies || 0);
+      if (vacancies > 0 && total >= vacancies) {
+        await connection.rollback();
+        return res.status(409).json({ error: 'As vagas deste evento já foram preenchidas.' });
       }
-      await db.query('INSERT INTO event_registrations (event_id, user_id) VALUES (?, ?)', [eventId, userId]);
-      res.status(201).json({ registered: true, message: 'Inscrição confirmada.' });
+      await connection.query(
+        `INSERT INTO event_registrations
+          (event_id, user_id, registration_name, team_name, participation_type, shift, course, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          eventId, userId, registrationName,
+          String(registration.team_name || '').trim() || null,
+          registration.participation_type === 'group' ? 'group' : 'individual',
+          String(registration.shift || '').trim() || null,
+          String(registration.course || '').trim() || null,
+          String(registration.notes || '').trim() || null
+        ]
+      );
+      await connection.commit();
+      const [updated] = await db.query(
+        'SELECT COUNT(*) AS enrolled_count FROM event_registrations WHERE event_id = ?', [eventId]
+      );
+      const enrolledCount = Number(updated[0]?.enrolled_count || 0);
+      const socketHelper = require('../socketHelper');
+      socketHelper.broadcast('event_registration_changed', { eventId, enrolledCount });
+      res.status(201).json({ registered: true, enrolled_count: enrolledCount, vacancies: Math.max(vacancies - enrolledCount, 0), message: 'Inscrição confirmada com sucesso!' });
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: 'Erro na inscrição.' });
+      if (connection) await connection.rollback().catch(() => {});
+      console.error('Erro ao inscrever no evento:', e);
+      res.status(500).json({ error: 'Não foi possível concluir sua inscrição.' });
+    } finally {
+      if (connection) connection.release();
     }
   },
 

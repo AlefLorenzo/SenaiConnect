@@ -9,8 +9,7 @@ const adminUsersController = require('../controllers/adminUsersController');
 const adminAuditController = require('../controllers/adminAuditController');
 const adminSettingsController = require('../controllers/adminSettingsController');
 const adminCrudController = require('../controllers/adminCrudController');
-const { requireAdmin, requireRole, JWT_ADMIN_SECRET } = require('../middlewares/adminAuth');
-const jwt = require('jsonwebtoken');
+const { requireAdmin, requireRole } = require('../middlewares/adminAuth');
 const rateLimiter = require('../utils/rateLimiter');
 
 // Rate limiter para login admin (chave email+IP)
@@ -46,6 +45,7 @@ router.get('/dashboard/activity', adminDashboardController.getActivity);
 // AVISOS (NOTICES)
 // ============================================
 router.get('/notices', adminNoticesController.listNotices);
+router.get('/notices/recipient-options', adminNoticesController.getRecipientOptions);
 router.get('/notices/stats', adminNoticesController.getStats);
 router.get('/notices/:id', adminNoticesController.getNotice);
 router.post('/notices', adminNoticesController.createNotice);
@@ -72,7 +72,7 @@ router.get('/users/stats', adminUsersController.getStats);
 router.get('/users/:id', adminUsersController.getUser);
 router.get('/users/:id/activity', adminUsersController.getActivity);
 router.patch('/users/:id/block', adminUsersController.toggleBlock);
-router.patch('/users/:id/role', adminUsersController.updateRole);
+router.patch('/users/:id/role', requireRole(['super_admin']), adminUsersController.updateRole);
 router.patch('/users/:id/profile', adminUsersController.updateProfile);
 router.post('/users/:id/reset-password', adminUsersController.resetPassword);
 
@@ -89,6 +89,9 @@ router.get('/audit/export', adminAuditController.exportLogs);
 // EVENTOS
 // ============================================
 router.get('/events', adminCrudController.listEvents);
+router.get('/events/:id', adminCrudController.getEvent);
+router.get('/events/:id/registrations', adminCrudController.listEventRegistrations);
+router.post('/events/:id/message', adminCrudController.sendEventMessage);
 router.post('/events', adminCrudController.createEvent);
 router.put('/events/:id', adminCrudController.updateEvent);
 router.delete('/events/:id', adminCrudController.deleteEvent);
@@ -97,6 +100,7 @@ router.delete('/events/:id', adminCrudController.deleteEvent);
 // CURSOS
 // ============================================
 router.get('/courses', adminCrudController.listCourses);
+router.get('/courses/:id', adminCrudController.getCourse);
 router.post('/courses', adminCrudController.createCourse);
 router.put('/courses/:id', adminCrudController.updateCourse);
 router.delete('/courses/:id', adminCrudController.deleteCourse);

@@ -4,6 +4,39 @@ const { logAdminAction } = require('./adminAuthController');
 const notificationController = require('./notificationController');
 
 const adminNoticesController = {
+    getRecipientOptions: async (req, res) => {
+        try {
+            const [courses] = await db.query(`
+                SELECT DISTINCT TRIM(course) AS value
+                FROM users
+                WHERE COALESCE(TRIM(course), '') <> ''
+                  AND is_blocked = 0
+                  AND deleted_at IS NULL
+                ORDER BY value ASC
+            `);
+            const [units] = await db.query(`
+                SELECT value FROM (
+                    SELECT TRIM(name) AS value
+                    FROM units
+                    WHERE is_active = 1 AND COALESCE(TRIM(name), '') <> ''
+                    UNION
+                    SELECT TRIM(unit) AS value
+                    FROM users
+                    WHERE COALESCE(TRIM(unit), '') <> ''
+                      AND is_blocked = 0
+                      AND deleted_at IS NULL
+                ) available_units
+                ORDER BY value ASC
+            `);
+            res.json({
+                courses: courses.map(row => row.value),
+                units: units.map(row => row.value)
+            });
+        } catch (error) {
+            console.error('Erro ao carregar opções de destinatários:', error);
+            res.status(500).json({ error: 'Não foi possível carregar cursos e unidades.' });
+        }
+    },
     // Listar todos os avisos com filtros
     listNotices: async (req, res) => {
         try {
@@ -97,24 +130,24 @@ const adminNoticesController = {
                 image_url = null,
                 attachment_url = null,
                 attachment_name = null,
-                send_notification = true
+                send_notification = true,
+                status: requestedStatus
             } = req.body;
 
             if (!title) {
                 return res.status(400).json({ error: 'Título é obrigatório' });
             }
 
-            // Determinar status baseado em published_at
-            let status = 'draft';
-            if (published_at) {
+            // Rascunho nunca deve aparecer para usuários, mesmo com data preenchida.
+            let status = 'published';
+            if (requestedStatus === 'draft') {
+                status = 'draft';
+            } else if (published_at) {
                 const pubDate = new Date(published_at);
-                if (pubDate <= new Date()) {
-                    status = 'published';
-                } else {
-                    status = 'scheduled';
+                if (Number.isNaN(pubDate.getTime())) {
+                    return res.status(400).json({ error: 'Data de publicação inválida.' });
                 }
-            } else {
-                status = 'published'; // Publicar imediatamente se não agendado
+                status = pubDate > new Date() ? 'scheduled' : 'published';
             }
 
             const recipientsJson = typeof recipients === 'string' ? recipients : JSON.stringify(recipients);
@@ -135,7 +168,7 @@ const adminNoticesController = {
             const newNotice = notice[0];
 
             // Broadcast em tempo real
-            socketHelper.broadcast('new_notice', newNotice);
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
 
             // Log de auditoria
             await logAdminAction(admin.id, 'NOTICE_CREATED', 'notice', newNotice.id, `Criou o aviso "${newNotice.title}"`, { priority, recipients: recipientsJson }, req);
@@ -168,7 +201,8 @@ const adminNoticesController = {
                 image_url,
                 attachment_url,
                 attachment_name,
-                send_notification
+                send_notification,
+                status: requestedStatus
             } = req.body;
 
             const [existing] = await db.query('SELECT * FROM notices WHERE id = ?', [id]);
@@ -179,12 +213,27 @@ const adminNoticesController = {
             const oldNotice = existing[0];
             const wasPublished = oldNotice.status === 'published';
 
-            // Determinar novo status
+            // O estado de publicação é independente da data de agendamento.
             let status = oldNotice.status;
-            if (published_at !== undefined) {
+            if (requestedStatus === 'draft') {
+                status = 'draft';
+            } else if (requestedStatus === 'published') {
                 if (published_at) {
                     const pubDate = new Date(published_at);
-                    status = pubDate <= new Date() ? 'published' : 'scheduled';
+                    if (Number.isNaN(pubDate.getTime())) {
+                        return res.status(400).json({ error: 'Data de publicação inválida.' });
+                    }
+                    status = pubDate > new Date() ? 'scheduled' : 'published';
+                } else {
+                    status = 'published';
+                }
+            } else if (published_at !== undefined) {
+                if (published_at) {
+                    const pubDate = new Date(published_at);
+                    if (Number.isNaN(pubDate.getTime())) {
+                        return res.status(400).json({ error: 'Data de publicação inválida.' });
+                    }
+                    status = pubDate > new Date() ? 'scheduled' : 'published';
                 } else {
                     status = 'draft';
                 }
@@ -227,7 +276,7 @@ const adminNoticesController = {
             const newNotice = updated[0];
 
             // Broadcast de atualização
-            socketHelper.broadcast('notice_updated', newNotice);
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
 
             // Log de auditoria
             const changes = [];
@@ -262,7 +311,7 @@ const adminNoticesController = {
 
             await db.query('DELETE FROM notices WHERE id = ?', [id]);
 
-            socketHelper.broadcast('notice_deleted', { id: parseInt(id) });
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
 
             await logAdminAction(admin.id, 'NOTICE_DELETED', 'notice', parseInt(id), `Apagou o aviso "${existing[0].title}"`, null, req);
 
@@ -301,12 +350,12 @@ const adminNoticesController = {
                 WHERE n.id = ?
             `, [id]);
 
-            socketHelper.broadcast('notice_updated', updated[0]);
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
 
             await logAdminAction(admin.id, publish ? 'NOTICE_PUBLISHED' : 'NOTICE_UNPUBLISHED', 'notice', parseInt(id), `${publish ? 'Publicou' : 'Despublicou'} o aviso "${updated[0].title}"`, null, req);
 
             // Enviar notificações se publicado
-            if (publish && updated[0].send_notification) {
+            if (publish && notice.status !== 'published' && updated[0].send_notification) {
                 await sendNoticeNotifications(updated[0], updated[0].recipients);
             }
 
@@ -327,6 +376,8 @@ const adminNoticesController = {
             await db.query('UPDATE notices SET is_pinned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [pin ? 1 : 0, id]);
 
             const [updated] = await db.query('SELECT * FROM notices WHERE id = ?', [id]);
+
+            socketHelper.broadcast('admin_content_changed', { resource: 'notices' });
 
             await logAdminAction(admin.id, pin ? 'NOTICE_PINNED' : 'NOTICE_UNPINNED', 'notice', parseInt(id), `${pin ? 'Fixou' : 'Desfixou'} o aviso "${updated[0].title}"`, null, req);
 
@@ -370,30 +421,52 @@ const adminNoticesController = {
 async function sendNoticeNotifications(notice, recipientsJson) {
     try {
         let recipients = { type: 'all' };
-        try {
-            recipients = JSON.parse(recipientsJson);
-        } catch {
-            recipients = { type: recipientsJson || 'all' };
+        if (recipientsJson && typeof recipientsJson === 'object') {
+            recipients = recipientsJson;
+        } else if (typeof recipientsJson === 'string') {
+            try {
+                recipients = JSON.parse(recipientsJson);
+            } catch {
+                recipients = { type: recipientsJson || 'all' };
+            }
         }
 
-        let userIds = [];
+        const values = Array.isArray(recipients.values)
+            ? recipients.values.map(value => String(value).trim()).filter(Boolean)
+            : [];
+        let users = [];
 
         if (recipients.type === 'all' || !recipients.type) {
-            const [users] = await db.query('SELECT id FROM users WHERE role = "Aluno" AND is_blocked = 0 AND deleted_at IS NULL');
-            userIds = users.map(u => u.id);
-        } else if (recipients.type === 'courses' && recipients.values) {
-            const [users] = await db.query(
-                `SELECT id FROM users WHERE course IN (${recipients.values.map(() => '?').join(',')}) AND is_blocked = 0 AND deleted_at IS NULL`,
-                recipients.values
+            [users] = await db.query(`
+                SELECT id FROM users
+                WHERE LOWER(role) IN ('aluno', 'student', 'estudante')
+                  AND is_blocked = 0 AND deleted_at IS NULL
+            `);
+        } else if (recipients.type === 'courses' && values.length > 0) {
+            [users] = await db.query(
+                `SELECT id FROM users
+                 WHERE LOWER(TRIM(COALESCE(course, ''))) IN (${values.map(() => '?').join(',')})
+                   AND is_blocked = 0 AND deleted_at IS NULL`,
+                values.map(value => value.toLowerCase())
             );
-            userIds = users.map(u => u.id);
+        } else if (recipients.type === 'units' && values.length > 0) {
+            [users] = await db.query(
+                `SELECT users.id FROM users
+                 LEFT JOIN units unit ON unit.id = users.unit_id
+                 WHERE LOWER(TRIM(COALESCE(NULLIF(users.unit, ''), unit.name, ''))) IN (${values.map(() => '?').join(',')})
+                   AND users.is_blocked = 0 AND users.deleted_at IS NULL`,
+                values.map(value => value.toLowerCase())
+            );
         } else if (recipients.type === 'admins') {
-            const [users] = await db.query('SELECT id FROM users WHERE admin_role IS NOT NULL AND is_blocked = 0');
-            userIds = users.map(u => u.id);
+            [users] = await db.query('SELECT id FROM users WHERE admin_role IS NOT NULL AND is_blocked = 0 AND deleted_at IS NULL');
         } else if (recipients.type === 'teachers') {
-            const [users] = await db.query('SELECT id FROM users WHERE role = "Professor" AND is_blocked = 0 AND deleted_at IS NULL');
-            userIds = users.map(u => u.id);
+            [users] = await db.query(`
+                SELECT id FROM users
+                WHERE LOWER(role) IN ('professor', 'professora', 'teacher', 'docente')
+                  AND is_blocked = 0 AND deleted_at IS NULL
+            `);
         }
+        const userIds = users.map(user => user.id);
 
         // Enviar notificação em lotes
         for (const userId of userIds) {
@@ -401,9 +474,11 @@ async function sendNoticeNotifications(notice, recipientsJson) {
                 userId,
                 'notice',
                 notice.author_id,
-                notice.id,
                 `Novo aviso: ${notice.title}`,
-                { priority: notice.priority, noticeId: notice.id }
+                'notice',
+                notice.id,
+                null,
+                { priority: notice.priority, noticeId: notice.id, resource: 'notices', title: notice.title }
             );
         }
 

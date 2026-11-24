@@ -8,9 +8,11 @@ router.post('/posts/:id/share', authenticateToken, engagementController.share);
 router.post('/comments/:id/like', authenticateToken, engagementController.toggleCommentLike);
 
 router.get('/events/mine', authenticateToken, engagementController.myEvents);
+router.get('/events/my', authenticateToken, engagementController.myEvents);
 router.post('/events/:id/register', authenticateToken, engagementController.toggleEvent);
 
 router.get('/courses/mine', authenticateToken, engagementController.myCourses);
+router.get('/courses/my', authenticateToken, engagementController.myCourses);
 router.post('/courses/:id/enroll', authenticateToken, engagementController.toggleCourse);
 
 router.post('/notices/read-all', authenticateToken, engagementController.markAllNoticesRead);

@@ -14,6 +14,7 @@ jest.mock('../components/Avatar', () => ({
 
 jest.mock('lucide-react', () => ({
   Send: jest.fn(() => <span data-testid="send-icon" />),
+  Plus: jest.fn(() => <span data-testid="plus-icon" />),
   MoreVertical: jest.fn(() => <span data-testid="more-icon" />),
   Search: jest.fn(() => <span data-testid="search-icon" />),
   AlertCircle: jest.fn(() => <span data-testid="alert-circle" />),
@@ -170,6 +171,7 @@ const defaultProps = {
   isMobile: false,
   setShowMobileChat: jest.fn(),
   isConnected: true,
+  onCreateGroup: jest.fn(),
 };
 
 const renderSidebar = (props = {}) => {
@@ -177,6 +179,17 @@ const renderSidebar = (props = {}) => {
 };
 
 describe('MessagesSidebar', () => {
+  describe('Group creation', () => {
+    test('shows the create group action and invokes its handler on the groups tab', () => {
+      const onCreateGroup = jest.fn();
+      renderSidebar({ activeTab: 'groups', onCreateGroup });
+
+      fireEvent.click(screen.getByRole('button', { name: /criar grupo/i }));
+
+      expect(onCreateGroup).toHaveBeenCalledTimes(1);
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });

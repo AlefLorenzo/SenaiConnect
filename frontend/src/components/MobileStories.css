@@ -127,9 +127,10 @@
   /* Gradient ring applied via ::before pseudo-element */
 }
 
-/* Viewed state (checkmark badge) */
-.story-item.viewed .story-avatar {
-  /* Viewed badge applied via .story-viewed-badge */
+/* Viewed and partially viewed states are represented by the grey/green ring segments. */
+.story-item.viewed .story-avatar,
+.story-item.mixed .story-avatar {
+  /* Avatar remains visually neutral; the ring carries the read state. */
 }
 
 /* Scrolling state */
@@ -146,12 +147,12 @@
   height: 68px;
 }
 
-/* Gradient Ring for unviewed stories (Instagram style) */
-.story-gradient-ring {
+/* WhatsApp-style ring: green = unseen, grey = seen, split arcs = mixed. */
+.story-status-ring {
   position: absolute;
   inset: -2px;
   border-radius: 50%;
-  background: var(--story-gradient);
+  background: var(--story-ring-background, #25D366);
   mask: radial-gradient(circle at center, transparent 58%, black 59%);
   -webkit-mask: radial-gradient(circle at center, transparent 58%, black 59%);
   z-index: 1;
@@ -173,34 +174,6 @@
 
 .story-item:hover .story-avatar {
   transform: scale(1.03);
-}
-
-/* Viewed badge (green checkmark) */
-.story-viewed-badge {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  background: #4CAF50;
-  border: 2px solid var(--color-surface, #ffffff);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  z-index: 3;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  animation: popIn 0.2s ease-out;
-}
-
-[data-theme="dark"] .story-viewed-badge {
-  border-color: var(--color-surface-dark, #1a1a1a);
-}
-
-@keyframes popIn {
-  from { transform: scale(0); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
 }
 
 /* Skeleton loaders */
@@ -326,6 +299,35 @@
   height: 24px;
 }
 
+/* Small WhatsApp-like plus badge on the current user's active status. */
+.story-add-overlay {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: 2px solid var(--color-surface, #ffffff);
+  border-radius: 50%;
+  background: var(--color-primary, #0084d6);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="dark"] .story-add-overlay {
+  border-color: var(--color-surface-dark, #1a1a1a);
+}
+
+.story-add-overlay:focus-visible {
+  outline: 2px solid var(--color-primary, #0084d6);
+  outline-offset: 2px;
+}
+
 /* Story Count Badge */
 .story-count-badge {
   position: absolute;
@@ -444,3 +446,68 @@
     scroll-behavior: auto;
   }
 }
+
+/* The stories strip scrolls internally; it must never widen the document. */
+.mobile-stories,
+.mobile-stories-container,
+.mobile-stories-list {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mobile-stories {
+  width: 100%;
+  overflow: hidden;
+}
+
+.mobile-stories-container {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mobile-stories-list {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+.story-item {
+  flex: 0 0 68px;
+  min-width: 68px;
+}
+
+@media (max-width: 380px) {
+  .mobile-stories {
+    padding-top: 9px;
+    padding-bottom: 7px;
+  }
+
+  .mobile-stories-container {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .mobile-stories-list {
+    gap: 9px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .story-item {
+    flex-basis: 62px;
+    min-width: 62px;
+  }
+
+  .story-ring-container {
+    width: 62px;
+    height: 62px;
+  }
+}
+

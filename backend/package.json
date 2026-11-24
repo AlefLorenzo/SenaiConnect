@@ -1,16 +1,25 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "API Node.js/Express do SENAI Connect",
+  "main": "server.js",
   "scripts": {
-    "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "start": "node scripts/validate-env.js && node server.js",
+    "dev": "node scripts/validate-env.js && node --watch server.js",
+    "check:env": "node scripts/validate-env.js",
+    "check": "node --check server.js && node --check db.js && node --check services/supabaseAuth.js && node --check controllers/authController.js && node --check middlewares/auth.js",
+    "test": "node --check db.js && node --check server.js && node --check routes/businessRoutes.js && node --check controllers/authController.js && node --check middlewares/auth.js && node --check middlewares/adminAuth.js && node --check controllers/adminUsersController.js && node --check controllers/adminSettingsController.js && node --check socketHelper.js && node --check scripts/migrate-mysql-to-supabase.js && jest --coverage",
+    "test:watch": "jest --watch",
+    "db:copy:dry-run": "node scripts/migrate-mysql-to-supabase.js",
+    "db:copy:apply": "node scripts/migrate-mysql-to-supabase.js --apply --confirm-copy"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": "24.22.1"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -19,7 +28,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "mysql2": "^3.22.3",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
     "jest": "^30.5.2"

@@ -70,3 +70,29 @@
     height: calc(100vh - var(--header-height) - var(--bottom-nav-height));
   }
 }
+
+
+/* Preferências globais de acessibilidade definidas em Configurações. */
+html.accessibility-reduced-motion *,
+html.accessibility-reduced-motion *::before,
+html.accessibility-reduced-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+html[data-font-size="small"] { font-size: 14px; }
+html[data-font-size="medium"] { font-size: 16px; }
+html[data-font-size="large"] { font-size: 18px; }
+
+html.accessibility-high-contrast {
+  --text-primary: #000000;
+  --text-secondary: #292929;
+  --border-color: #555555;
+}
+html[data-theme="dark"].accessibility-high-contrast {
+  --text-primary: #ffffff;
+  --text-secondary: #eeeeee;
+  --border-color: #bdbdbd;
+}

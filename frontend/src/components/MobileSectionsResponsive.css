@@ -1,0 +1,441 @@
+/* Mobile refinement for Messages, Explore, Activity and Profile.
+   Scope is limited to phones/tablets; desktop workspace styles are unchanged. */
+@media (max-width: 768px) {
+  .app-layout {
+    width: 100%;
+    min-width: 0;
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+
+  .app-layout:not(.app-layout--admin) > .app-main {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: clip;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-layout:not(.app-layout--admin) > .app-main > .app-feed-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  /* Bottom navigation: seven destinations remain tappable on narrow devices. */
+  .app-layout .mobile-bottom-nav {
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: calc(62px + env(safe-area-inset-bottom, 0px));
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+
+  .app-layout .mobile-bottom-nav-inner {
+    width: 100%;
+    max-width: none;
+    height: 62px;
+    padding: 0 3px;
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .app-layout .mobile-nav-item {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: 100%;
+    min-height: 48px;
+    padding: 5px 1px;
+    gap: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app-layout .mobile-nav-item .nav-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .app-layout .mobile-nav-label {
+    display: none !important;
+  }
+
+  .app-layout .mobile-nav-create {
+    flex: 1 1 0;
+    width: auto;
+    height: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .app-layout .mobile-nav-create .create-button-inner {
+    width: 40px;
+    height: 40px;
+  }
+
+  .app-layout .mobile-nav-badge {
+    top: 5px;
+    left: calc(50% + 5px);
+  }
+
+  /* Messages: full viewport width, no inherited 680px column or side gutters. */
+  .app-layout:has(.messages-layout) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-layout:has(.messages-layout) > .app-main {
+    position: fixed;
+    inset: 0 0 calc(62px + env(safe-area-inset-bottom, 0px)) 0;
+    display: flex;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .app-layout:has(.messages-layout.show-chat-mobile) > .app-main {
+    inset: 0;
+  }
+
+  .app-layout:has(.messages-layout) .app-feed-container,
+  .app-layout:has(.messages-layout) > .app-main > .app-feed-container {
+    position: relative;
+    inset: auto;
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+
+  .messages-layout {
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    height: 100% !important;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .messages-sidebar,
+  .messages-chat {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .messages-layout.show-chat-mobile .messages-sidebar {
+    display: none !important;
+  }
+
+  .messages-chat > .chat-header,
+  .messages-chat > .message-search-bar,
+  .messages-chat > .typing-indicator,
+  .messages-chat > .connection-status-banner,
+  .messages-chat > .chat-body,
+  .messages-chat > .attachment-preview-bar,
+  .messages-chat > .chat-input-area {
+    width: 100%;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .messages-chat > .chat-body {
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .messages-chat > .chat-input-area {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The conversation occupies the full phone; hide global tabs while chatting. */
+  .app-layout:has(.messages-layout.show-chat-mobile) .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  /* Explore: search and category chips fit narrow screens without page overflow. */
+  .explore-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 12px;
+    padding: 0;
+  }
+
+  .explore-search-bar {
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+
+  .explore-search-form {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .explore-search-input {
+    width: 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .explore-search-btn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+  }
+
+  .explore-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .explore-tabs::-webkit-scrollbar { display: none; }
+
+  .explore-tab {
+    flex: 0 0 auto;
+    min-height: 40px;
+    white-space: nowrap;
+    padding: 8px 13px;
+  }
+
+  .explore-section,
+  .explore-results,
+  .explore-people-grid {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .explore-people-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .explore-person-card {
+    min-width: 0;
+    padding: 13px;
+  }
+
+  .explore-person-info {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Activity: use the available width and keep filters/header reachable. */
+  .activity-center {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .activity-center__sticky-shell {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .activity-center__header {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .activity-center__title {
+    min-width: 0;
+    font-size: clamp(18px, 5vw, 21px);
+  }
+
+  .activity-center__mark-all-read {
+    flex: 0 0 auto;
+    max-width: 45%;
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .activity-center__content {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 12px 18px;
+    box-sizing: border-box;
+  }
+
+  /* Profile: stack identity/actions, make tabs swipeable and avoid clipped content. */
+  .profile-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 12px;
+  }
+
+  .profile-header,
+  .profile-content {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .profile-cover {
+    height: clamp(112px, 30vw, 160px);
+  }
+
+  .profile-info-section {
+    padding: 0 14px;
+  }
+
+  .profile-top-row {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: auto;
+    min-height: 0;
+    gap: 10px;
+    margin: 0 0 12px;
+  }
+
+  .profile-avatar-wrapper {
+    position: relative;
+    top: -42px;
+    left: auto;
+    margin: 0 0 -34px;
+  }
+
+  .profile-main-avatar {
+    width: 88px;
+    height: 88px;
+  }
+
+  .profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .profile-actions > button,
+  .profile-actions > a {
+    min-height: 40px;
+  }
+
+  .profile-details {
+    margin: 8px 0 18px;
+    text-align: center;
+  }
+
+  .profile-name-role {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+
+  .profile-name-role h1 {
+    font-size: clamp(19px, 5vw, 23px);
+    overflow-wrap: anywhere;
+  }
+
+  .profile-bio {
+    max-width: none;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-meta {
+    justify-content: center;
+    gap: 8px 12px;
+  }
+
+  .profile-tabs {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .profile-tabs::-webkit-scrollbar { display: none; }
+
+  .profile-tabs .tab {
+    flex: 0 0 auto;
+    min-height: 46px;
+    padding: 13px 15px;
+    white-space: nowrap;
+  }
+
+  .profile-stats {
+    gap: 8px;
+    padding: 16px 8px;
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    min-width: 72px;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 8px;
+    overflow-y: auto;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+    padding: 18px 14px;
+    border-radius: 16px 16px 10px 10px;
+    box-sizing: border-box;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-layout .mobile-nav-item .nav-icon { width: 20px; height: 20px; }
+  .app-layout .mobile-nav-create .create-button-inner { width: 36px; height: 36px; }
+  .activity-center__header { padding-inline: 10px; }
+  .activity-center__content { padding-inline: 8px; }
+  .profile-info-section { padding-inline: 10px; }
+  .profile-tabs .tab { padding-inline: 12px; }
+}

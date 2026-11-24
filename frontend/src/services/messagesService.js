@@ -10,6 +10,11 @@ import { getAuthHeader } from '../config/api';
 import { USE_MOCK } from '../config/api';
 import { mockConversations, mockMessages } from '../mock/mockMessages';
 
+function createClientMessageId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+}
+
 class MessagesService extends BaseService {
   constructor() {
     super('messages');
@@ -63,6 +68,7 @@ class MessagesService extends BaseService {
     const queueItem = {
       id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...messageData,
+      clientMessageId: messageData.clientMessageId || messageData.tempId || createClientMessageId(),
       timestamp: Date.now(),
       retries: 0,
       status: 'queued'
@@ -151,7 +157,8 @@ class MessagesService extends BaseService {
           type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : item.type || 'text',
           message_type: uploadedAttachments.length > 0 ? uploadedAttachments[0].messageType : item.type || 'text',
           attachments: uploadedAttachments,
-          replyTo: item.replyTo
+          replyTo: item.replyTo,
+          clientMessageId: item.clientMessageId || item.tempId || item.id
         };
 
         const result = await this.sendMessage(item.conversationId, messageData, { retries: 1 });
@@ -268,6 +275,7 @@ class MessagesService extends BaseService {
           participants: conv.participants || [],
           adminIds: (conv.admin_ids ?? conv.adminIds) || [],
           last_message: conv.last_message ? {
+            senderId: conv.last_message.senderId ?? conv.last_message.sender_id,
             content: conv.last_message.content,
             senderName: conv.last_message.senderName,
             type: conv.last_message.type,
@@ -299,10 +307,12 @@ class MessagesService extends BaseService {
           isGroup: false,
           participants: participants, // Use backend's participants array
           last_message: conv.last_message ? {
+            id: conv.last_message.id,
+            senderId: conv.last_message.senderId ?? conv.last_message.sender_id,
             content: conv.last_message.content,
             senderName: conv.last_message.senderName || otherUser.name,
             type: conv.last_message.type || 'text',
-            status: conv.last_message.status || 'read',
+            status: conv.last_message.status || 'enviada',
             createdAt: conv.last_message.createdAt || conv.last_interaction
           } : null,
           unreadCount: conv.unread_count || conv.unreadCount || 0,
@@ -412,11 +422,55 @@ class MessagesService extends BaseService {
   }
 
   /**
+   * Get people eligible to be added to a group:
+   * existing direct conversations, people I follow, and people who follow me.
+   */
+  async getGroupContacts() {
+    if (USE_MOCK) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      const contacts = new Map();
+      this.mockIndividualConversations.forEach(conversation => {
+        (conversation.participants || []).forEach(participant => {
+          if (!participant || Number(participant.id) === 1 || participant.name === 'Você') return;
+          const key = String(participant.id);
+          contacts.set(key, {
+            ...participant,
+            has_conversation: true,
+            is_following: false,
+            follows_you: false,
+          });
+        });
+      });
+      return [...contacts.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    return this.get(ENDPOINTS.GROUPS.CONTACTS);
+  }
+
+  /**
    * Create a new group conversation
    */
   async createGroup(groupData) {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 500));
+      const availableContacts = new Map();
+      this.mockIndividualConversations.forEach(conversation => {
+        (conversation.participants || []).forEach(participant => {
+          if (participant && Number(participant.id) !== 1 && participant.name !== 'Você') {
+            availableContacts.set(String(participant.id), participant);
+          }
+        });
+      });
+      const selectedParticipants = [...new Set((groupData.participants || []).map(String))]
+        .map(id => availableContacts.get(id))
+        .filter(Boolean)
+        .map(participant => ({
+          ...participant,
+          member: { role: 'member' },
+          role: 'member',
+          user_role: 'member',
+          joinedAt: new Date().toISOString(),
+        }));
       const newGroup = {
         conversation_id: Date.now(),
         id: Date.now(),
@@ -425,7 +479,10 @@ class MessagesService extends BaseService {
         description: groupData.description || '',
         participants: [
           { id: 1, name: 'Você', avatar: null, member: { role: 'admin' }, role: 'admin', user_role: 'admin', isOnline: true, joinedAt: new Date().toISOString() },
+          ...selectedParticipants,
         ],
+        memberCount: selectedParticipants.length + 1,
+        members_count: selectedParticipants.length + 1,
         adminIds: [1],
         last_message: null,
         unread_count: 0,
@@ -454,8 +511,9 @@ class MessagesService extends BaseService {
   async getHistory(conversationId, params = {}) {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 200));
-      const cacheKey = `history_${conversationId}_${JSON.stringify(params)}`;
-      if (this.isCacheValid(cacheKey)) {
+      const { forceRefresh = false, ...queryParams } = params;
+      const cacheKey = `history_${conversationId}_${JSON.stringify(queryParams)}`;
+      if (!forceRefresh && this.isCacheValid(cacheKey)) {
         return this.cache.get(cacheKey).data;
       }
 
@@ -480,12 +538,13 @@ class MessagesService extends BaseService {
       return data;
     }
 
-    const cacheKey = `history_${conversationId}_${JSON.stringify(params)}`;
-    if (this.isCacheValid(cacheKey)) {
+    const { forceRefresh = false, ...queryParams } = params;
+    const cacheKey = `history_${conversationId}_${JSON.stringify(queryParams)}`;
+    if (!forceRefresh && this.isCacheValid(cacheKey)) {
       return this.cache.get(cacheKey).data;
     }
 
-    const response = await this.getPaginated(ENDPOINTS.MESSAGES.HISTORY(conversationId), params);
+    const response = await this.getPaginated(ENDPOINTS.MESSAGES.HISTORY(conversationId), queryParams);
     // Backend returns { data: messages[], contact, isGroup, pagination }
     // Transform to expected format
     const messages = response.data || response.messages || [];
@@ -538,11 +597,14 @@ class MessagesService extends BaseService {
     }
 
     const { retries = 2, retryDelay = 1000 } = options;
+    // Generate once, outside the retry loop, so every HTTP retry represents the same message.
+    const clientMessageId = messageData.clientMessageId || createClientMessageId();
 
     const attempt = async (attemptNumber) => {
       const formData = new FormData();
       formData.append('content', messageData.content);
       formData.append('type', messageData.type || 'text');
+      formData.append('clientMessageId', clientMessageId);
       if (messageData.replyTo) formData.append('replyTo', messageData.replyTo);
       if (messageData.attachments?.length) {
         // The current messages schema stores one media attachment per message.
@@ -572,7 +634,10 @@ class MessagesService extends BaseService {
       return this.handleResponse(response);
     };
 
-    return attempt(1);
+    const result = await attempt(1);
+    // Sending changes the inbox ordering and latest-message preview; never reuse stale snapshots.
+    this.invalidateCache();
+    return result;
   }
 
   /**

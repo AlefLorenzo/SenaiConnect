@@ -60,7 +60,7 @@ const AdminNoticesList = () => {
         setLoading(true);
         setError(null);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -115,7 +115,7 @@ const AdminNoticesList = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Tem certeza que deseja excluir este aviso?')) return;
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/notices/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
@@ -130,7 +130,7 @@ const AdminNoticesList = () => {
 
     const handlePublishToggle = async (id, currentStatus) => {
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/notices/${id}/publish`, {
                 method: 'PATCH',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -160,7 +160,7 @@ const AdminNoticesList = () => {
                     <h1>Avisos</h1>
                     <p>Gerencie todos os comunicados publicados na plataforma</p>
                 </div>
-                <RouterLink to="/admin/notices/new">
+                <RouterLink to="/admin/notices/create">
                     <Button variant="primary">
                         <Plus size={18} /> Novo Aviso
                     </Button>
@@ -258,7 +258,7 @@ const AdminNoticesList = () => {
                                     <td>
                                         <div className="actions">
                                             <RouterLink
-                                                to={`/admin/notices/${notice.id}/edit`}
+                                                to={`/admin/notices/edit/${notice.id}`}
                                                 className="btn btn--ghost btn--sm"
                                                 title="Editar"
                                             >

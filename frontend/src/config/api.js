@@ -55,7 +55,7 @@ export const ENDPOINTS = {
     BASE: '/api/stories',
     CREATE: '/api/stories',
     VIEW: (id) => `/api/stories/${id}/view`,
-    FEED: '/api/stories/feed',
+    FEED: '/api/stories',
     USER: (id) => `/api/stories/user/${id}`,
     HIGHLIGHTS: (userId) => `/api/stories/user/${userId}/highlights`,
     CREATE_HIGHLIGHT: (userId) => `/api/stories/user/${userId}/highlights`,
@@ -88,6 +88,7 @@ export const ENDPOINTS = {
   // Groups
   GROUPS: {
     BASE: '/api/groups',
+    CONTACTS: '/api/groups/contacts',
     CREATE: '/api/groups',
     MY_GROUPS: '/api/groups/my-groups',
     JOIN: (id) => `/api/groups/${id}/join`,
@@ -102,6 +103,7 @@ export const ENDPOINTS = {
   COMPANIES: {
     BASE: '/api/business',
     FEED: '/api/business/feed',
+    DISCOVERY_FEED: '/api/business/discovery-feed',
     CREATE: '/api/business/posts',
     CATEGORIES: '/api/business/categories',
     VERIFY: (id) => `/api/business/${id}/verify`,

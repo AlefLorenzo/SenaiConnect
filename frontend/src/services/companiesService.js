@@ -35,6 +35,30 @@ class CompaniesService extends BaseService {
   }
 
   /**
+   * Get the unified discovery feed (business posts, institutional content and sponsored campaigns).
+   */
+  async getDiscoveryFeed(params = {}) {
+    if (this.isMockMode()) {
+      const mock = await this.mockGetBusinessFeed(params);
+      const items = mock.items || mock.data || mock.posts || [];
+      return {
+        items,
+        pagination: mock.pagination || {
+          page: Number(params.page || 1),
+          limit: Number(params.limit || 10),
+          hasMore: false
+        }
+      };
+    }
+
+    const query = new URLSearchParams(params).toString();
+    const endpoint = query
+      ? `${ENDPOINTS.COMPANIES.DISCOVERY_FEED}?${query}`
+      : ENDPOINTS.COMPANIES.DISCOVERY_FEED;
+    return this.get(endpoint);
+  }
+
+  /**
    * Get company categories for filtering
    */
   async getCategories() {

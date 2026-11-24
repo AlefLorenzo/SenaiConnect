@@ -7,8 +7,11 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const StatusBadge = ({ status }) => {
     const configs = {
+        ativo: { label: 'Ativo', class: 'status-active' },
         active: { label: 'Ativo', class: 'status-active' },
+        rascunho: { label: 'Rascunho', class: 'status-draft' },
         draft: { label: 'Rascunho', class: 'status-draft' },
+        arquivado: { label: 'Arquivado', class: 'status-archived' },
         archived: { label: 'Arquivado', class: 'status-archived' }
     };
     const config = configs[status] || configs.draft;
@@ -25,7 +28,7 @@ const AdminCourses = () => {
     const fetchCourses = useCallback(async () => {
         setLoading(true);
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const params = new URLSearchParams({
                 page: pagination.page,
                 limit: pagination.limit
@@ -71,7 +74,7 @@ const AdminCourses = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Tem certeza que deseja excluir este curso?')) return;
         try {
-            const token = sessionStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/admin/courses/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
@@ -111,9 +114,9 @@ const AdminCourses = () => {
                         </div>
                         <select value={statusFilter} onChange={handleStatusChange} className="filter-select">
                             <option value="">Todos os status</option>
-                            <option value="active">Ativo</option>
-                            <option value="draft">Rascunho</option>
-                            <option value="archived">Arquivado</option>
+                            <option value="ativo">Ativo</option>
+                            <option value="rascunho">Rascunho</option>
+                            <option value="arquivado">Arquivado</option>
                         </select>
                     </div>
                 </div>

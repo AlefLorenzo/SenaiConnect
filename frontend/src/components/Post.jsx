@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Trash2, Edit2, Send, X, Hash } from 'lucide-react';
+import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, Bookmark, FileText, Trash2, Edit2, Send, X, Hash, GraduationCap } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext.jsx';
 import Avatar from './Avatar';
 import { postsService } from '../services/postsService';
+import { API_URL } from '../config/api';
 import './Post.css';
 
 /**
@@ -134,28 +135,43 @@ const Post = ({ post, onDeleted }) => {
   const handleAddComment = async (e) => {
     if (e) e.preventDefault();
     if (!newCommentText.trim()) return;
-    // Mock comment addition
-    const newComment = {
-      id: Date.now(),
-      user_id: user?.id || 1,
-      user_name: user?.name || 'Usuário Atual',
-      user_avatar: user?.avatar || null,
-      content: newCommentText,
-      created_at: new Date().toISOString()
-    };
-    setComments(prev => [...prev, newComment]);
-    setNewCommentText('');
-    setCommentsCount(prev => prev + 1);
+    try {
+      const response = await fetch(`${API_URL}/api/posts/${post.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({ content: newCommentText.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Não foi possível publicar o comentário.');
+      setNewCommentText('');
+      await fetchComments();
+    } catch (error) {
+      window.alert(error.message || 'Erro ao comentar.');
+    }
   };
 
   const handleDeleteComment = async (commentId) => {
     if (!window.confirm('Tem certeza que deseja excluir seu comentário?')) return;
-    setComments(prev => prev.filter(c => c.id !== commentId));
-    setCommentsCount(prev => Math.max(0, prev - 1));
+    try {
+      const response = await fetch(`${API_URL}/api/posts/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Não foi possível excluir o comentário.');
+      setComments(prev => prev.filter(c => String(c.id) !== String(commentId)));
+      setCommentsCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      window.alert(error.message || 'Erro ao excluir comentário.');
+    }
   };
 
   // Handle user data from mock structure (post.user object)
   const postUser = post.user || {};
+  const authorRole = String(postUser.role || post.user_role || '').toLowerCase();
   const userAvatar = postUser.avatar ? `/uploads/avatars/${postUser.avatar}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(postUser.name || 'User')}&background=0D8ABC&color=fff`;
 
   const isImageUrl = (url) => {
@@ -178,8 +194,7 @@ const Post = ({ post, onDeleted }) => {
               <Link to={`/profile/${postUser.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {postUser.name}
               </Link>
-              {postUser.role === 'instrutor' && <span className="role-badge">INSTRUTOR</span>}
-              {postUser.role === 'PROFESSOR' && <span className="role-badge">PROFESSOR</span>}
+              {(authorRole === 'professor' || authorRole === 'instrutor') && <span className="role-badge role-badge-professor"><GraduationCap size={12} aria-hidden="true" /> PROFESSOR SENAI</span>}
               {postUser.isVerified && <span className="verified-badge" title="Verificado">✓</span>}
             </div>
             <div className="post-time">
@@ -231,7 +246,7 @@ const Post = ({ post, onDeleted }) => {
         
         {post.attachment_url && (
           isImageUrl(post.attachment_url) ? (
-            <img src={post.attachment_url} alt="Anexo do post" style={{ width: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-md)', backgroundColor: '#000', marginTop: '12px' }} />
+            <img src={post.attachment_url} alt="Anexo do post" style={{ width: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-md)', backgroundColor: 'transparent', marginTop: '12px' }} />
           ) : (
             <div className="post-attachment-doc">
               <div className="doc-icon">

@@ -1,8 +1,4 @@
 const db = require('../db');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { SECRET_KEY } = require('../middlewares/auth');
-
 const adminAuthController = {
     async logAdminAction(admin_id, action, target_type = null, target_id = null, description = null, metadata = null, req = null) {
         try {

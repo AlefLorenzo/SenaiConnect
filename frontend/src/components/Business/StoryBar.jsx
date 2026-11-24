@@ -27,10 +27,21 @@ const StoryBar = ({ storyGroups, currentUserId, onOpenStory }) => {
         }
     };
 
+    // On desktop, convert the wheel gesture over the stories rail into horizontal scrolling.
+    const handleWheel = (event) => {
+        const container = containerRef.current;
+        if (!container || container.scrollWidth <= container.clientWidth) return;
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+        event.preventDefault();
+        container.scrollLeft += event.deltaY;
+    };
+
     useEffect(() => {
         const container = containerRef.current;
         if (container) {
             container.addEventListener('scroll', handleScroll);
+            container.addEventListener('wheel', handleWheel, { passive: false });
             // Initialize dimensions
             setContainerWidth(container.clientWidth);
             setScrollWidth(container.scrollWidth);
@@ -38,6 +49,7 @@ const StoryBar = ({ storyGroups, currentUserId, onOpenStory }) => {
         return () => {
             if (container) {
                 container.removeEventListener('scroll', handleScroll);
+                container.removeEventListener('wheel', handleWheel);
             }
         };
     }, []);
@@ -85,7 +97,7 @@ const StoryBar = ({ storyGroups, currentUserId, onOpenStory }) => {
                 </button>
             )}
 
-            <div className="story-bar-container" ref={containerRef} onScroll={handleScroll}>
+            <div className="story-bar-container" ref={containerRef}>
                 <div className="story-bar-content">
                     {/* Add Story Button (only for business owners) */}
                     {currentUserId && (

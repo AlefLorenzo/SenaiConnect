@@ -1,12 +1,16 @@
 /* Story Bar Styles */
 
 .story-bar {
-    position: sticky;
-    top: var(--header-height);
-    z-index: var(--z-sticky);
+    /* Os stories fazem parte do fluxo normal do feed e devem sair da tela
+       junto com a página, sem ficar presos abaixo do cabeçalho. */
+    position: static;
+    top: auto;
+    z-index: auto;
     background: var(--color-bg-card);
     border-bottom: 1px solid var(--color-border);
     padding: var(--space-2) 0;
+    /* Permite rolagem vertical da página e horizontal do trilho de stories. */
+    touch-action: pan-x pan-y;
 }
 
 .story-bar.empty {
@@ -22,11 +26,17 @@
 
 .story-bar-container {
     flex: 1;
+    min-width: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    /* Arraste horizontal no trilho sem bloquear a rolagem vertical do feed. */
+    touch-action: pan-x pan-y;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
 }
 
 .story-bar-container::-webkit-scrollbar {
@@ -219,10 +229,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-    .story-bar {
-        top: var(--header-height);
-    }
-
     .story-bar-content {
         padding: 0 var(--space-4);
     }

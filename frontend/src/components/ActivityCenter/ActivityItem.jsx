@@ -1,5 +1,15 @@
 import React, { useMemo } from 'react';
 import { activityService } from '../../services/activityService';
+import { UserRound, Check, Heart, MessageCircle, Reply, AtSign, Smile, Mail, Eye, Users, FileText, CalendarDays, Bell, MessageSquare } from 'lucide-react';
+
+const activityIcons = {
+  follow: UserRound, follow_accepted: Check, post_like: Heart, like: Heart,
+  post_comment: MessageCircle, comment: MessageCircle, comment_reply: Reply,
+  mention: AtSign, story_mention: AtSign, comment_mention: AtSign,
+  story_reaction: Smile, story_reply: Mail, story_view: Eye,
+  group_invite: Users, group_post: FileText, event_reminder: CalendarDays,
+  notice: Bell, message: MessageSquare
+};
 import './ActivityItem.css';
 
 /**
@@ -189,7 +199,7 @@ const ActivityItem = ({ activity, onClick, onRead, isGrouped = false, groupCount
                 <span className="event-date">{new Date(metadata.event_date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
               )}
               {metadata.location && (
-                <span className="event-location">📍 {metadata.location}</span>
+                <span className="event-location">{metadata.location}</span>
               )}
             </div>
           </div>
@@ -258,8 +268,8 @@ const ActivityItem = ({ activity, onClick, onRead, isGrouped = false, groupCount
       data-activity-type={activity.activity_type}
     >
       <div className="activity-item__main">
-        <div className="activity-item__icon" style={{ color: meta.color }}>
-          {meta.icon}
+        <div className="activity-item__icon" style={{ color: meta.color }} aria-hidden="true">
+          {React.createElement(activityIcons[activity.activity_type] || Bell, { size: 19, strokeWidth: 2.1 })}
         </div>
         <div className="activity-item__body">
           {renderContent()}

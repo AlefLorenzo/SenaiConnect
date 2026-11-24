@@ -118,6 +118,29 @@ describe('StoryViewer', () => {
     jest.useRealTimers();
   });
 
+  test('locks document and feed scrolling while the story viewer is open', () => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalRootOverflow = document.documentElement.style.overflow;
+
+    const { unmount } = renderStoryViewer();
+
+    expect(document.documentElement).toHaveClass('story-viewer-open');
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    expect(document.body.style.position).toBe('fixed');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    const touchMove = new Event('touchmove', { bubbles: true, cancelable: true });
+    document.body.dispatchEvent(touchMove);
+    expect(touchMove.defaultPrevented).toBe(true);
+
+    unmount();
+
+    expect(document.documentElement).not.toHaveClass('story-viewer-open');
+    expect(document.body.style.position).toBe('');
+    expect(document.body.style.overflow).toBe(originalBodyOverflow);
+    expect(document.documentElement.style.overflow).toBe(originalRootOverflow);
+  });
+
   test('renders story viewer with first story', () => {
     renderStoryViewer();
     // Use more specific selector - the user name appears in both Avatar and header
@@ -196,6 +219,65 @@ describe('StoryViewer', () => {
     expect(storiesService.viewStory).toHaveBeenCalledWith('1');
   });
 
+  test('notifies the feed after the server confirms a story view', async () => {
+    const onStoryViewed = jest.fn();
+    renderStoryViewer({ onStoryViewed });
+
+    await waitFor(() => {
+      expect(storiesService.viewStory).toHaveBeenCalledWith('1');
+      expect(onStoryViewed).toHaveBeenCalledWith('1');
+    });
+  });
+
+  test('starts the 30-second countdown immediately when the viewer opens', () => {
+    renderStoryViewer();
+    const currentStoryProgress = screen.getByRole('progressbar', { name: 'História 1 de 2' });
+
+    expect(currentStoryProgress).toHaveAttribute('aria-valuenow', '0');
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(Number(currentStoryProgress.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+  });
+
+  test('advances automatically after 30 seconds', () => {
+    renderStoryViewer();
+
+    act(() => {
+      jest.advanceTimersByTime(29900);
+    });
+    expect(screen.getByText('First story')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(screen.getByText('Second story')).toBeInTheDocument();
+  });
+
+  test('keeps the current story paused while the user holds the content', () => {
+    renderStoryViewer();
+    const contentArea = document.querySelector('.story-content-area');
+
+    fireEvent.pointerDown(contentArea);
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    act(() => {
+      jest.advanceTimersByTime(31000);
+    });
+
+    expect(screen.getByText('Pausado')).toBeInTheDocument();
+    expect(screen.getByText('First story')).toBeInTheDocument();
+
+    fireEvent.pointerUp(contentArea);
+    act(() => {
+      jest.advanceTimersByTime(30100);
+    });
+    expect(screen.getByText('Second story')).toBeInTheDocument();
+  });
+
   test('navigates to next story on right click', () => {
     renderStoryViewer();
     const nextButton = screen.getByLabelText('Próxima história');
@@ -240,22 +322,44 @@ describe('StoryViewer', () => {
     expect(screen.getByRole('img', { name: '😂' })).toBeInTheDocument();
   });
 
+  test('does not allow replying to the current user\'s own story', () => {
+    const ownerGroups = [{
+      user_id: '1',
+      user_name: 'Current User',
+      user_avatar: 'current-avatar.jpg',
+      stories: [{
+        id: '1',
+        media_url: 'my-story.jpg',
+        media_type: 'image',
+        text_content: 'My story',
+        created_at: new Date().toISOString(),
+        views_count: 0,
+        background_color: null,
+      }],
+    }];
+
+    renderStoryViewer({ storyGroups: ownerGroups });
+
+    expect(screen.queryByLabelText('Responder')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Responder em particular' })).not.toBeInTheDocument();
+  });
+
   test('opens replies panel on message button click', () => {
     renderStoryViewer();
     fireEvent.click(screen.getByLabelText('Responder'));
-    expect(screen.getByText('Responder')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Escreva uma resposta...')).toBeInTheDocument();
+    expect(screen.getByText('Responder em particular')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Escreva uma mensagem...')).toBeInTheDocument();
   });
 
   test('submits reply on form submit', async () => {
     const onReply = jest.fn();
     renderStoryViewer({ onReply });
     fireEvent.click(screen.getByLabelText('Responder'));
-    const textarea = screen.getByPlaceholderText('Escreva uma resposta...');
+    const textarea = screen.getByPlaceholderText('Escreva uma mensagem...');
     fireEvent.change(textarea, { target: { value: 'Test reply' } });
-    fireEvent.click(screen.getByText('Enviar'));
+    fireEvent.click(screen.getByText('Enviar mensagem'));
     await waitFor(() => {
-      expect(onReply).toHaveBeenCalledWith('1', 'Test reply');
+      expect(onReply).toHaveBeenCalledWith('1', 'Test reply', { id: 1 });
       expect(storiesService.replyToStory).toHaveBeenCalledWith('1', 'Test reply');
     });
   });

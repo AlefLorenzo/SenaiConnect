@@ -6,6 +6,10 @@ const postController = {
         try {
             const viewerId = req.user?.id || null;
 
+            const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+            const limit = Math.min(40, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+            const offset = (page - 1) * limit;
+
             const query = `
                 SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.role as user_role,
                 ${buildEmailSelectClause(viewerId, 'u')},
@@ -18,10 +22,16 @@ const postController = {
                 JOIN users u ON p.user_id = u.id
                 WHERE p.group_id IS NULL
                 AND ${buildPrivacyWhereClause(viewerId, 'u')}
-                ORDER BY p.created_at DESC
+                ORDER BY p.created_at DESC, p.id DESC
+                LIMIT ? OFFSET ?
             `;
-            const [posts] = await db.query(query);
-            res.status(200).json(posts);
+            const [rows] = await db.query(query, [limit + 1, offset]);
+            const hasMore = rows.length > limit;
+            const posts = hasMore ? rows.slice(0, limit) : rows;
+            res.status(200).json({
+                data: posts,
+                pagination: { page, limit, hasMore }
+            });
         } catch (error) {
             console.error('Erro ao buscar posts:', error);
             res.status(500).json({ error: 'Erro ao buscar posts' });
@@ -33,14 +43,61 @@ const postController = {
             const { content, attachment_url, attachment_type, attachment_name } = req.body;
             const userId = req.user.id;
 
-            if (!content) return res.status(400).json({ error: 'O conteúdo do post não pode estar vazio.' });
+            if (!String(content || '').trim() && !attachment_url) return res.status(400).json({ error: 'Escreva algo ou anexe uma mídia antes de publicar.' });
 
             const [result] = await db.query(
                 'INSERT INTO posts (user_id, content, attachment_url, attachment_type, attachment_name) VALUES (?, ?, ?, ?, ?)',
-                [userId, content, attachment_url, attachment_type, attachment_name]
+                [userId, content || '', attachment_url || null, attachment_type || null, attachment_name || null]
             );
 
-            res.status(201).json({ id: result.insertId, message: 'Post criado com sucesso!' });
+            const [createdRows] = await db.query(`
+                SELECT p.*, u.name AS user_name, u.avatar AS user_avatar, u.role AS user_role,
+                       0 AS likes_count, 0 AS comments_count,
+                       FALSE AS liked, FALSE AS saved
+                FROM posts p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.id = ?
+                LIMIT 1
+            `, [result.insertId]);
+
+            const createdPost = createdRows[0] || {
+                id: result.insertId,
+                user_id: userId,
+                content: content || '',
+                attachment_url: attachment_url || null,
+                attachment_type: attachment_type || null,
+                attachment_name: attachment_name || null
+            };
+
+            // Publicações feitas por contas administrativas geram aviso no centro
+            // de notificações para todos os usuários ativos (sem expor conteúdo via socket).
+            const isAdminAuthor = Boolean(req.user.admin_role) ||
+                ['admin', 'administrator', 'administrador', 'super_admin'].includes(String(req.user.role || '').toLowerCase());
+            if (isAdminAuthor) {
+                try {
+                    const [recipients] = await db.query(
+                        'SELECT id FROM users WHERE id <> ? AND is_blocked = 0 AND deleted_at IS NULL AND admin_role IS NULL',
+                        [userId]
+                    );
+                    const notificationController = require('./notificationController');
+                    for (const recipient of recipients) {
+                        await notificationController.createNotification(
+                            recipient.id,
+                            'admin_publication',
+                            userId,
+                            'Nova publicação institucional no mural.',
+                            'post',
+                            createdPost.id,
+                            null,
+                            { resource: 'posts', title: 'Nova publicação institucional' }
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Erro ao notificar publicação administrativa:', notificationError);
+                }
+            }
+
+            res.status(201).json(createdPost);
         } catch (error) {
             console.error('Erro ao criar post:', error);
             res.status(500).json({ error: 'Erro ao criar post' });
@@ -93,7 +150,8 @@ const postController = {
 
             if (existing.length > 0) {
                 await db.query('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [id, userId]);
-                res.status(200).json({ message: 'Curtida removida', liked: false });
+                const [count] = await db.query('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [id]);
+                res.status(200).json({ message: 'Curtida removida', liked: false, likes_count: Number(count[0].count) });
             } else {
                 await db.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [id, userId]);
 
@@ -117,7 +175,8 @@ const postController = {
                     console.error('Erro ao enviar notificação de like (não-bloqueante):', notifError);
                 }
 
-                res.status(200).json({ message: 'Post curtido', liked: true });
+                const [count] = await db.query('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [id]);
+                res.status(200).json({ message: 'Post curtido', liked: true, likes_count: Number(count[0].count) });
             }
         } catch (error) {
             console.error('Erro ao alternar curtida:', error);

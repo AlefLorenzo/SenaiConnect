@@ -38,7 +38,7 @@ const userController = {
     updateProfile: async (req, res) => {
         try {
             const { id } = req.params;
-            const { avatar, bio, cover_image, state, city, unit, area, course, links, privacy_showProfile, privacy_showEmail } = req.body;
+            const { name, avatar, bio, cover_image, state, city, unit, area, course, links, privacy_showProfile, privacy_showEmail } = req.body;
             const loggedUserId = req.user.id;
 
             if (parseInt(id) !== loggedUserId) {
@@ -49,6 +49,13 @@ const userController = {
             const fields = [];
             const values = [];
 
+            if (name !== undefined) {
+                const normalizedName = typeof name === 'string' ? name.trim() : '';
+                if (normalizedName.length < 2 || normalizedName.length > 80) {
+                    return res.status(400).json({ error: 'O nome deve ter entre 2 e 80 caracteres.' });
+                }
+                fields.push('name = ?'); values.push(normalizedName);
+            }
             if (avatar !== undefined) { fields.push('avatar = ?'); values.push(avatar); }
             if (bio !== undefined) { fields.push('bio = ?'); values.push(bio); }
             if (cover_image !== undefined) { fields.push('cover_image = ?'); values.push(cover_image); }

@@ -30,6 +30,7 @@ jest.mock('fs', () => ({
 }), { virtual: true });
 
 const messageController = require('../controllers/messageController');
+const notificationController = require('../controllers/notificationController');
 
 describe('messageController', () => {
   let mockReq, mockRes, mockNext;
@@ -105,9 +106,71 @@ describe('messageController', () => {
           content: 'Teste de mensagem',
           senderId: 1,
           status: 'enviada',
-          conversationId: 2,
+          conversationId: '1_2',
         })
       );
+    });
+
+    test('re-emits an existing direct message on an idempotent retry without duplicating notifications', async () => {
+      mockReq.params.id = '1_2';
+      mockReq.body = {
+        content: 'Mensagem que já foi gravada',
+        type: 'text',
+        clientMessageId: 'stable-message-123',
+      };
+
+      mockDb.query.mockImplementation((sql) => {
+        if (sql.includes('SELECT id, name FROM users WHERE id = ?')) {
+          return Promise.resolve([[{ id: 2, name: 'Receiver' }]]);
+        }
+        if (sql.includes('INSERT INTO messages')) {
+          return Promise.resolve([{ insertId: undefined, affectedRows: 0 }]);
+        }
+        if (sql.includes('SELECT * FROM messages WHERE client_message_id')) {
+          return Promise.resolve([[
+            {
+              id: 77,
+              client_message_id: 'stable-message-123',
+              content: 'Mensagem que já foi gravada',
+              sender_id: 1,
+              receiver_id: 2,
+              status: 'enviada',
+              message_type: 'text',
+              created_at: new Date(),
+            },
+          ]]);
+        }
+        return Promise.resolve([[]]);
+      });
+
+      await messageController.sendMessage(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        id: 77,
+        conversationId: '1_2',
+      }));
+      expect(sendToUser).toHaveBeenCalledWith(2, 'new_message', expect.objectContaining({
+        id: 77,
+        clientMessageId: 'stable-message-123',
+        conversationId: '1_2',
+      }));
+      expect(notificationController.createNotification).not.toHaveBeenCalled();
+    });
+
+    test('rejects a receiver that does not belong to the canonical direct conversation', async () => {
+      mockReq.params.id = '1_2';
+      mockReq.body = {
+        content: 'Mensagem',
+        type: 'text',
+        receiverId: '99',
+      };
+
+      await messageController.sendMessage(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockDb.query).not.toHaveBeenCalled();
+      expect(sendToUser).not.toHaveBeenCalled();
     });
 
     test('returns 400 for missing conversationId', async () => {
@@ -198,9 +261,9 @@ describe('messageController', () => {
         if (sql.includes('INSERT INTO group_messages')) {
           return Promise.resolve([{ insertId: 1 }]);
         }
-        // Query 4: Get new message with sender info
-        if (sql.includes('group_messages gm') && sql.includes('JOIN users')) {
-          return Promise.resolve([ [{
+        // Query 4: Read inserted message by its ID (idempotent insert flow).
+        if (sql.includes('SELECT * FROM group_messages WHERE id = ?')) {
+          return Promise.resolve([[{
             id: 1,
             group_id: 1,
             sender_id: 1,
@@ -212,11 +275,13 @@ describe('messageController', () => {
             attachment_size: null,
             attachment_type: null,
             created_at: new Date(),
-            sender_name: 'Test User',
-            sender_avatar: null,
-          } ]]);
+          }]]);
         }
-        // Query 5: Get group members (excluding sender)
+        // Query 5: Load sender details after reading the inserted message.
+        if (sql.includes('SELECT name, avatar FROM users WHERE id = ?')) {
+          return Promise.resolve([[{ name: 'Test User', avatar: null }]]);
+        }
+        // Query 6: Get group members (excluding sender)
         if (sql.includes('group_members') && sql.includes('user_id != ?')) {
           return Promise.resolve([[{ user_id: 2 }, { user_id: 3 }, { user_id: 4 }]]);
         }
@@ -234,12 +299,13 @@ describe('messageController', () => {
   describe('getConversations', () => {
     test('returns user conversations', async () => {
       const mockIndividuals = [
-        { id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all', last_message: 'Olá', last_interaction: '2024-01-15T10:30:00Z', unread_count: 0 },
+        { id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all', last_message: 'Olá', last_message_id: 81, last_message_sender_id: 1, last_message_type: 'image', last_message_status: 'enviada', last_interaction: '2024-01-15T10:30:00Z', unread_count: 0 },
         { id: 3, name: 'User 3', avatar: null, role: 'aluno', is_online: 0, last_seen: null, last_seen_privacy: 'all', last_message: 'Oi', last_interaction: '2024-01-15T11:00:00Z', unread_count: 1 },
       ];
 
       const mockGroups = [
-        { conversation_id: 1, name: 'Group 1', description: 'Desc', avatar: null, role: 'admin', created_at: '2024-01-01', last_message: 'Group msg', last_interaction: '2024-01-15T12:00:00Z', unread_count: 2, is_muted: 0, is_important: 1 },
+        { conversation_id: 1, name: 'Group 1', description: 'Desc', avatar: null, role: 'admin', created_at: '2024-01-01', last_message: 'Group msg', last_message_sender_id: 1, last_message_sender_name: 'Test User', last_interaction: '2024-01-15T12:00:00Z', unread_count: 2, is_muted: 0, is_important: 1 },
+        { conversation_id: 2, name: 'Group 2', description: 'Desc', avatar: null, role: 'member', created_at: '2024-01-02', last_message: 'Reply from Maria', last_message_sender_id: 2, last_message_sender_name: 'Participant', last_interaction: '2024-01-15T13:00:00Z', unread_count: 0, is_muted: 0, is_important: 0 },
       ];
 
       let callCount = 0;
@@ -255,7 +321,10 @@ describe('messageController', () => {
         }
         // Query 3: Participants for group
         if (sql.includes('group_members gm2') && sql.includes('JOIN users u2')) {
-          return Promise.resolve([[{ id: 1, name: 'User 1', avatar: null, role: 'admin', is_online: 1, last_seen: null }]]);
+          return Promise.resolve([[
+            { group_id: 1, id: 1, name: 'Test User', avatar: null, role: 'admin', is_online: 1, last_seen: null },
+            { group_id: 2, id: 2, name: 'Maria Silva', avatar: null, role: 'member', is_online: 1, last_seen: null },
+          ]]);
         }
         // Query 4: Admins for group
         if (sql.includes('group_admins') && sql.includes('group_id = ?')) {
@@ -269,12 +338,38 @@ describe('messageController', () => {
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.arrayContaining([
-            expect.objectContaining({ conversation_id: '1_2' }),
+            expect.objectContaining({
+              conversation_id: '1_2',
+              last_message: expect.objectContaining({
+                id: 81,
+                senderId: 1,
+                senderName: 'Você',
+                type: 'image',
+                status: 'enviada',
+              }),
+            }),
             expect.objectContaining({ conversation_id: '1_3' }),
-            expect.objectContaining({ conversation_id: 1, name: 'Group 1' }),
+            expect.objectContaining({
+              conversation_id: 1,
+              name: 'Group 1',
+              last_message: expect.objectContaining({
+                content: 'Group msg',
+                senderName: 'You',
+              }),
+            }),
+            expect.objectContaining({
+              conversation_id: 2,
+              name: 'Group 2',
+              last_message: expect.objectContaining({
+                content: 'Reply from Maria',
+                senderName: 'Maria Silva',
+              }),
+            }),
           ]),
         })
       );
+      expect(mockDb.query).toHaveBeenNthCalledWith(1, expect.any(String), Array(16).fill(1));
+      expect(mockDb.query).toHaveBeenNthCalledWith(2, expect.stringContaining('last_message_sender_name'), Array(6).fill(1));
     });
   });
 
@@ -295,7 +390,7 @@ describe('messageController', () => {
           return Promise.resolve([[{ id: 2, name: 'User 2', avatar: null, role: 'aluno', is_online: 1, last_seen: null, last_seen_privacy: 'all' }]]);
         }
         // Query 3: Get messages
-        if (sql.includes('SELECT * FROM messages') && sql.includes('ORDER BY created_at ASC')) {
+        if (sql.includes('FROM messages m') && sql.includes('ORDER BY m.created_at DESC, m.id DESC')) {
           const mockMessages = [
             { id: 1, content: 'Msg 1', sender_id: 1, receiver_id: 2, status: 'lida', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T10:30:00Z' },
             { id: 2, content: 'Msg 2', sender_id: 2, receiver_id: 1, status: 'enviada', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:00:00Z' },
@@ -315,6 +410,7 @@ describe('messageController', () => {
 
       await messageController.getHistory(mockReq, mockRes, mockNext);
 
+      expect(mockDb.query.mock.calls.some(([sql]) => sql.includes('ORDER BY m.created_at DESC, m.id DESC'))).toBe(true);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.arrayContaining([
@@ -348,30 +444,33 @@ describe('messageController', () => {
           const mockGroupMessages = [
             { id: 1, group_id: 1, sender_id: 2, content: 'Group msg 1', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T10:30:00Z', sender_name: 'User 2', sender_avatar: null },
             { id: 2, group_id: 1, sender_id: 3, content: 'Group msg 2', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:00:00Z', sender_name: 'User 3', sender_avatar: null },
+            { id: 3, group_id: 1, sender_id: 1, content: 'My group message', message_type: 'text', media_url: null, attachment_name: null, attachment_size: null, attachment_type: null, created_at: '2024-01-15T11:01:00Z', sender_name: 'Test User', sender_avatar: null },
           ];
           return Promise.resolve([mockGroupMessages]);
         }
         // Query 3: Get total count
         if (sql.includes('COUNT(*) as total FROM group_messages')) {
-          return Promise.resolve([[{ total: 2 }]]);
+          return Promise.resolve([[{ total: 3 }]]);
         }
         return Promise.resolve([[]]);
       });
 
       await messageController.getHistory(mockReq, mockRes, mockNext);
 
+      expect(mockDb.query.mock.calls.some(([sql]) => sql.includes('ORDER BY gm.created_at DESC, gm.id DESC'))).toBe(true);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.arrayContaining([
             expect.objectContaining({ content: 'Group msg 1' }),
             expect.objectContaining({ content: 'Group msg 2' }),
+            expect.objectContaining({ content: 'My group message', senderName: 'You' }),
           ]),
           contact: expect.objectContaining({ name: 'Group 1' }),
           isGroup: true,
           pagination: expect.objectContaining({
             page: 1,
             limit: 50,
-            total: 2,
+            total: 3,
           }),
         })
       );

@@ -7,15 +7,24 @@ import Avatar from '../components/Avatar';
 import StoryHighlights from '../components/StoryHighlights';
 import profileService from '../services/profileService';
 import messagesService from '../services/messagesService';
+import FollowButton from '../components/FollowButton';
+import { API_URL } from '../config/api';
 import './Profile.css';
 
 const Profile = () => {
   const { id } = useParams();
-  const { user: loggedInUser, setUser: setLoggedInUser } = useContext(AuthContext);
+  const { user: loggedInUser, setUser: setLoggedInUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const userId = id ? parseInt(id) : loggedInUser?.id;
-  const isOwnProfile = userId === loggedInUser?.id;
+  // IDs podem chegar como string pela sessão e como number pela rota.
+  // Normalize antes de decidir se o perfil pertence ao usuário autenticado.
+  const routeUserId = id ? Number(id) : null;
+  const userId = id
+    ? (Number.isSafeInteger(routeUserId) && routeUserId > 0 ? routeUserId : null)
+    : loggedInUser?.id;
+  const isOwnProfile = loggedInUser?.id != null
+    && userId != null
+    && Number(userId) === Number(loggedInUser.id);
 
   const [profileUser, setProfileUser] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -25,9 +34,13 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('posts');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ followers: 0, following: 0 });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // Edit profile modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const [bioInput, setBioInput] = useState('');
   const [avatarInput, setAvatarInput] = useState('');
   const [stateInput, setStateInput] = useState('');
@@ -49,6 +62,7 @@ const Profile = () => {
     profileService.getProfile(userId)
       .then(data => {
         setProfileUser(data);
+        setNameInput(data.name || '');
         setBioInput(data.bio || '');
         setAvatarInput(data.avatar || '');
         setStateInput(data.state || '');
@@ -100,6 +114,38 @@ const Profile = () => {
     }
   }, [userId, isOwnProfile]);
 
+  useEffect(() => {
+    if (!userId || isOwnProfile) return;
+    let active = true;
+    fetch(`${API_URL}/api/follows/${userId}/status`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` },
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Não foi possível verificar o seguimento.');
+        if (active) setIsFollowing(Boolean(data.isFollowing));
+      })
+      .catch((error) => console.error('Erro ao verificar seguimento:', error));
+    return () => { active = false; };
+  }, [userId, isOwnProfile]);
+
+  const handleToggleFollow = async () => {
+    if (!userId || followLoading) return;
+    setFollowLoading(true);
+    try {
+      await profileService.toggleFollow(userId, !isFollowing);
+      setIsFollowing((current) => !current);
+      setStats((current) => ({
+        ...current,
+        followers: Math.max(0, Number(current.followers || 0) + (isFollowing ? -1 : 1)),
+      }));
+    } catch (error) {
+      window.alert(error.message || 'Não foi possível atualizar o seguimento.');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   const handleAvatarFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -119,27 +165,23 @@ const Profile = () => {
     try {
       let finalAvatar = avatarInput;
 
-      // Upload avatar if a new file was selected
+      // O backend de perfil recebe JSON; a imagem é persistida no registro do usuário.
       if (avatarFile) {
-        const reader = new FileReader();
-        const base64 = await new Promise((resolve) => {
-          reader.onload = (ev) => resolve(ev.target.result);
+        finalAvatar = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Não foi possível ler a imagem selecionada.'));
           reader.readAsDataURL(avatarFile);
         });
+      }
 
-        // Use profileService.uploadAvatar for avatar upload
-        try {
-          const uploadData = await profileService.uploadAvatar(avatarFile);
-          finalAvatar = uploadData.avatar || avatarPreview;
-        } catch (uploadErr) {
-          console.error('Erro ao fazer upload da foto:', uploadErr);
-          alert('Erro ao fazer upload da foto.');
-          setSaving(false);
-          return;
-        }
+      const normalizedName = nameInput.trim();
+      if (normalizedName.length < 2 || normalizedName.length > 80) {
+        throw new Error('O nome deve ter entre 2 e 80 caracteres.');
       }
 
       const updateBody = {
+        name: normalizedName,
         avatar: finalAvatar,
         bio: bioInput,
         state: stateInput,
@@ -151,12 +193,13 @@ const Profile = () => {
       };
 
       // Use profileService.updateProfile
-      const result = await profileService.updateProfile(updateBody);
+      const result = await profileService.updateProfile(updateBody, loggedInUser.id);
       if (result) {
         const updatedFields = { ...updateBody, avatar: finalAvatar };
         setProfileUser(prev => ({ ...prev, ...updatedFields }));
         setLoggedInUser(prev => ({ ...prev, ...updatedFields }));
         setAvatarInput(finalAvatar);
+        setNameInput(normalizedName);
         setAvatarFile(null);
         setAvatarPreview(null);
         setIsEditModalOpen(false);
@@ -165,6 +208,7 @@ const Profile = () => {
       }
     } catch (err) {
       console.error(err);
+      window.alert(err.message || 'Não foi possível atualizar seu perfil.');
     } finally {
       setSaving(false);
     }
@@ -195,7 +239,7 @@ const Profile = () => {
               <Avatar user={profileUser} className="profile-main-avatar" />
             </div>
             <div className="profile-actions">
-              {!isOwnProfile && <button className="btn-primary" onClick={() => alert('Seguindo!')}>Seguir</button>}
+              {!isOwnProfile && <FollowButton isFollowing={isFollowing} loading={followLoading} onToggle={handleToggleFollow} targetUserId={userId} />}
               {!isOwnProfile && (
                 <button className="btn-secondary" onClick={async () => {
                   try {
@@ -219,16 +263,26 @@ const Profile = () => {
                   <span>Configurações</span>
                 </Link>
               )}
-              <button className="icon-btn-border" onClick={() => alert('Mais opções')}>
-                <MoreHorizontal size={18} />
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button className="icon-btn-border" aria-label="Mais opções do perfil" aria-expanded={moreMenuOpen} onClick={() => setMoreMenuOpen((open) => !open)}>
+                  <MoreHorizontal size={18} />
+                </button>
+                {moreMenuOpen && (
+                  <div role="menu" style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 30, minWidth: 190, padding: 8, background: 'var(--surface, #fff)', border: '1px solid var(--border, #ddd)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,.14)' }}>
+                    {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', marginBottom: 6 }} onClick={() => { setMoreMenuOpen(false); setIsEditModalOpen(true); }}><Settings size={16} /> Editar perfil</button>}
+                    {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', marginBottom: 6 }} onClick={() => { setMoreMenuOpen(false); navigate('/settings'); }}><Settings size={16} /> Configurações</button>}
+                    {isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%', color: '#c62828' }} onClick={async () => { setMoreMenuOpen(false); await logout(); navigate('/', { replace: true }); }}>Sair da conta</button>}
+                    {!isOwnProfile && <button role="menuitem" className="btn-secondary" style={{ width: '100%' }} onClick={() => setMoreMenuOpen(false)}>Fechar</button>}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="profile-details">
             <div className="profile-name-role">
               <h1>{profileUser.name}</h1>
-              {profileUser.role === 'PROFESSOR' && <span className="role-badge large">PROFESSOR</span>}
+              {String(profileUser.role || '').toLowerCase() === 'professor' && <span className="role-badge role-badge-professor large"><GraduationCap size={13} aria-hidden="true" /> PROFESSOR SENAI</span>}
             </div>
             <p className="profile-handle">@{profileUser.name.toLowerCase().replaceAll(' ', '.')}</p>
             <p className="profile-bio">{profileUser.bio || 'Nenhuma biografia fornecida ainda.'}</p>
@@ -368,6 +422,10 @@ const Profile = () => {
               <button className="close-modal-btn" onClick={() => setIsEditModalOpen(false)}>✕</button>
             </div>
             <form onSubmit={handleUpdateProfile} className="edit-profile-form">
+              <div className="form-group">
+                <label htmlFor="profile-name">Nome</label>
+                <input id="profile-name" type="text" value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Seu nome completo" className="modal-input" minLength={2} maxLength={80} required />
+              </div>
               <div className="form-group">
                 <label>Avatar</label>
                 <div className="avatar-upload-row">

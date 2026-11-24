@@ -1,26 +1,89 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { StoryViewerContext } from '../context/StoryViewerContext.jsx';
+import { SocketContext } from '../context/SocketContext.jsx';
 import MobileBottomNav from './MobileBottomNav';
-import FloatingActionButton from './FloatingActionButton';
+import DivulgacaoNavigation from './DivulgacaoNavigation';
+import { BellRing, X } from 'lucide-react';
 import './AppLayout.css';
+import './DesktopResponsive.css';
+import './DesktopScrollFix.css';
+import './MobileSectionsResponsive.css';
 
 const AppLayout = ({ children }) => {
   const { user } = useContext(AuthContext);
+  const { fetchUnreadCount, fetchUnreadMessagesCount } = useContext(SocketContext);
+  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [notificationPromptBusy, setNotificationPromptBusy] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isDisclosureRoute = ['/divulgacao', '/notices', '/events', '/courses'].includes(location.pathname);
 
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile viewport
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 769);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const refreshPermission = () => setNotificationPermission('Notification' in window ? Notification.permission : 'unsupported');
+    window.addEventListener('focus', refreshPermission);
+    document.addEventListener('visibilitychange', refreshPermission);
+    return () => { window.removeEventListener('focus', refreshPermission); document.removeEventListener('visibilitychange', refreshPermission); };
   }, []);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(error => console.error('Falha ao registrar notificações:', error));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id || notificationPermission !== 'default') {
+      setShowNotificationPrompt(false);
+      return;
+    }
+    // localStorage is isolated by browser profile/device and origin; never store this dismissal on the account/backend.
+    const dismissed = localStorage.getItem(`notification_prompt_dismissed_${user.id}`);
+    setShowNotificationPrompt(!dismissed);
+  }, [user?.id, notificationPermission]);
+
+  const handleEnableNotifications = async () => {
+    if (!('Notification' in window)) {
+      setNotificationPermission('unsupported');
+      return;
+    }
+    setNotificationPromptBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        const registration = await navigator.serviceWorker?.ready;
+        if (registration) await registration.showNotification('SENAI Connect', {
+          body: 'Notificações ativadas! Você será avisado sobre mensagens e atividades.',
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
+          tag: 'senai-connect-welcome'
+        });
+        setShowNotificationPrompt(false);
+      } else if (permission === 'denied') {
+        setShowNotificationPrompt(false);
+      }
+    } catch (error) {
+      console.error('Não foi possível solicitar permissão de notificações:', error);
+    } finally {
+      setNotificationPromptBusy(false);
+    }
+  };
+
+  const dismissNotificationPrompt = () => {
+    if (user?.id) localStorage.setItem(`notification_prompt_dismissed_${user.id}`, 'true');
+    setShowNotificationPrompt(false);
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (typeof fetchUnreadCount === 'function') fetchUnreadCount();
+    if (typeof fetchUnreadMessagesCount === 'function') fetchUnreadMessagesCount();
+  }, [location.pathname, user?.id, fetchUnreadCount, fetchUnreadMessagesCount]);
 
   // FAB callbacks for creation flows
   const handleCreatePost = (type) => {
@@ -47,49 +110,47 @@ const AppLayout = ({ children }) => {
                          location.pathname !== '/onboarding';
 
   return (
-    <div className="app-layout">
-      {/* Main Content Area */}
-      <main className="app-main" role="main">
-        <div className="app-feed-container">
-          {children}
-        </div>
-      </main>
+    <StoryViewerContext.Provider value={{ setStoryViewerOpen: setIsStoryViewerOpen }}>
+      <div className={"app-layout " + (isAdminRoute ? "app-layout--admin" : "") + (!showBottomNav && !isAdminRoute ? " app-layout--no-global-nav" : "")}>
+        {user && showNotificationPrompt && (
+          <aside className="notification-permission-banner" role="dialog" aria-label="Ativar notificações">
+            <div className="notification-permission-banner__icon"><BellRing size={22} /></div>
+            <div className="notification-permission-banner__copy">
+              <strong>Ative as notificações do SENAI Connect</strong>
+              <span>Receba avisos de mensagens, curtidas, novos seguidores, comentários e eventos.</span>
+            </div>
+            <button type="button" className="notification-permission-banner__enable" onClick={handleEnableNotifications} disabled={notificationPromptBusy}>
+              {notificationPromptBusy ? 'Aguarde…' : 'Ativar'}
+            </button>
+            <button type="button" className="notification-permission-banner__dismiss" onClick={dismissNotificationPrompt} aria-label="Agora não" title="Agora não">
+              <X size={19} />
+            </button>
+          </aside>
+        )}
 
-      {/* Mobile Bottom Navigation - shown on ALL screen sizes including messages */}
-      {showBottomNav && user && (
-        <MobileBottomNav
-          onCreatePost={handleCreatePost}
-          onCreateStory={() => {
-            // Navigate to home for story creation
-            handleNavigateHome();
-            sessionStorage.setItem('createStory', 'true');
-          }}
-          onNavigateHome={handleNavigateHome}
-        />
-      )}
+        {/* Main Content Area */}
+        <main className={"app-main " + (isAdminRoute ? "app-main--admin" : "")} role="main">
+          <div className={"app-feed-container " + (isAdminRoute ? "app-feed-container--admin" : "") + (isDisclosureRoute ? " app-feed-container--disclosure" : "")}>
+            {isDisclosureRoute ? (
+              <DivulgacaoNavigation>{children}</DivulgacaoNavigation>
+            ) : children}
+          </div>
+        </main>
 
-      {/* Floating Action Button - mobile only for quick creation access (not on messages) */}
-      {!location.pathname.startsWith('/messages') &&
-       !location.pathname.startsWith('/admin') &&
-       !location.pathname.startsWith('/business') &&
-       location.pathname !== '/login' &&
-       location.pathype !== '/register' &&
-       location.pathname !== '/forgot-password' &&
-       location.pathname !== '/reset-password' &&
-       location.pathname !== '/onboarding' &&
-       user && isMobile && (
-        <FloatingActionButton
-          isVisible={true}
-          onCreatePost={handleCreatePost}
-          onCreateStory={() => {
-            // Navigate to home for story creation
-            handleNavigateHome();
-            sessionStorage.setItem('createStory', 'true');
-          }}
-          onNavigateHome={handleNavigateHome}
-        />
-      )}
-    </div>
+        {/* Hide the global navigation while a story is open, like WhatsApp */}
+        {showBottomNav && !isStoryViewerOpen && (
+          <MobileBottomNav
+            onCreatePost={handleCreatePost}
+            onCreateStory={() => {
+              // Navigate to home for story creation
+              handleNavigateHome();
+              sessionStorage.setItem('createStory', 'true');
+            }}
+            onNavigateHome={handleNavigateHome}
+          />
+        )}
+      </div>
+    </StoryViewerContext.Provider>
   );
 };
 

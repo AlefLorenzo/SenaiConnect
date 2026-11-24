@@ -7,6 +7,9 @@ const multer = require('multer');
 // Multer config for handling multipart/form-data (no file storage needed for text messages)
 const upload = multer();
 
+// Unread counters (register before parameterized conversation routes).
+router.get('/unread-count', authenticateToken, messageController.getUnreadCount);
+
 // Conversations
 router.get('/conversations', authenticateToken, messageController.getConversations);
 router.get('/conversations/:id', authenticateToken, messageController.getConversation);

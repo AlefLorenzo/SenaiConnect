@@ -19,7 +19,7 @@ export default function AdminNotices() {
   const fetchNotices = async () => {
     try {
       const res = await fetch(`${API_URL}/api/admin/notices`, {
-        headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('admin_token') }
+        headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('token') }
       });
       if (res.ok) setNotices(await res.json());
     } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -54,7 +54,7 @@ export default function AdminNotices() {
         method,
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + sessionStorage.getItem('admin_token') 
+          'Authorization': 'Bearer ' + sessionStorage.getItem('token') 
         },
         body: JSON.stringify(formData)
       });
@@ -72,7 +72,7 @@ export default function AdminNotices() {
     try {
       await fetch(`${API_URL}/api/admin/notices/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('admin_token') }
+        headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('token') }
       });
       if (!socket) fetchNotices();
     } catch (e) { console.error(e); }

@@ -1,9 +1,11 @@
-import React, { useContext, Suspense, lazy } from 'react';
+import React, { useContext, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from './context/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import Auth from './pages/Auth/Auth';
 import AppLayout from './components/AppLayout';
+import api from './services/api';
+import { applyTheme, getStoredTheme, isExplicitTheme, persistTheme } from './utils/theme';
 import './App.css';
 
 // Lazy-loaded pages for code splitting
@@ -32,6 +34,7 @@ const BusinessDashboardPosts = lazy(() => import('./pages/BusinessDashboardPosts
 const BusinessDashboardStories = lazy(() => import('./pages/BusinessDashboardStories'));
 const BusinessDashboardBilling = lazy(() => import('./pages/BusinessDashboardBilling'));
 const BusinessDashboardCampaigns = lazy(() => import('./pages/BusinessDashboardCampaigns'));
+const BusinessCampaignForm = lazy(() => import('./pages/BusinessCampaignForm'));
 const BusinessDashboardSettings = lazy(() => import('./pages/BusinessDashboardSettings'));
 const BusinessDirectoryPage = lazy(() => import('./pages/BusinessDirectoryPage'));
 const BusinessFeed = lazy(() => import('./pages/BusinessFeed'));
@@ -48,9 +51,12 @@ const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers'));
 const AdminReports = lazy(() => import('./pages/Admin/AdminReports'));
 const AdminReportDetail = lazy(() => import('./pages/Admin/AdminReportDetail'));
 const AdminCourses = lazy(() => import('./pages/Admin/AdminCourses'));
+const AdminCourseForm = lazy(() => import('./pages/Admin/AdminCourseForm'));
 const AdminEvents = lazy(() => import('./pages/Admin/AdminEvents'));
+const AdminEventForm = lazy(() => import('./pages/Admin/AdminEventForm'));
 const AdminNotices = lazy(() => import('./pages/Admin/AdminNotices'));
 const AdminNoticesList = lazy(() => import('./pages/Admin/AdminNoticesList'));
+const AdminCampaigns = lazy(() => import('./pages/Admin/AdminCampaigns'));
 const AdminNoticeForm = lazy(() => import('./pages/Admin/AdminNoticeForm'));
 const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'));
 const AdminAudit = lazy(() => import('./pages/Admin/AdminAudit'));
@@ -63,7 +69,8 @@ const OnboardingPage = lazy(() => import('./pages/Onboarding/OnboardingPage'));
 const AdminRoutes = () => (
   <Routes>
     <Route path="dashboard" element={<AdminDashboard />} />
-    <Route path="notices" element={<AdminNotices />} />
+    <Route path="notices" element={<AdminNoticesList />} />
+    <Route path="campaigns" element={<AdminCampaigns />} />
     <Route path="notices/list" element={<AdminNoticesList />} />
     <Route path="notices/create" element={<AdminNoticeForm />} />
     <Route path="notices/edit/:id" element={<AdminNoticeForm />} />
@@ -71,7 +78,11 @@ const AdminRoutes = () => (
     <Route path="reports/:id" element={<AdminReportDetail />} />
     <Route path="users" element={<AdminUsers />} />
     <Route path="courses" element={<AdminCourses />} />
+    <Route path="courses/new" element={<AdminCourseForm />} />
+    <Route path="courses/:id/edit" element={<AdminCourseForm />} />
     <Route path="events" element={<AdminEvents />} />
+    <Route path="events/new" element={<AdminEventForm />} />
+    <Route path="events/:id/edit" element={<AdminEventForm />} />
     <Route path="audit" element={<AdminAudit />} />
     <Route path="settings" element={<AdminSettings />} />
     <Route path="login" element={<AdminLogin />} />
@@ -80,7 +91,42 @@ const AdminRoutes = () => (
 );
 
 function App() {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, isAdmin } = useContext(AuthContext);
+
+  // Restore the authenticated user's saved appearance globally, not only when
+  // the Settings page is opened. A manual local preference wins immediately.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    let active = true;
+    const localTheme = getStoredTheme();
+    if (localTheme) applyTheme(localTheme);
+
+    api.get('/api/settings')
+      .then((response) => {
+        if (!active) return;
+        const loaded = response?.settings && typeof response.settings === 'object'
+          ? response.settings
+          : response;
+        const storedTheme = getStoredTheme();
+        const serverTheme = isExplicitTheme(loaded?.theme) ? loaded.theme : null;
+        const resolvedTheme = storedTheme || serverTheme || 'light';
+
+        if (!storedTheme && serverTheme) {
+          persistTheme(serverTheme);
+        } else {
+          applyTheme(resolvedTheme);
+        }
+      })
+      .catch((error) => {
+        console.warn('Não foi possível restaurar o tema salvo:', error);
+        if (active) applyTheme(getStoredTheme() || 'light');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   if (loading) {
     return <div style={{display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center'}}>Carregando sistema...</div>;
@@ -90,9 +136,14 @@ function App() {
   if (!user) {
     return (
       <Router>
-        <Routes>
-          <Route path="*" element={<Auth />} />
-        </Routes>
+        <Suspense fallback={<div style={{display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center'}}>Carregando página...</div>}>
+          <Routes>
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="*" element={<Auth />} />
+          </Routes>
+        </Suspense>
       </Router>
     );
   }
@@ -105,8 +156,8 @@ function App() {
           <Suspense fallback={<div style={{display: 'flex', height: '400px', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)'}}>Carregando página...</div>}>
             <Routes>
               {/* Main feed routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/feed" element={<Home />} />
+              <Route path="/" element={isAdmin ? <Navigate to="/admin/dashboard" replace /> : <Home />} />
+              <Route path="/feed" element={isAdmin ? <Navigate to="/admin/dashboard" replace /> : <Home />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/stories" element={<PlaceholderPage title="Histórias" />} />
 
@@ -140,6 +191,7 @@ function App() {
               <Route path="/business/posts" element={<BusinessDashboardPosts />} />
               <Route path="/business/stories" element={<BusinessDashboardStories />} />
               <Route path="/business/billing" element={<BusinessDashboardBilling />} />
+              <Route path="/business/campaigns/new" element={<BusinessCampaignForm />} />
               <Route path="/business/campaigns" element={<BusinessDashboardCampaigns />} />
               <Route path="/business/settings" element={<BusinessDashboardSettings />} />
               <Route path="/business/directory" element={<BusinessDirectoryPage />} />
@@ -147,24 +199,31 @@ function App() {
               <Route path="/business/profile" element={<BusinessProfilePage />} />
 
               {/* Auth routes (public) */}
+              <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* Admin routes (nested under AdminLayout) */}
               <Route path="/admin" element={<AdminLayout />}>
                 <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="notices" element={<AdminNotices />} />
+                <Route path="notices" element={<AdminNoticesList />} />
+                <Route path="campaigns" element={<AdminCampaigns />} />
                 <Route path="notices/list" element={<AdminNoticesList />} />
+                <Route path="notices/new" element={<AdminNoticeForm />} />
                 <Route path="notices/create" element={<AdminNoticeForm />} />
+                <Route path="notices/:id/edit" element={<AdminNoticeForm />} />
                 <Route path="notices/edit/:id" element={<AdminNoticeForm />} />
                 <Route path="reports" element={<AdminReports />} />
                 <Route path="reports/:id" element={<AdminReportDetail />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="courses" element={<AdminCourses />} />
+                <Route path="courses/new" element={<AdminCourseForm />} />
+                <Route path="courses/:id/edit" element={<AdminCourseForm />} />
                 <Route path="events" element={<AdminEvents />} />
+                <Route path="events/new" element={<AdminEventForm />} />
+                <Route path="events/:id/edit" element={<AdminEventForm />} />
                 <Route path="audit" element={<AdminAudit />} />
                 <Route path="settings" element={<AdminSettings />} />
-                <Route path="login" element={<AdminLogin />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>
 

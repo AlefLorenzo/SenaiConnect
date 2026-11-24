@@ -1,22 +1,22 @@
-import { Home, Search, Plus, Heart, User, MessageCircle, LayoutGrid, X } from 'lucide-react';
-import { useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { Home, Search, Plus, Heart, User, MessageCircle, Compass, X } from 'lucide-react';
+import { useContext, useState, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { SocketContext } from '../context/SocketContext.jsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import MobileCreateSheet from './MobileCreateSheet';
 import './MobileBottomNav.css';
 
 const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
   const { user } = useContext(AuthContext);
+  const { unreadCount, unreadMessagesCount } = useContext(SocketContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [touchStartX, setTouchStartX] = useState(0);
   const [touchStartY, setTouchStartY] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const navItemsRef = useRef(null);
-  const previousActiveElement = useRef(null);
 
   const navItems = [
-    { path: '/feed', icon: LayoutGrid, label: 'Feed', testId: 'nav-feed', index: 0 },
+    { path: '/divulgacao', icon: Compass, label: 'Descobrir', testId: 'nav-discover', index: 0 },
     { path: '/', icon: Home, label: 'Início', testId: 'nav-home', index: 1 },
     { path: '/explore', icon: Search, label: 'Explorar', testId: 'nav-explore', index: 2 },
     { path: '/create', icon: Plus, label: 'Criar', isCreate: true, testId: 'nav-create', index: 3 },
@@ -71,39 +71,12 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
     }
   }, [touchStartX, activeIndex, swipeableItems, navigate]);
 
-  // Handle keyboard for sheet
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape' && isSheetOpen) {
-      setIsSheetOpen(false);
-    }
-  }, [isSheetOpen]);
-
-  // Focus management for sheet
-  useEffect(() => {
-    if (isSheetOpen) {
-      previousActiveElement.current = document.activeElement;
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      if (previousActiveElement.current) {
-        previousActiveElement.current.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isSheetOpen, handleKeyDown]);
-
   return (
     <>
       <nav
         className="mobile-bottom-nav"
         role="navigation"
         aria-label="Navegação principal"
-        ref={navItemsRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -128,6 +101,7 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
                   <span className="create-button-inner" aria-hidden="true">
                     <Icon size={24} strokeWidth={2.5} />
                   </span>
+                  <span className="mobile-nav-label">{item.label}</span>
                 </button>
               );
             }
@@ -147,6 +121,19 @@ const MobileBottomNav = ({ onCreatePost, onCreateStory, onNavigateHome }) => {
                   className="nav-icon"
                   aria-hidden="true"
                 />
+                <span className="mobile-nav-label">{item.label}</span>
+                {(() => {
+                  const count = item.path === '/messages'
+                    ? unreadMessagesCount
+                    : item.path === '/activity'
+                      ? unreadCount
+                      : 0;
+                  return count > 0 ? (
+                    <span className="mobile-nav-badge" aria-label={`${count} ${item.label.toLowerCase()} não lidas`}>
+                      {count > 99 ? '99+' : count}
+                    </span>
+                  ) : null;
+                })()}
                 {/* Active indicator dot */}
                 {isActive && <span className="active-indicator" aria-hidden="true" />}
               </Link>
