@@ -14,6 +14,7 @@ import MessageBubble from '../components/MessageBubble';
 import GroupInfoModal from '../components/GroupInfoModal';
 import messagesService from '../services/messagesService';
 import './Messages.css';
+import './Messages.desktop.css';
 
 // File validation constants
 const FILE_LIMITS = {
