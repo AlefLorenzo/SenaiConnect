@@ -306,3 +306,41 @@
     max-width: 1680px;
   }
 }
+
+/* Desktop correction: remove the narrow centered feed column.
+   The content must use the complete workspace to the right of the sidebar. */
+@media (min-width: 769px) {
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) > .app-main {
+    width: calc(100% - 232px) !important;
+    max-width: none !important;
+    min-width: 0;
+    margin-left: 232px !important;
+    margin-right: 0 !important;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) > .app-main > .app-feed-container {
+    display: block;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 24px clamp(20px, 2.2vw, 40px) 48px !important;
+    box-sizing: border-box;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .home-container,
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .feed-container {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin-inline: 0;
+  }
+
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .feed-container > *,
+  .app-layout:not(.app-layout--admin):not(.app-layout--no-global-nav) .feed-container .post-card {
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
